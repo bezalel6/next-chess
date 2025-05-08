@@ -1,7 +1,6 @@
 import Head from "next/head";
 import styles from "./index.module.css";
-import LichessBoard from "@/components/lichess-board";
-import Connection from "@/components/connection";
+import ConnectionStatus from "@/components/connection-status";
 
 export default function Home() {
   return (
@@ -16,10 +15,7 @@ export default function Home() {
           <h1 className={styles.title}>
             Chess<span className={styles.pinkSpan}>2.0</span>
           </h1>
-          <Connection />
-          <div className={styles.chessContainer}>
-            <LichessBoard />
-          </div>
+          <ConnectionStatus />
         </div>
       </main>
     </>

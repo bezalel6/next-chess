@@ -1,7 +1,6 @@
 import Head from "next/head";
 import styles from "../index.module.css";
 import LichessBoard from "@/components/lichess-board";
-import Connection from "@/components/connection";
 
 export default function GamePage() {
     return (

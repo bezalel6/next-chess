@@ -1,20 +1,26 @@
-import { createServer } from 'http';
+import { createServer, Server as HttpServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
-import { Server } from 'socket.io';
+import { Server as SocketServer } from 'socket.io';
+import { Socket } from 'socket.io';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT) || 3000;
 
 // Initialize Next.js
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+interface GameMove {
+    gameId: string;
+    move: any; // You might want to define a more specific type for moves
+}
+
 app.prepare().then(() => {
-    const server = createServer(async (req, res) => {
+    const server: HttpServer = createServer(async (req, res) => {
         try {
-            const parsedUrl = parse(req.url, true);
+            const parsedUrl = parse(req.url!, true);
             await handle(req, res, parsedUrl);
         } catch (err) {
             console.error('Error occurred handling', req.url, err);
@@ -24,7 +30,7 @@ app.prepare().then(() => {
     });
 
     // Initialize Socket.IO
-    const io = new Server(server, {
+    const io = new SocketServer(server, {
         cors: {
             origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
             methods: ['GET', 'POST'],
@@ -32,21 +38,21 @@ app.prepare().then(() => {
     });
 
     // Socket.IO connection handling
-    io.on('connection', (socket) => {
+    io.on('connection', (socket: Socket) => {
         console.log('Client connected:', socket.id);
 
         // Handle game-related events
-        socket.on('join-game', (gameId) => {
+        socket.on('join-game', (gameId: string) => {
             socket.join(gameId);
             console.log(`Client ${socket.id} joined game ${gameId}`);
         });
 
-        socket.on('leave-game', (gameId) => {
+        socket.on('leave-game', (gameId: string) => {
             socket.leave(gameId);
             console.log(`Client ${socket.id} left game ${gameId}`);
         });
 
-        socket.on('make-move', ({ gameId, move }) => {
+        socket.on('make-move', ({ gameId, move }: GameMove) => {
             // Broadcast the move to all clients in the game room except the sender
             socket.to(gameId).emit('move-made', move);
         });
@@ -56,8 +62,8 @@ app.prepare().then(() => {
         });
     });
 
-    server.listen(port, (err) => {
+    server.listen(port, (err?: Error) => {
         if (err) throw err;
         console.log(`> Ready on http://${hostname}:${port}`);
     });
-});                                                                                                                                                                             
+});

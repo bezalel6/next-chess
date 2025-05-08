@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Chess } from 'chess.ts';
+import { useRouter } from 'next/router';
 import type { Game, GameContextType, PromoteablePieces } from '@/types/game';
 import type { GameMatch, ChessMove, CustomSocket, ServerToClientEvents } from '@/types/socket';
 import { useChessSounds } from '@/hooks/useChessSounds';
@@ -16,6 +17,7 @@ export function GameProvider({ children, socket }: GameProviderProps) {
     const [game, setGame] = useState<Game | null>(null);
     const [myColor, setMyColor] = useState<'white' | 'black' | null>(null);
     const { playGameStart, playGameEnd } = useChessSounds();
+    const router = useRouter();
 
     useEffect(() => {
         const eventHandlers: Pick<ServerToClientEvents, 'game-matched' | 'move-made'> = {
@@ -37,6 +39,9 @@ export function GameProvider({ children, socket }: GameProviderProps) {
                 setMyColor(data.color);
                 socket.emit('join-game', data.gameId);
                 playGameStart();
+
+                // Update URL without triggering a page reload
+                router.replace(`/game/${data.gameId}`, undefined, { shallow: true });
             },
             'move-made': (move: ChessMove) => {
                 if (game) {
@@ -75,7 +80,7 @@ export function GameProvider({ children, socket }: GameProviderProps) {
                 socket.off(event as keyof ServerToClientEvents, handler);
             });
         };
-    }, [game, playGameEnd, playGameStart, socket]);
+    }, [game, playGameEnd, playGameStart, socket, router]);
 
     const makeMove = useCallback((from: string, to: string, promotion?: PromoteablePieces) => {
         if (!game || game.status !== 'active' || game.turn !== myColor) return;
@@ -107,7 +112,9 @@ export function GameProvider({ children, socket }: GameProviderProps) {
         }
         setGame(null);
         setMyColor(null);
-    }, [game, socket]);
+        // Clear the game ID from the URL
+        router.replace('/', undefined, { shallow: true });
+    }, [game, socket, router]);
 
     const value: GameContextType = {
         game,

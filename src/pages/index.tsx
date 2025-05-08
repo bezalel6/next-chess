@@ -16,11 +16,10 @@ export default function Home() {
           <h1 className={styles.title}>
             Chess<span className={styles.pinkSpan}>2.0</span>
           </h1>
-          <Connection>
-            <div className={styles.chessContainer}>
-              <LichessBoard />
-            </div>
-          </Connection>
+          <Connection />
+          <div className={styles.chessContainer}>
+            <LichessBoard />
+          </div>
         </div>
       </main>
     </>

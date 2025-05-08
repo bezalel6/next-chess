@@ -5,6 +5,11 @@ import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
 import "@/styles/globals.css";
+import type { AppProps } from 'next/app';
+import { ConnectionProvider } from '@/contexts/ConnectionContext';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import theme from '@/theme';
 
 const geist = Geist({
   subsets: ["latin"],
@@ -12,9 +17,14 @@ const geist = Geist({
 
 const MyApp: AppType = ({ Component, pageProps }) => {
   return (
-    <div className={geist.className}>
-      <Component {...pageProps} />
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <ConnectionProvider>
+        <div className={geist.className}>
+          <Component {...pageProps} />
+        </div>
+      </ConnectionProvider>
+    </ThemeProvider>
   );
 };
 

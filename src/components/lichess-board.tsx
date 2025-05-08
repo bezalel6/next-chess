@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-import React, { useMemo, useState, type ComponentProps } from "react";
+import React, { useCallback, useMemo, useState, type ComponentProps } from "react";
 import { useChessSounds } from '../hooks/useChessSounds';
 import { Box, Paper, Button, Typography } from '@mui/material';
 import { clr, PROMOTION_PIECES, type LongColor, type PromoteablePieces, type ShortColor } from '@/types/game';
@@ -34,12 +34,12 @@ const LichessBoard = ({ }: LichessBoardProps) => {
             }, new Map())
     }, [game?.chess, isMyTurn]);
 
-    const handlePromotion = (piece: PromoteablePieces, promotionState: PromotionState) => {
+    const handlePromotion = useCallback(() => (piece: PromoteablePieces, promotionState: PromotionState) => {
         if (!promotionState) return;
 
         makeMove(promotionState.from, promotionState.to, piece);
         setOverlay(null);
-    };
+    }, [makeMove])
 
     const config = useMemo(() => ({
         fen: game?.currentFen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',

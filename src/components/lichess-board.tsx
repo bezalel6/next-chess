@@ -2,7 +2,7 @@ import dynamic from 'next/dynamic';
 import { useMemo, useState, type ComponentProps } from "react";
 import { Chess } from 'chess.ts';
 import { useChessSounds } from '../hooks/useChessSounds';
-import { Box, Paper, Button } from '@mui/material';
+import { Box, Paper, Button, Typography } from '@mui/material';
 import { clr } from '@/types/game';
 const Chessground = dynamic(() => import('@react-chess/chessground'), {
     ssr: false
@@ -129,28 +129,35 @@ const LichessBoard = ({
                         sx={{
                             p: 2,
                             display: 'flex',
+                            flexDirection: 'column',
                             gap: 1,
+                            alignItems: 'center',
                         }}
                     >
-                        {(Object.entries(PROMOTION_PIECES) as [keyof typeof PROMOTION_PIECES, string][]).map(([piece, symbol]) => (
-                            <Button
-                                key={piece}
-                                onClick={() => handlePromotion(piece)}
-                                variant="contained"
-                                sx={{
-                                    minWidth: '48px',
-                                    height: '48px',
-                                    fontSize: '48px',
-                                    color: promotionState.color === 'white' ? 'white' : 'black',
-                                    bgcolor: promotionState.color === 'white' ? 'primary.main' : 'grey.300',
-                                    '&:hover': {
-                                        bgcolor: promotionState.color === 'white' ? 'primary.dark' : 'grey.400',
-                                    },
-                                }}
-                            >
-                                {symbol}
-                            </Button>
-                        ))}
+                        <Typography variant="h6" sx={{ color: 'primary.main', mb: 1 }}>
+                            Choose a piece to promote to
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                            {(Object.entries(PROMOTION_PIECES) as [keyof typeof PROMOTION_PIECES, string][]).map(([piece, symbol]) => (
+                                <Button
+                                    key={piece}
+                                    onClick={() => handlePromotion(piece)}
+                                    variant="contained"
+                                    sx={{
+                                        minWidth: '48px',
+                                        height: '48px',
+                                        fontSize: '48px',
+                                        color: promotionState.color === 'white' ? 'white' : 'black',
+                                        bgcolor: promotionState.color === 'white' ? 'primary.main' : 'grey.300',
+                                        '&:hover': {
+                                            bgcolor: promotionState.color === 'white' ? 'primary.dark' : 'grey.400',
+                                        },
+                                    }}
+                                >
+                                    {symbol}
+                                </Button>
+                            ))}
+                        </Box>
                     </Paper>
                 </Box>
             )}

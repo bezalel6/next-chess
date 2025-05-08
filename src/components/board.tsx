@@ -1,12 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-'use client';
-
 import { Chess, type Move } from 'chess.ts';
 import { Chessboard } from 'react-chessboard';
 import { useState, useCallback } from 'react';
 import { Box, Container, Paper, Typography } from '@mui/material';
-import { MoveHistory } from './move-history';
 import CapturedPieces from './captured-pieces';
+import MoveHistory from './move-history';
 
 interface GameState {
     game: Chess;
@@ -75,8 +72,8 @@ export default function Board() {
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
-            <Box sx={{ display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' } }}>
-                <Box sx={{ flex: 1 }}>
+            <Box sx={{ display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'center' }}>
+                <Box sx={{ flex: '0 0 auto' }}>
                     <Paper elevation={3} sx={{ p: 2 }}>
                         <Chessboard
                             position={gameState.game.fen()}
@@ -91,7 +88,7 @@ export default function Board() {
                     </Paper>
                 </Box>
 
-                <Box sx={{ width: { xs: '100%', md: 300 } }}>
+                <Box sx={{ flex: '0 0 300px' }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <MoveHistory moves={gameState.moveHistory} />
                         <CapturedPieces

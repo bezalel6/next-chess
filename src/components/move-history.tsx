@@ -4,7 +4,7 @@ interface MoveHistoryProps {
     moves: string[];
 }
 
-export function MoveHistory({ moves }: MoveHistoryProps) {
+export default function MoveHistory({ moves }: MoveHistoryProps) {
     // Group moves into pairs (white and black)
     const movePairs = moves.reduce<{ white: string; black: string | null }[]>((pairs, move, index) => {
         if (index % 2 === 0) {

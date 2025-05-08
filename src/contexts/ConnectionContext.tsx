@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { socket } from "../pages/socket";
-import type { QueueStatus, ServerToClientEvents, GameMatch } from "../types/socket";
+import { supabase } from "@/utils/supabase";
+import type { QueueStatus, GameMatch } from "../types/realtime";
 import { GameProvider } from "./GameContext";
 
 interface ConnectionContextType {
@@ -22,64 +22,56 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     const [matchDetails, setMatchDetails] = useState<GameMatch | null>(null);
 
     useEffect(() => {
-        if (socket.connected) {
-            onConnect();
-        }
-
-        function onConnect() {
-            setIsConnected(true);
-            setTransport(socket.io.engine.transport.name);
-
-            socket.io.engine.on("upgrade", (transport) => {
-                setTransport(transport.name);
-            });
-        }
-
-        function onDisconnect() {
-            setIsConnected(false);
-            setTransport("N/A");
-            setInQueue(false);
-            setQueuePosition(0);
-        }
-
-        // Connection event handlers
-        socket.on("connect", onConnect);
-        socket.on("disconnect", onDisconnect);
-
-        const eventHandlers = {
-            "queue-status": (data: QueueStatus) => {
+        // Subscribe to connection status changes
+        const channel = supabase.channel('connection-status');
+        
+        // Subscribe to queue status changes
+        const queueChannel = supabase.channel('queue-status')
+            .on('broadcast', { event: 'queue-status' }, ({ payload }) => {
+                const data = payload as QueueStatus;
                 setQueuePosition(data.position);
                 setInQueue(data.position > 0);
-            },
-            "game-matched": (data: GameMatch) => {
+            })
+            .on('broadcast', { event: 'game-matched' }, ({ payload }) => {
+                const data = payload as GameMatch;
                 setMatchDetails(data);
                 setInQueue(false);
                 setQueuePosition(0);
-            }
-        }
+            });
 
-        // Subscribe to all server events
-        Object.entries(eventHandlers).forEach(([event, handler]) => {
-            socket.on(event as keyof ServerToClientEvents, handler);
+        // Subscribe to connection status
+        supabase.auth.onAuthStateChange((event, session) => {
+            setIsConnected(!!session);
+            setTransport(session ? 'supabase' : 'N/A');
+        });
+
+        // Initial connection check
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setIsConnected(!!session);
+            setTransport(session ? 'supabase' : 'N/A');
         });
 
         return () => {
-            // Clean up connection event listeners
-            socket.off("connect", onConnect);
-            socket.off("disconnect", onDisconnect);
-
-            // Clean up server event listeners
-            Object.entries(eventHandlers).forEach(([event, handler]) => {
-                socket.off(event as keyof ServerToClientEvents, handler);
-            });
+            channel.unsubscribe();
+            queueChannel.unsubscribe();
         };
     }, []);
 
-    const handleQueueToggle = () => {
+    const handleQueueToggle = async () => {
+        if (!isConnected) return;
+
         if (inQueue) {
-            socket.emit("leave-queue");
+            await supabase.channel('queue-status').send({
+                type: 'broadcast',
+                event: 'leave-queue',
+                payload: { userId: (await supabase.auth.getUser()).data.user?.id }
+            });
         } else {
-            socket.emit("join-queue");
+            await supabase.channel('queue-status').send({
+                type: 'broadcast',
+                event: 'join-queue',
+                payload: { userId: (await supabase.auth.getUser()).data.user?.id }
+            });
         }
     };
 
@@ -94,7 +86,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
     return (
         <ConnectionContext.Provider value={value}>
-            <GameProvider socket={socket}>
+            <GameProvider>
                 {children}
             </GameProvider>
         </ConnectionContext.Provider>

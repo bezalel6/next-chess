@@ -7,7 +7,6 @@ import { supabase } from '@/utils/supabase';
 
 export default function ConnectionStatus() {
     const { isConnected, transport, inQueue, queuePosition, matchDetails, handleQueueToggle } = useConnection();
-    supabase.auth.getUser().then(console.log)
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
             <Paper

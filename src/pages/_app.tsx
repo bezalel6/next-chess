@@ -9,17 +9,20 @@ import { ConnectionProvider } from '@/contexts/ConnectionContext';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '@/theme';
+import { AuthProvider } from "@/contexts/AuthContext";
 
 
 const MyApp: AppType = ({ Component, pageProps }) => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <ConnectionProvider>
-        <div className={''}>
-          <Component {...pageProps} />
-        </div>
-      </ConnectionProvider>
+      <AuthProvider>
+        <ConnectionProvider>
+          <div className={''}>
+            <Component {...pageProps} />
+          </div>
+        </ConnectionProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 };

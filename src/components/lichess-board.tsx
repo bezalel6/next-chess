@@ -1,5 +1,7 @@
 import dynamic from 'next/dynamic';
 import { useMemo, type ComponentProps } from "react";
+import { Chess } from 'chess.ts';
+import { useChessSounds } from '../hooks/useChessSounds';
 
 const Chessground = dynamic(() => import('@react-chess/chessground'), {
     ssr: false
@@ -8,8 +10,6 @@ const Chessground = dynamic(() => import('@react-chess/chessground'), {
 interface LichessBoardProps {
     fen?: string;
     orientation?: 'white' | 'black';
-    width?: number;
-    height?: number;
     onMove?: (from: string, to: string) => void;
 }
 
@@ -18,6 +18,9 @@ const LichessBoard = ({
     orientation = 'white',
     onMove,
 }: LichessBoardProps) => {
+    const { playMoveSound } = useChessSounds();
+    const chess = useMemo(() => new Chess(fen), [fen]);
+
     const config = useMemo(() => ({
         fen,
         orientation,
@@ -26,15 +29,26 @@ const LichessBoard = ({
         },
         events: {
             move: (from: string, to: string) => {
-                if (onMove) {
-                    onMove(from, to);
+                try {
+                    const move = chess.move({ from, to });
+                    if (move) {
+                        playMoveSound(move, chess);
+                        if (onMove) {
+                            onMove(from, to);
+                        }
+                    }
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                } catch (error) {
+                    // Invalid move, revert the board
+                    chess.undo();
                 }
             },
         },
-    } satisfies ComponentProps<typeof Chessground>['config']), [fen, orientation, onMove]);
+    } satisfies ComponentProps<typeof Chessground>['config']), [fen, orientation, onMove, chess, playMoveSound]);
 
     return (
         <Chessground contained config={config} />
     );
 };
-export default LichessBoard
+
+export default LichessBoard;

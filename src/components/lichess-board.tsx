@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic';
 import { useMemo, useState, type ComponentProps } from "react";
 import { Chess } from 'chess.ts';
 import { useChessSounds } from '../hooks/useChessSounds';
-
 const Chessground = dynamic(() => import('@react-chess/chessground'), {
     ssr: false
 });

@@ -53,9 +53,9 @@
   aspect-ratio: 1/1;
 }
 
-.chessContainer:hover {
+/* .chessContainer:hover {
   transform: translateY(-4px);
-}
+} */
 
 @media (max-width: 640px) {
   .title {

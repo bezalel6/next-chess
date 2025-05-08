@@ -3,7 +3,7 @@ import { useMemo, useState, type ComponentProps } from "react";
 import { Chess } from 'chess.ts';
 import { useChessSounds } from '../hooks/useChessSounds';
 import { Box, Paper, Button, Typography } from '@mui/material';
-import { clr, PROMOTION_PIECES } from '@/types/game';
+import { clr, PROMOTION_PIECES, type PromoteablePieces } from '@/types/game';
 const Chessground = dynamic(() => import('@react-chess/chessground'), {
     ssr: false
 });
@@ -131,7 +131,7 @@ const LichessBoard = ({
                             Choose a piece to promote to
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1 }}>
-                            {(Object.entries(PROMOTION_PIECES) as [keyof typeof PROMOTION_PIECES, string][]).map(([piece, symbol]) => (
+                            {(Object.entries(PROMOTION_PIECES) as [PromoteablePieces, string][]).map(([piece, symbol]) => (
                                 <Button
                                     key={piece}
                                     onClick={() => handlePromotion(piece)}

@@ -1,8 +1,15 @@
 import { Chess } from 'chess.ts';
 import type { ChessMove, GameMatch } from './socket';
+/**
+ * Type definitions for color representations
+ */
+type ShortColor = 'w' | 'b';
+type LongColor = 'white' | 'black';
+type PlayerColor = LongColor
 
 export type GameStatus = 'waiting' | 'active' | 'finished';
-export type GameResult = 'white' | 'black' | 'draw' | null;
+export type GameResult = PlayerColor | 'draw' | null;
+
 
 export interface Game {
     id: string;
@@ -13,7 +20,7 @@ export interface Game {
     currentFen: string;
     chess: Chess;
     lastMove: ChessMove | null;
-    turn: 'white' | 'black';
+    turn: PlayerColor;
     startTime: number;
     lastMoveTime: number;
 }
@@ -21,19 +28,14 @@ export interface Game {
 export interface GameContextType {
     game: Game | null;
     setGame: (game: Game | null) => void;
-    makeMove: (from: string, to: string, promotion?: 'q' | 'r' | 'b' | 'n') => void;
+    makeMove: (from: string, to: string, promotion?: PromoteablePieces) => void;
     resetGame: () => void;
     isMyTurn: boolean;
-    myColor: 'white' | 'black' | null;
+    myColor: PlayerColor | null;
     handleGameMatch: (data: GameMatch) => void;
     handleMoveMade: (move: ChessMove) => void;
 }
 
-/**
- * Type definitions for color representations
- */
-type ShortColor = 'w' | 'b';
-type LongColor = 'white' | 'black';
 
 /**
  * Maps for conversion between short and long color formats
@@ -65,7 +67,10 @@ export function clr<T extends ShortColor | LongColor,
         // Converting from long to short
         return longToShort[color as LongColor] as T;
     }
-} export const PROMOTION_PIECES = {
+}
+export type PromoteablePieces = "q" | 'r' | 'b' | 'n'
+
+export const PROMOTION_PIECES: Record<PromoteablePieces, string> = {
     q: '♛',
     r: '♜',
     b: '♝',

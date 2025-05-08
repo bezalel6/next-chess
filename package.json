@@ -10,7 +10,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "dev": "next dev",
+    "dev": "node --experimental-specifier-resolution=node dist/server/server.js",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "postinstall": "prisma generate",
@@ -18,7 +18,10 @@
     "lint:fix": "next lint --fix",
     "preview": "next build && next start",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:server": "tsc -p tsconfig.server.json",
+    "start:server": "node --experimental-specifier-resolution=node dist/server/server.js",
+    "dev:server": "tsc -p tsconfig.server.json -w & node --experimental-specifier-resolution=node dist/server/server.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -33,6 +36,8 @@
     "react": "^19.0.0",
     "react-chessboard": "^4.7.3",
     "react-dom": "^19.0.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "use-sound": "^5.0.0",
     "zod": "^3.24.2"
   },
@@ -41,6 +46,7 @@
     "@types/node": "^20.14.10",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "dotenv-cli": "^8.0.0",
     "eslint": "^9.23.0",
     "eslint-config-next": "^15.2.3",
     "prettier": "^3.5.3",

@@ -1,12 +1,13 @@
+import { configDotenv } from 'dotenv';
 import { createServer, Server as HttpServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
-import { Server as SocketServer } from 'socket.io';
-import { Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
-import type { ClientToServerEvents, ServerToClientEvents, GameMove, QueueStatus, GameMatch } from '../types/socket';
+import { createClient } from '@supabase/supabase-js';
+import type { QueueStatus, GameMatch, GameMove } from '../types/realtime';
+import { env } from '../env.js';
 
-const dev = process.env.NODE_ENV !== 'production';
+const dev = env.NODE_ENV !== 'production';
 const hostname = 'localhost';
 const port = Number(process.env.PORT) || 3000;
 
@@ -14,8 +15,14 @@ const port = Number(process.env.PORT) || 3000;
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+// Initialize Supabase client
+const supabase = createClient(
+    env.NEXT_PUBLIC_SUPABASE_URL!,
+    env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
 interface QueuedPlayer {
-    socketId: string;
+    userId: string;
     joinedAt: number;
 }
 
@@ -34,15 +41,11 @@ app.prepare().then(() => {
         }
     });
 
-    // Initialize Socket.IO with type declarations
-    const io = new SocketServer<ClientToServerEvents, ServerToClientEvents>(server, {
-        cors: {
-            origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-            methods: ['GET', 'POST'],
-        },
-    });
+    // Set up Supabase Realtime subscriptions
+    const queueChannel = supabase.channel('queue-status');
+    const gameChannel = supabase.channel('game-events');
 
-    function matchPlayers() {
+    async function matchPlayers() {
         if (matchmakingQueue.length >= 2) {
             const player1 = matchmakingQueue.shift()!;
             const player2 = matchmakingQueue.shift()!;
@@ -52,65 +55,70 @@ app.prepare().then(() => {
             const gameMatch1: GameMatch = { gameId, color: 'white' };
             const gameMatch2: GameMatch = { gameId, color: 'black' };
 
-            io.to(player1.socketId).emit('game-matched', gameMatch1);
-            io.to(player2.socketId).emit('game-matched', gameMatch2);
+            await queueChannel.send({
+                type: 'broadcast',
+                event: 'game-matched',
+                payload: gameMatch1
+            });
 
-            console.log(`Matched players ${player1.socketId} and ${player2.socketId} in game ${gameId}`);
+            await queueChannel.send({
+                type: 'broadcast',
+                event: 'game-matched',
+                payload: gameMatch2
+            });
+
+            console.log(`Matched players ${player1.userId} and ${player2.userId} in game ${gameId}`);
         }
     }
 
-    // Socket.IO connection handling
-    io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>) => {
-        console.log('Client connected:', socket.id);
-
-        // Queue management
-        socket.on('join-queue', () => {
-            if (!matchmakingQueue.find(p => p.socketId === socket.id)) {
+    // Handle queue events
+    queueChannel
+        .on('broadcast', { event: 'join-queue' }, async ({ payload }) => {
+            const { userId } = payload as { userId: string };
+            if (!matchmakingQueue.find(p => p.userId === userId)) {
                 matchmakingQueue.push({
-                    socketId: socket.id,
+                    userId,
                     joinedAt: Date.now()
                 });
-                console.log(`Player ${socket.id} joined the queue`);
+                console.log(`Player ${userId} joined the queue`);
                 const queueStatus: QueueStatus = { position: matchmakingQueue.length };
-                socket.emit('queue-status', queueStatus);
-                matchPlayers();
+                await queueChannel.send({
+                    type: 'broadcast',
+                    event: 'queue-status',
+                    payload: queueStatus
+                });
+                await matchPlayers();
             }
-        });
-
-        socket.on('leave-queue', () => {
-            const index = matchmakingQueue.findIndex(p => p.socketId === socket.id);
+        })
+        .on('broadcast', { event: 'leave-queue' }, async ({ payload }) => {
+            const { userId } = payload as { userId: string };
+            const index = matchmakingQueue.findIndex(p => p.userId === userId);
             if (index !== -1) {
                 matchmakingQueue.splice(index, 1);
-                console.log(`Player ${socket.id} left the queue`);
+                console.log(`Player ${userId} left the queue`);
                 const queueStatus: QueueStatus = { position: 0 };
-                socket.emit('queue-status', queueStatus);
+                await queueChannel.send({
+                    type: 'broadcast',
+                    event: 'queue-status',
+                    payload: queueStatus
+                });
             }
         });
 
-        // Handle game-related events
-        socket.on('join-game', (gameId: string) => {
-            socket.join(gameId);
-            console.log(`Client ${socket.id} joined game ${gameId}`);
+    // Handle game events
+    gameChannel
+        .on('broadcast', { event: 'make-move' }, async ({ payload }) => {
+            const { gameId, move } = payload as GameMove;
+            await gameChannel.send({
+                type: 'broadcast',
+                event: 'move-made',
+                payload: move
+            });
         });
 
-        socket.on('leave-game', (gameId: string) => {
-            socket.leave(gameId);
-            console.log(`Client ${socket.id} left game ${gameId}`);
-        });
-
-        socket.on('make-move', ({ gameId, move }: GameMove) => {
-            socket.to(gameId).emit('move-made', move);
-        });
-
-        socket.on('disconnect', () => {
-            // Remove from queue if they were in it
-            const index = matchmakingQueue.findIndex(p => p.socketId === socket.id);
-            if (index !== -1) {
-                matchmakingQueue.splice(index, 1);
-            }
-            console.log('Client disconnected:', socket.id);
-        });
-    });
+    // Subscribe to channels
+    queueChannel.subscribe();
+    gameChannel.subscribe();
 
     server.listen(port, (err?: Error) => {
         if (err) throw err;

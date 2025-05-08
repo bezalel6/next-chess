@@ -1,63 +1,83 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Chess } from 'chess.ts';
-import { socket } from '@/pages/socket';
-import type { Game, GameContextType } from '@/types/game';
-import type { GameMatch, ChessMove } from '@/types/socket';
+import type { Game, GameContextType, PromoteablePieces } from '@/types/game';
+import type { GameMatch, ChessMove, CustomSocket, ServerToClientEvents } from '@/types/socket';
+import { useChessSounds } from '@/hooks/useChessSounds';
 
 interface GameProviderProps {
     children: ReactNode;
-    onSendMove?: (gameId: string, move: ChessMove) => void;
-    onGameEvent?: (event: 'join' | 'leave', gameId: string) => void;
+    socket: CustomSocket;
 }
 
 const GameContext = createContext<GameContextType | null>(null);
 
-export function GameProvider({ children, onSendMove, onGameEvent }: GameProviderProps) {
+export function GameProvider({ children, socket }: GameProviderProps) {
     const [game, setGame] = useState<Game | null>(null);
     const [myColor, setMyColor] = useState<'white' | 'black' | null>(null);
+    const { playGameStart, playGameEnd } = useChessSounds();
 
-    // Handle game match event from Connection
-    const handleGameMatch = useCallback((data: GameMatch) => {
-        const newGame: Game = {
-            id: data.gameId,
-            whitePlayer: data.color === 'white' ? socket.id : 'opponent',
-            blackPlayer: data.color === 'black' ? socket.id : 'opponent',
-            status: 'active',
-            result: null,
-            currentFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-            chess: new Chess(),
-            lastMove: null,
-            turn: 'white',
-            startTime: Date.now(),
-            lastMoveTime: Date.now()
-        };
-        setGame(newGame);
-        setMyColor(data.color);
-        onGameEvent?.('join', data.gameId);
-    }, [onGameEvent]);
-
-    // Handle move event from Connection
-    const handleMoveMade = useCallback((move: ChessMove) => {
-        if (game) {
-            const newChess = new Chess(game.currentFen);
-            try {
-                newChess.move(move);
-                setGame({
-                    ...game,
-                    currentFen: newChess.fen(),
-                    chess: newChess,
-                    lastMove: move,
-                    turn: game.turn === 'white' ? 'black' : 'white',
+    useEffect(() => {
+        const eventHandlers: Pick<ServerToClientEvents, 'game-matched' | 'move-made'> = {
+            'game-matched': (data: GameMatch) => {
+                const newGame: Game = {
+                    id: data.gameId,
+                    whitePlayer: data.color === 'white' ? socket.id : 'opponent',
+                    blackPlayer: data.color === 'black' ? socket.id : 'opponent',
+                    status: 'active',
+                    result: null,
+                    currentFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                    chess: new Chess(),
+                    lastMove: null,
+                    turn: 'white',
+                    startTime: Date.now(),
                     lastMoveTime: Date.now()
-                });
-            } catch (error) {
-                console.error('Invalid move received:', error);
+                };
+                setGame(newGame);
+                setMyColor(data.color);
+                socket.emit('join-game', data.gameId);
+                playGameStart();
+            },
+            'move-made': (move: ChessMove) => {
+                if (game) {
+                    const newChess = new Chess(game.currentFen);
+                    try {
+                        newChess.move(move);
+                        const isGameOver = newChess.gameOver();
+                        setGame({
+                            ...game,
+                            currentFen: newChess.fen(),
+                            chess: newChess,
+                            lastMove: move,
+                            turn: game.turn === 'white' ? 'black' : 'white',
+                            lastMoveTime: Date.now(),
+                            status: isGameOver ? 'finished' : 'active',
+                            result: isGameOver ? (newChess.inCheckmate() ? game.turn : 'draw') : null
+                        });
+                        if (isGameOver) {
+                            playGameEnd();
+                        }
+                    } catch (error) {
+                        console.error('Invalid move received:', error);
+                    }
+                }
             }
-        }
-    }, [game]);
+        };
 
-    const makeMove = useCallback((from: string, to: string, promotion?: 'q' | 'r' | 'b' | 'n') => {
+        // Subscribe to game events
+        Object.entries(eventHandlers).forEach(([event, handler]) => {
+            socket.on(event as keyof ServerToClientEvents, handler);
+        });
+
+        return () => {
+            // Clean up game event listeners
+            Object.entries(eventHandlers).forEach(([event, handler]) => {
+                socket.off(event as keyof ServerToClientEvents, handler);
+            });
+        };
+    }, [game, socket]);
+
+    const makeMove = useCallback((from: string, to: string, promotion?: PromoteablePieces) => {
         if (!game || game.status !== 'active' || game.turn !== myColor) return;
 
         try {
@@ -66,7 +86,7 @@ export function GameProvider({ children, onSendMove, onGameEvent }: GameProvider
             const result = newChess.move(move);
 
             if (result) {
-                onSendMove?.(game.id, move);
+                socket.emit('make-move', { gameId: game.id, move });
                 setGame({
                     ...game,
                     currentFen: newChess.fen(),
@@ -79,15 +99,15 @@ export function GameProvider({ children, onSendMove, onGameEvent }: GameProvider
         } catch (error) {
             console.error('Invalid move:', error);
         }
-    }, [game, myColor, onSendMove]);
+    }, [game, myColor, socket]);
 
     const resetGame = useCallback(() => {
         if (game) {
-            onGameEvent?.('leave', game.id);
+            socket.emit('leave-game', game.id);
         }
         setGame(null);
         setMyColor(null);
-    }, [game, onGameEvent]);
+    }, [game, socket]);
 
     const value: GameContextType = {
         game,
@@ -95,9 +115,7 @@ export function GameProvider({ children, onSendMove, onGameEvent }: GameProvider
         makeMove,
         resetGame,
         isMyTurn: game?.status === 'active' && game?.turn === myColor,
-        myColor,
-        handleGameMatch,
-        handleMoveMade
+        myColor
     };
 
     return (

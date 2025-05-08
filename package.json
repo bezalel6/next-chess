@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "check": "next lint && tsc --noEmit",
-    "dev": "dotenv -e ./.env -- node --loader ts-node/esm src/server/server.ts",
+    "dev": "dotenv -e ./.env -- cross-env NODE_OPTIONS=\"--loader ts-node/esm --experimental-specifier-resolution=node\" node src/server/server.ts",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",
@@ -42,6 +42,7 @@
     "@types/node": "^20.11.19",
     "@types/react": "^18.2.57",
     "@types/react-dom": "^18.2.19",
+    "cross-env": "^7.0.3",
     "dotenv-cli": "^7.3.0",
     "eslint": "^8.56.0",
     "eslint-config-next": "14.1.0",

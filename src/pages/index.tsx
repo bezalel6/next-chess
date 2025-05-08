@@ -1,6 +1,7 @@
 import Head from "next/head";
 import styles from "./index.module.css";
 import LichessBoard from "@/components/lichess-board";
+import Connection from "@/components/connection";
 
 export default function Home() {
   return (
@@ -15,6 +16,7 @@ export default function Home() {
           <h1 className={styles.title}>
             Next<span className={styles.pinkSpan}>Chess</span>
           </h1>
+          <Connection></Connection>
           <div className={styles.chessContainer}>
             <LichessBoard />
           </div>

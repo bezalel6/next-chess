@@ -75,7 +75,7 @@ export function GameProvider({ children, socket }: GameProviderProps) {
                 socket.off(event as keyof ServerToClientEvents, handler);
             });
         };
-    }, [game, socket]);
+    }, [game, playGameEnd, playGameStart, socket]);
 
     const makeMove = useCallback((from: string, to: string, promotion?: PromoteablePieces) => {
         if (!game || game.status !== 'active' || game.turn !== myColor) return;

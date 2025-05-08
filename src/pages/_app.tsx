@@ -1,5 +1,4 @@
 import { type AppType } from "next/dist/shared/lib/utils";
-import { Geist } from "next/font/google";
 // these styles must be imported somewhere
 import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
@@ -11,16 +10,13 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '@/theme';
 
-const geist = Geist({
-  subsets: ["latin"],
-});
 
 const MyApp: AppType = ({ Component, pageProps }) => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <ConnectionProvider>
-        <div className={geist.className}>
+        <div className={''}>
           <Component {...pageProps} />
         </div>
       </ConnectionProvider>

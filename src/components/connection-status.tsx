@@ -1,10 +1,13 @@
 import { Box, Paper, Typography, Chip, Button } from "@mui/material";
 import { WifiOff, Wifi, PlayArrow, Stop } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { supabase } from '@/utils/supabase';
 
 export default function ConnectionStatus() {
     const { isConnected, transport, inQueue, queuePosition, matchDetails, handleQueueToggle } = useConnection();
-
+    supabase.auth.getUser().then(console.log)
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
             <Paper
@@ -50,6 +53,20 @@ export default function ConnectionStatus() {
                         />
                     </Box>
                 )}
+            </Paper>
+            <Paper
+                elevation={2}
+                sx={{
+                    p: 2,
+                    width: '100%',
+                    maxWidth: '400px'
+                }}
+            >
+                <Auth
+                    supabaseClient={supabase}
+                    appearance={{ theme: ThemeSupa }}
+                    theme="dark"
+                />
             </Paper>
         </Box>
     );

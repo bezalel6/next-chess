@@ -73,12 +73,13 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                         playMoveSound(move, game.chess);
                         makeMove(from, to);
                     }
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 } catch (error) {
                     game.chess.undo();
                 }
             },
         },
-    } satisfies ComponentProps<typeof Chessground>['config']), [game?.currentFen, myColor, legalMoves, isMyTurn, playMoveSound, makeMove, handlePromotion]);
+    } satisfies ComponentProps<typeof Chessground>['config']), [game?.currentFen, game?.chess, myColor, legalMoves, isMyTurn, playMoveSound, makeMove, handlePromotion]);
 
     return (
         <>

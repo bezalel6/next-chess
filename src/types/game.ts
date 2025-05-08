@@ -1,5 +1,5 @@
 import { Chess } from 'chess.ts';
-import type { ChessMove } from './socket';
+import type { ChessMove, GameMatch } from './socket';
 
 export type GameStatus = 'waiting' | 'active' | 'finished';
 export type GameResult = 'white' | 'black' | 'draw' | null;
@@ -25,4 +25,6 @@ export interface GameContextType {
     resetGame: () => void;
     isMyTurn: boolean;
     myColor: 'white' | 'black' | null;
+    handleGameMatch: (data: GameMatch) => void;
+    handleMoveMade: (move: ChessMove) => void;
 } 

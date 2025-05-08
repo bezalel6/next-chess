@@ -1,15 +1,20 @@
-import { Chess } from 'chess.ts';
+import type { Chess } from 'chess.ts';
 import type { ChessMove, GameMatch } from './socket';
 /**
  * Type definitions for color representations
  */
 export type ShortColor = 'w' | 'b';
 export type LongColor = 'white' | 'black';
-export type PlayerColor = LongColor
+export type PlayerColor = 'white' | 'black';
 
-export type GameStatus = 'waiting' | 'active' | 'finished';
-export type GameResult = PlayerColor | 'draw' | null;
+export type GameStatus = 'active' | 'finished' | 'abandoned';
+export type GameResult = 'white' | 'black' | 'draw' | null;
 
+export interface ChessMove {
+    from: string;
+    to: string;
+    promotion?: PromoteablePieces;
+}
 
 export interface Game {
     id: string;
@@ -64,7 +69,7 @@ export function clr<Target extends ShortColor | LongColor>(color: Target extends
         return longToShort[color as LongColor] as Target;
     }
 }
-export type PromoteablePieces = "q" | 'r' | 'b' | 'n'
+export type PromoteablePieces = 'q' | 'r' | 'b' | 'n';
 
 export const PROMOTION_PIECES: Record<PromoteablePieces, string> = {
     q: '♛',

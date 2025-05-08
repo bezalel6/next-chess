@@ -1,5 +1,5 @@
-import { supabase } from '@/utils/supabase';
-import { GameService } from './gameService';
+import { supabase } from '../utils/supabase.js';
+import { GameService } from './gameService.js';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface QueueUser {

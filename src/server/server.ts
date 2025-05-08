@@ -3,7 +3,7 @@ import { createServer, Server as HttpServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { env } from '../env.js';
+import { env } from '../env';
 import { MatchmakingService } from '../services/matchmakingService';
 
 const dev = env.NODE_ENV !== 'production';

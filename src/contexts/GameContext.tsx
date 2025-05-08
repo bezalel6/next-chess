@@ -1,11 +1,12 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { Chess } from 'chess.ts';
 import { useRouter } from 'next/router';
 import type { Game, GameContextType, PromoteablePieces } from '@/types/game';
-import type { GameMatch, ChessMove } from '@/types/realtime';
+import type { GameMatch } from '@/types/realtime';
 import { useChessSounds } from '@/hooks/useChessSounds';
-import { supabase } from '@/utils/supabase';
+import { GameService } from '@/services/gameService';
+import { useAuth } from './AuthContext';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface GameProviderProps {
     children: ReactNode;
@@ -18,105 +19,46 @@ export function GameProvider({ children }: GameProviderProps) {
     const [myColor, setMyColor] = useState<'white' | 'black' | null>(null);
     const { playGameStart, playGameEnd } = useChessSounds();
     const router = useRouter();
+    const { user } = useAuth();
 
     useEffect(() => {
-        const gameChannel = supabase.channel('game-events')
-            .on('broadcast', { event: 'game-matched' }, async ({ payload }) => {
-                const data = payload as GameMatch;
-                const { data: { user } } = await supabase.auth.getUser();
-                const userId = user?.id || 'unknown';
-                const newGame: Game = {
-                    id: data.gameId,
-                    whitePlayer: data.color === 'white' ? userId : 'opponent',
-                    blackPlayer: data.color === 'black' ? userId : 'opponent',
-                    status: 'active',
-                    result: null,
-                    currentFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-                    chess: new Chess(),
-                    lastMove: null,
-                    turn: 'white',
-                    startTime: Date.now(),
-                    lastMoveTime: Date.now()
-                };
-                setGame(newGame);
-                setMyColor(data.color);
-                playGameStart();
+        if (!game?.id) return;
 
-                // Update URL without triggering a page reload
-                router.replace(`/game/${data.gameId}`, undefined, { shallow: true });
-            })
-            .on('broadcast', { event: 'move-made' }, ({ payload }) => {
-                const move = payload as ChessMove;
-                if (game) {
-                    const newChess = new Chess(game.currentFen);
-                    try {
-                        newChess.move(move);
-                        const isGameOver = newChess.gameOver();
-                        setGame({
-                            ...game,
-                            currentFen: newChess.fen(),
-                            chess: newChess,
-                            lastMove: move,
-                            turn: game.turn === 'white' ? 'black' : 'white',
-                            lastMoveTime: Date.now(),
-                            status: isGameOver ? 'finished' : 'active',
-                            result: isGameOver ? (newChess.inCheckmate() ? game.turn : 'draw') : null
-                        });
-                        if (isGameOver) {
-                            playGameEnd();
-                        }
-                    } catch (error) {
-                        console.error('Invalid move received:', error);
-                    }
+        let subscription: RealtimeChannel;
+
+        const setupSubscription = async () => {
+            subscription = await GameService.subscribeToGame(game.id, (updatedGame) => {
+                setGame(updatedGame);
+                if (updatedGame.status === 'finished') {
+                    playGameEnd();
                 }
             });
+        };
+
+        setupSubscription();
 
         return () => {
-            gameChannel.unsubscribe();
+            subscription?.unsubscribe();
         };
-    }, [game, playGameEnd, playGameStart, router]);
+    }, [game?.id, playGameEnd]);
 
     const makeMove = useCallback(async (from: string, to: string, promotion?: PromoteablePieces) => {
-        if (!game || game.status !== 'active' || game.turn !== myColor) return;
+        if (!game || game.status !== 'active' || game.turn !== myColor || !user) return;
 
         try {
             const move = { from, to, promotion };
-            const newChess = new Chess(game.currentFen);
-            const result = newChess.move(move);
-
-            if (result) {
-                await supabase.channel('game-events').send({
-                    type: 'broadcast',
-                    event: 'make-move',
-                    payload: { gameId: game.id, move }
-                });
-                setGame({
-                    ...game,
-                    currentFen: newChess.fen(),
-                    chess: newChess,
-                    lastMove: move,
-                    turn: game.turn === 'white' ? 'black' : 'white',
-                    lastMoveTime: Date.now()
-                });
-            }
+            const updatedGame = await GameService.makeMove(game.id, move);
+            setGame(updatedGame);
         } catch (error) {
             console.error('Invalid move:', error);
         }
-    }, [game, myColor]);
+    }, [game, myColor, user]);
 
     const resetGame = useCallback(async () => {
-        if (game) {
-            await supabase.channel('game-events').send({
-                type: 'broadcast',
-                event: 'leave-game',
-                payload: { gameId: game.id }
-            });
-        }
         setGame(null);
         setMyColor(null);
-        // Clear the game ID from the URL
         router.replace('/', undefined, { shallow: true });
-    }, [game, router]);
+    }, [router]);
 
     const value: GameContextType = {
         game,

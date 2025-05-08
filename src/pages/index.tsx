@@ -7,14 +7,14 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Next Chess</title>
+        <title>Chess 2.0</title>
         <meta name="description" content="Play chess online" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main className={styles.main}>
         <div className={styles.container}>
           <h1 className={styles.title}>
-            Next<span className={styles.pinkSpan}>Chess</span>
+            Chess<span className={styles.pinkSpan}>2.0</span>
           </h1>
           <Connection></Connection>
           <div className={styles.chessContainer}>

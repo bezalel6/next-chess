@@ -3,7 +3,7 @@ import { useMemo, useState, type ComponentProps } from "react";
 import { Chess } from 'chess.ts';
 import { useChessSounds } from '../hooks/useChessSounds';
 import { Box, Paper, Button, Typography } from '@mui/material';
-import { clr } from '@/types/game';
+import { clr, PROMOTION_PIECES } from '@/types/game';
 const Chessground = dynamic(() => import('@react-chess/chessground'), {
     ssr: false
 });
@@ -19,13 +19,6 @@ interface PromotionState {
     to: string;
     color: 'white' | 'black';
 }
-
-const PROMOTION_PIECES = {
-    q: '♛',
-    r: '♜',
-    b: '♝',
-    n: '♞'
-} as const;
 
 const LichessBoard = ({
     orientation = 'white',

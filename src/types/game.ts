@@ -65,4 +65,10 @@ export function clr<T extends ShortColor | LongColor,
         // Converting from long to short
         return longToShort[color as LongColor] as T;
     }
-}
+} export const PROMOTION_PIECES = {
+    q: '♛',
+    r: '♜',
+    b: '♝',
+    n: '♞'
+} as const;
+

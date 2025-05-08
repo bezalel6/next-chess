@@ -18,7 +18,7 @@ export const useChessSounds = () => {
         if (!move) return;
 
         // Play appropriate sound based on move type
-        if (move.flags.includes('c')) {
+        if (move.flags.match(/[ce]/)) {
             playCapture();
         } else if (move.flags.includes('k') || move.flags.includes('q')) {
             playCastle();

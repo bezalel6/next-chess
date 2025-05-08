@@ -27,4 +27,42 @@ export interface GameContextType {
     myColor: 'white' | 'black' | null;
     handleGameMatch: (data: GameMatch) => void;
     handleMoveMade: (move: ChessMove) => void;
-} 
+}
+
+/**
+ * Type definitions for color representations
+ */
+type ShortColor = 'w' | 'b';
+type LongColor = 'white' | 'black';
+
+/**
+ * Maps for conversion between short and long color formats
+ */
+const shortToLong: Record<ShortColor, LongColor> = {
+    'w': 'white',
+    'b': 'black'
+};
+
+const longToShort: Record<LongColor, ShortColor> = {
+    'white': 'w',
+    'black': 'b'
+};
+
+/**
+ * Generic color converter function that can convert in both directions
+ * @template T The target color type (ShortColor or LongColor)
+ * @template S The source color type (the opposite of T)
+ * @param color The color to convert
+ * @returns The converted color in the target format
+ */
+export function clr<T extends ShortColor | LongColor,
+    S extends T extends ShortColor ? LongColor : ShortColor>
+    (color: S): T {
+    if ((typeof color === 'string' && color.length === 1) || color === 'w' || color === 'b') {
+        // Converting from short to long
+        return shortToLong[color as ShortColor] as T;
+    } else {
+        // Converting from long to short
+        return longToShort[color as LongColor] as T;
+    }
+}

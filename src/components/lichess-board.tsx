@@ -1,5 +1,7 @@
+'use client';
+
 import dynamic from 'next/dynamic';
-import { useMemo, type ComponentProps } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { Chess } from 'chess.ts';
 import { useChessSounds } from '../hooks/useChessSounds';
 
@@ -8,34 +10,59 @@ const Chessground = dynamic(() => import('@react-chess/chessground'), {
 });
 
 interface LichessBoardProps {
-    fen?: string;
     orientation?: 'white' | 'black';
     onMove?: (from: string, to: string) => void;
 }
 
+const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
 const LichessBoard = ({
-    fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
     orientation = 'white',
     onMove,
 }: LichessBoardProps) => {
     const { playMoveSound } = useChessSounds();
-    const chess = useMemo(() => new Chess(fen), [fen]);
+    const [chess, setChess] = useState(new Chess(INITIAL_FEN));
+    const [currentFen, setCurrentFen] = useState(INITIAL_FEN);
+
+    const legalMoves = useMemo(() => {
+        return Array.from(chess.moves({ verbose: true }))
+            .reduce((map, move) => {
+                const from = move.from;
+                const to = move.to;
+                const dests = map.get(from) || [];
+                map.set(from, [...dests, to]);
+                return map;
+            }, new Map())
+    }
+        , [chess]);
 
     const config = useMemo(() => ({
-        fen,
+        fen: currentFen,
         orientation,
         draggable: {
             enabled: true,
+        },
+        movable: {
+            free: false,
+            color: 'both',
+            showDests: true,
+            dests: legalMoves,
         },
         events: {
             move: (from: string, to: string) => {
                 try {
                     const move = chess.move({ from, to });
+
                     if (move) {
                         playMoveSound(move, chess);
                         if (onMove) {
                             onMove(from, to);
                         }
+
+                        // Update the FEN after the move
+                        const newFen = chess.fen();
+                        setCurrentFen(newFen);
+                        setChess(new Chess(newFen))
                     }
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 } catch (error) {
@@ -44,7 +71,7 @@ const LichessBoard = ({
                 }
             },
         },
-    } satisfies ComponentProps<typeof Chessground>['config']), [fen, orientation, onMove, chess, playMoveSound]);
+    } satisfies ComponentProps<typeof Chessground>['config']), [orientation, onMove, chess, playMoveSound, legalMoves, currentFen]);
 
     return (
         <Chessground contained config={config} />

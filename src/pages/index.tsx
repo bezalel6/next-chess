@@ -1,6 +1,6 @@
 import Head from "next/head";
 import styles from "./index.module.css";
-import Board from "../components/board";
+import LichessBoard from "@/components/lichess-board";
 
 export default function Home() {
   return (
@@ -11,8 +11,16 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main className={styles.main}>
-        <Board />
-      </main >
+        <div className={styles.container}>
+          <h1 className={styles.title}>
+            Next<span className={styles.pinkSpan}>Chess</span>
+          </h1>
+          <div className={styles.chessContainer}>
+            <LichessBoard />
+          </div>
+        </div>
+      </main>
     </>
   );
 }
+

@@ -1,12 +1,13 @@
 import { Box, Paper, Typography, Chip, Button } from "@mui/material";
-import { WifiOff, Wifi, PlayArrow, Stop } from "@mui/icons-material";
+import { WifiOff, Wifi, PlayArrow, Stop, Logout } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from '@/utils/supabase';
+import { useAuth } from "@/contexts/AuthContext";
+import { withAuth } from "./with-auth";
 
-export default function ConnectionStatus() {
+function ConnectionStatus() {
     const { isConnected, transport, inQueue, queuePosition, matchDetails, handleQueueToggle } = useConnection();
+    const { signOut } = useAuth();
+
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
             <Paper
@@ -52,21 +53,17 @@ export default function ConnectionStatus() {
                         />
                     </Box>
                 )}
-            </Paper>
-            <Paper
-                elevation={2}
-                sx={{
-                    p: 2,
-                    width: '100%',
-                    maxWidth: '400px'
-                }}
-            >
-                <Auth
-                    supabaseClient={supabase}
-                    appearance={{ theme: ThemeSupa }}
-                    theme="dark"
-                />
+                <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<Logout />}
+                    onClick={signOut}
+                >
+                    Sign Out
+                </Button>
             </Paper>
         </Box>
     );
 }
+
+export default withAuth(ConnectionStatus);

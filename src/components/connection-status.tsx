@@ -1,15 +1,8 @@
 import { Box, Paper, Typography, Chip, Button } from "@mui/material";
 import { WifiOff, Wifi, PlayArrow, Stop } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
-import { GameProvider } from "@/contexts/GameContext";
-import type { ReactNode } from "react";
-import { socket } from "../pages/socket";
 
-interface ConnectionProps {
-    children: ReactNode;
-}
-
-export default function Connection() {
+export default function ConnectionStatus() {
     const { isConnected, transport, inQueue, queuePosition, matchDetails, handleQueueToggle } = useConnection();
 
     return (

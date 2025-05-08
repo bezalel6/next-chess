@@ -32,8 +32,6 @@ export interface GameContextType {
     resetGame: () => void;
     isMyTurn: boolean;
     myColor: PlayerColor | null;
-    handleGameMatch: (data: GameMatch) => void;
-    handleMoveMade: (move: ChessMove) => void;
 }
 
 

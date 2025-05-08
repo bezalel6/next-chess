@@ -1,9 +1,9 @@
 import dynamic from 'next/dynamic';
 import { useMemo, useState, type ComponentProps } from "react";
-import { Chess } from 'chess.ts';
 import { useChessSounds } from '../hooks/useChessSounds';
 import { Box, Paper, Button, Typography } from '@mui/material';
 import { clr, PROMOTION_PIECES, type PromoteablePieces } from '@/types/game';
+import { useGame } from '@/contexts/GameContext';
 const Chessground = dynamic(() => import('@react-chess/chessground'), {
     ssr: false
 });
@@ -12,24 +12,20 @@ interface LichessBoardProps {
     orientation?: 'white' | 'black';
 }
 
-const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-
 interface PromotionState {
     from: string;
     to: string;
     color: 'white' | 'black';
 }
 
-const LichessBoard = ({
-    orientation = 'white',
-}: LichessBoardProps) => {
+const LichessBoard = ({ }: LichessBoardProps) => {
+    const { game, makeMove, isMyTurn, myColor } = useGame();
     const { playMoveSound } = useChessSounds();
-    const [chess, setChess] = useState(new Chess(INITIAL_FEN));
-    const [currentFen, setCurrentFen] = useState(INITIAL_FEN);
     const [promotionState, setPromotionState] = useState<PromotionState | null>(null);
 
     const legalMoves = useMemo(() => {
-        return Array.from(chess.moves({ verbose: true }))
+        if (!game?.chess) return new Map();
+        return Array.from(game.chess.moves({ verbose: true }))
             .reduce((map, move) => {
                 const from = move.from;
                 const to = move.to;
@@ -37,34 +33,18 @@ const LichessBoard = ({
                 map.set(from, [...dests, to]);
                 return map;
             }, new Map())
-    }, [chess]);
+    }, [game?.chess]);
 
-    const handlePromotion = (piece: 'q' | 'r' | 'b' | 'n') => {
+    const handlePromotion = (piece: PromoteablePieces) => {
         if (!promotionState) return;
 
-        try {
-            const move = chess.move({
-                from: promotionState.from,
-                to: promotionState.to,
-                promotion: piece
-            });
-
-            if (move) {
-                playMoveSound(move, chess);
-                const newFen = chess.fen();
-                setCurrentFen(newFen);
-                setChess(new Chess(newFen));
-            }
-        } catch (error) {
-            chess.undo();
-        } finally {
-            setPromotionState(null);
-        }
+        makeMove(promotionState.from, promotionState.to, piece);
+        setPromotionState(null);
     };
 
     const config = useMemo(() => ({
-        fen: currentFen,
-        orientation,
+        fen: game?.currentFen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        orientation: myColor ?? 'white',
         draggable: {
             enabled: true,
         },
@@ -76,29 +56,30 @@ const LichessBoard = ({
         },
         events: {
             move: (from: string, to: string) => {
-                // Check if this is a pawn promotion
+                if (!game?.chess || !isMyTurn) return;
+
                 try {
-                    const move = chess.move({ from, to, promotion: 'q' });
+                    const move = game.chess.move({ from, to, promotion: 'q' });
                     if (move) {
                         if (move.promotion) {
                             setPromotionState({
-                                ...move,
+                                from,
+                                to,
                                 color: clr(move.color)
-                            })
-                            chess.undo();
-                            return
+                            });
+                            game.chess.undo();
+                            return;
                         }
-                        playMoveSound(move, chess);
-                        const newFen = chess.fen();
-                        setCurrentFen(newFen);
-                        setChess(new Chess(newFen));
+                        playMoveSound(move, game.chess);
+                        makeMove(from, to);
                     }
                 } catch (error) {
-                    chess.undo();
+                    game.chess.undo();
                 }
             },
         },
-    } satisfies ComponentProps<typeof Chessground>['config']), [orientation, chess, playMoveSound, legalMoves, currentFen]);
+    } satisfies ComponentProps<typeof Chessground>['config']), [game, playMoveSound, legalMoves, isMyTurn, makeMove]);
+
     return (
         <>
             <Chessground contained config={config} />
@@ -127,35 +108,37 @@ const LichessBoard = ({
                             alignItems: 'center',
                         }}
                     >
-                        <Typography variant="h6" sx={{ color: 'primary.main', mb: 1 }}>
-                            Choose a piece to promote to
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                            {(Object.entries(PROMOTION_PIECES) as [PromoteablePieces, string][]).map(([piece, symbol]) => (
-                                <Button
-                                    key={piece}
-                                    onClick={() => handlePromotion(piece)}
-                                    variant="contained"
-                                    sx={{
-                                        minWidth: '48px',
-                                        height: '48px',
-                                        fontSize: '48px',
-                                        color: promotionState.color === 'white' ? 'white' : 'black',
-                                        bgcolor: promotionState.color === 'white' ? 'primary.main' : 'grey.300',
-                                        '&:hover': {
-                                            bgcolor: promotionState.color === 'white' ? 'primary.dark' : 'grey.400',
-                                        },
-                                    }}
-                                >
-                                    {symbol}
-                                </Button>
-                            ))}
-                        </Box>
+                        {promotionState && <PromotionDialog handlePromotion={handlePromotion} promotionState={promotionState} />}
                     </Paper>
                 </Box>
             )}
         </>
     );
 };
-
+function PromotionDialog({ promotionState, handlePromotion }: { promotionState: PromotionState, handlePromotion: (p: PromoteablePieces) => void }) {
+    return <> <Typography variant="h6" sx={{ color: 'primary.main', mb: 1 }}>
+        Choose a piece to promote to
+    </Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+            {(Object.entries(PROMOTION_PIECES) as [PromoteablePieces, string][]).map(([piece, symbol]) => (
+                <Button
+                    key={piece}
+                    onClick={() => handlePromotion(piece)}
+                    variant="contained"
+                    sx={{
+                        minWidth: '48px',
+                        height: '48px',
+                        fontSize: '48px',
+                        color: promotionState.color === 'white' ? 'white' : 'black',
+                        bgcolor: promotionState.color === 'white' ? 'primary.main' : 'grey.300',
+                        '&:hover': {
+                            bgcolor: promotionState.color === 'white' ? 'primary.dark' : 'grey.400',
+                        },
+                    }}
+                >
+                    {symbol}
+                </Button>
+            ))}
+        </Box></>
+}
 export default LichessBoard;

@@ -6,6 +6,8 @@ const CHESS_SOUNDS = {
     check: '/sounds/check.wav',
     castle: '/sounds/castle.wav',
     promote: '/sounds/promote.wav',
+    gameStart: '/sounds/game-start.wav',
+    gameEnd: '/sounds/game-end.wav',
 } as const;
 export const useChessSounds = () => {
     const [playMove] = useSound(CHESS_SOUNDS.move);
@@ -13,6 +15,8 @@ export const useChessSounds = () => {
     const [playCheck] = useSound(CHESS_SOUNDS.check);
     const [playCastle] = useSound(CHESS_SOUNDS.castle);
     const [playPromote] = useSound(CHESS_SOUNDS.promote);
+    const [playGameStart] = useSound(CHESS_SOUNDS.gameStart);
+    const [playGameEnd] = useSound(CHESS_SOUNDS.gameEnd);
 
     const playMoveSound = (move: ReturnType<Chess['move']>, chess: Chess) => {
         if (!move) return;
@@ -35,6 +39,8 @@ export const useChessSounds = () => {
     };
 
     return {
-        playMoveSound
+        playMoveSound,
+        playGameStart,
+        playGameEnd
     };
 }; 

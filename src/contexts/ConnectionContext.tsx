@@ -11,11 +11,21 @@ interface QueueState {
     size: number;
 }
 
+interface Stats {
+    activeUsers: number;
+    activeGames: number;
+    log: Array<{
+        timestamp: string;
+        message: string;
+    }>;
+}
+
 interface ConnectionContextType {
     isConnected: boolean;
     transport: string;
     queue: QueueState;
     matchDetails: GameMatch | null;
+    stats: Stats;
     handleQueueToggle: () => void;
 }
 
@@ -27,14 +37,30 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     const [transport, setTransport] = useState("N/A");
     const [queue, setQueue] = useState<QueueState>({ inQueue: false, position: 0, size: 0 });
     const [matchDetails, setMatchDetails] = useState<GameMatch | null>(null);
-    const [presenceChannel, setPresenceChannel] = useState<RealtimeChannel | null>(null);
     const [queueChannel, setQueueChannel] = useState<RealtimeChannel | null>(null);
+    const [queueSubscribed, setQueueSubscribed] = useState(false);
+    const [stats, setStats] = useState<Stats>({
+        activeUsers: 0,
+        activeGames: 0,
+        log: []
+    });
+
+    const addLogEntry = (message: string) => {
+        setStats(prev => ({
+            ...prev,
+            log: [...prev.log, {
+                timestamp: new Date().toISOString(),
+                message
+            }].slice(-50)
+        }));
+    };
 
     // Handle presence and connection status
     useEffect(() => {
         if (!session?.user) {
             setIsConnected(false);
             setTransport("N/A");
+            addLogEntry("User disconnected: No active session");
             return;
         }
 
@@ -46,67 +72,142 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         })
         .on('presence', { event: 'sync' }, () => {
             const presenceState = channel.presenceState();
-            setIsConnected(Object.keys(presenceState).length > 0);
+            const activeUsers = Object.keys(presenceState).length;
+            const wasConnected = isConnected;
+            setIsConnected(activeUsers > 0);
             setTransport('supabase');
+            
+            if (activeUsers > 0 && !wasConnected) {
+                addLogEntry(`Connected to realtime service (${activeUsers} active users)`);
+            } else if (activeUsers === 0 && wasConnected) {
+                addLogEntry("Disconnected from realtime service");
+            }
+            
+            setStats(prev => ({
+                ...prev,
+                activeUsers
+            }));
         })
         .subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
                 await channel.track({ user_id: session.user.id, online_at: new Date().toISOString() });
+                addLogEntry("Successfully subscribed to presence channel");
             }
         });
 
-        setPresenceChannel(channel);
         return () => {
             channel.unsubscribe();
+            addLogEntry("Unsubscribed from presence channel");
         };
-    }, [session]);
+    }, [session, isConnected]);
 
-    // Handle queue and matchmaking
+    // Setup queue channel
     useEffect(() => {
         if (!session?.user) {
             setQueue({ inQueue: false, position: 0, size: 0 });
             setMatchDetails(null);
+            setQueueChannel(null);
+            setQueueSubscribed(false);
+            addLogEntry("Queue system reset: No active session");
             return;
         }
 
+        // Create the channel without subscribing
         const channel = supabase.channel('queue-system')
             .on('presence', { event: 'sync' }, () => {
                 const presenceState = channel.presenceState<{ user_id: string; joined_at: string }>();
-                const queueUsers = Object.values(presenceState).flat()
+                const queueUsers = Object.values(presenceState).flat();
                 const position = queueUsers.findIndex(user => user.user_id === session.user.id) + 1;
+                const oldPosition = queue.position;
                 
                 setQueue({
                     inQueue: position > 0,
                     position,
                     size: queueUsers.length
                 });
+
+                if (position !== oldPosition) {
+                    if (position > 0) {
+                        addLogEntry(`Queue position updated: ${position}/${queueUsers.length}`);
+                    } else if (oldPosition > 0) {
+                        addLogEntry("Left queue");
+                    }
+                }
             })
             .on('broadcast', { event: 'game-matched' }, ({ payload }) => {
                 const data = payload as GameMatch;
                 setMatchDetails(data);
                 setQueue({ inQueue: false, position: 0, size: 0 });
+                addLogEntry(`Game matched! Game ID: ${data.gameId}, Playing as: ${data.color}`);
             });
-
+        
         setQueueChannel(channel);
+
         return () => {
-            channel.unsubscribe();
+            // Clean up - unsubscribe and untrack
+            if (channel) {
+                try {
+                    // Only attempt to untrack if we're in the queue
+                    if (queue.inQueue) {
+                        channel.untrack();
+                    }
+                    channel.unsubscribe();
+                    setQueueSubscribed(false);
+                } catch (error) {
+                    console.error("Error cleaning up queue channel:", error);
+                }
+                addLogEntry("Queue channel cleanup complete");
+            }
         };
     }, [session]);
 
+    // Subscribe to queue channel when needed
+    useEffect(() => {
+        if (!queueChannel || queueSubscribed) return;
+
+        const subscribeToQueueChannel = async () => {
+            try {
+                queueChannel.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        setQueueSubscribed(true);
+                        addLogEntry("Queue channel subscribed successfully");
+                    }
+                });
+            } catch (error) {
+                console.error("Error subscribing to queue channel:", error);
+                addLogEntry(`Error subscribing to queue channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        };
+
+        subscribeToQueueChannel();
+    }, [queueChannel, queueSubscribed]);
+
     const handleQueueToggle = async () => {
         if (!session?.user || !queueChannel) return;
-
+        
         try {
             if (queue.inQueue) {
+                // Leave queue
                 await queueChannel.untrack();
                 setQueue({ inQueue: false, position: 0, size: 0 });
+                addLogEntry("Manually left queue");
             } else {
-                await queueChannel.subscribe();
-                await queueChannel.track({ user_id: session.user.id, joined_at: new Date().toISOString() });
+                // Join queue - no need to subscribe again, just track
+                if (!queueSubscribed) {
+                    addLogEntry("Queue channel not yet subscribed, please try again in a moment");
+                    return;
+                }
+                
+                await queueChannel.track({ 
+                    user_id: session.user.id, 
+                    joined_at: new Date().toISOString() 
+                });
                 setQueue(prev => ({ ...prev, inQueue: true }));
+                addLogEntry("Joined matchmaking queue");
             }
         } catch (error) {
             console.error('Error toggling queue:', error);
+            addLogEntry(`Error toggling queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     };
 
@@ -115,6 +216,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         transport,
         queue,
         matchDetails,
+        stats,
         handleQueueToggle
     };
 

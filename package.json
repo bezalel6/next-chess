@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "check": "next lint && tsc --noEmit",
-    "dev": "dotenv -e ./.env -- cross-env NODE_OPTIONS=\"--loader ts-node/esm --experimental-specifier-resolution=node\" node src/server/server.ts",
+    "dev": "dotenv -e ./.env -- npx tsx src/server/server.ts",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",

@@ -47,6 +47,10 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         draggable: {
             enabled: true
         },
+        highlight:{
+            check:true,
+            lastMove:true
+        },
         movable: {
             free: false,
             color: 'both',
@@ -116,9 +120,6 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         </>
     );
 };
-function NotYourTurn() {
-    return <Typography>Not Your Turn</Typography>
-}
 
 function PromotionDialog({ promotionState, handlePromotion }: { promotionState: PromotionState, handlePromotion: (p: PromoteablePieces, promotionState: PromotionState) => void }) {
     return <> <Typography variant="h6" sx={{ color: 'primary.main', mb: 1 }}>

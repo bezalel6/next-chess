@@ -19,6 +19,7 @@ const GameContext = createContext<GameContextType | null>(null);
 
 export function GameProvider({ children }: GameProviderProps) {
     const [game, setGame] = useState<Game | null>(null);
+    const [pgn, setPgn] = useState<string>('');
     const [myColor, setMyColor] = useState<'white' | 'black' | null>(null);
     const [subscription, setSubscription] = useState<RealtimeChannel | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
@@ -38,6 +39,7 @@ export function GameProvider({ children }: GameProviderProps) {
                 const loadedGame = await GameService.getGame(gameId);
                 if (loadedGame) {
                     setGame(loadedGame);
+                    setPgn(loadedGame.pgn || '');
                     // Color will be set in the useEffect below that handles myColor
                 } else {
                     console.error('Game not found:', gameId);
@@ -96,6 +98,7 @@ export function GameProvider({ children }: GameProviderProps) {
                         // Only update if this is the current game we're viewing
                         if (currentGameId.current === updatedGame.id) {
                             setGame(updatedGame);
+                            setPgn(updatedGame.pgn || '');
                             if (updatedGame.status === 'finished') {
                                 playGameEnd();
                             }
@@ -119,43 +122,39 @@ export function GameProvider({ children }: GameProviderProps) {
         };
     }, [game?.id, playGameEnd]);
 
-    const makeMove = useCallback(async (from: Square, to: Square, promotion?: PromoteablePieces) => {
+    const makeMove = useCallback(async (from: string, to: string, promotion?: PromoteablePieces) => {
         if (!game || game.status !== 'active' || game.turn !== myColor || !user) return;
 
         try {
-            const move = { from, to, promotion };
+            const move = { from: from as Square, to: to as Square, promotion };
             
             // Optimistically update the PGN
             const tempChess = new Chess(game.currentFen);
-            if (game.pgn) {
-                tempChess.loadPgn(game.pgn);
+            if (pgn) {
+                tempChess.loadPgn(pgn);
             }
             
             // Try the move locally to generate the new PGN
             const result = tempChess.move(move);
             if (result) {
-                // Only update the PGN optimistically, everything else will be updated after server response
-                setGame(prevGame => {
-                    if (!prevGame) return null;
-                    return {
-                        ...prevGame,
-                        pgn: tempChess.pgn()
-                    };
-                });
+                // Update only the PGN state optimistically
+                setPgn(tempChess.pgn());
             }
             
             // Proceed with the actual server update
             const updatedGame = await GameService.makeMove(game.id, move);
             setGame(updatedGame);
+            setPgn(updatedGame.pgn || '');
         } catch (error) {
             console.error('Invalid move:', error);
         }
-    }, [game, myColor, user]);
+    }, [game, pgn, myColor, user]);
 
     const resetGame = useCallback(async () => {
         // Make sure to clean up subscription before resetting game state
         cleanupSubscription();
         setGame(null);
+        setPgn('');
         setMyColor(null);
         router.replace('/', undefined, { shallow: true });
     }, [router, cleanupSubscription]);
@@ -186,6 +185,8 @@ export function GameProvider({ children }: GameProviderProps) {
     const value: GameContextType = {
         game,
         setGame,
+        pgn,
+        setPgn,
         makeMove,
         resetGame,
         isMyTurn: game?.status === 'active' && game?.turn === myColor,

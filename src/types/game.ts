@@ -34,6 +34,8 @@ export interface Game {
 export interface GameContextType {
     game: Game | null;
     setGame: (game: Game | null) => void;
+    pgn: string;
+    setPgn: (pgn: string) => void;
     makeMove: (from: string, to: string, promotion?: PromoteablePieces) => void;
     resetGame: () => void;
     isMyTurn: boolean;

@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { Chess } from "chess.ts";
 
@@ -10,12 +10,12 @@ interface FormattedMove {
 }
 
 const MoveHistory = () => {
-  const { game } = useGame();
+  const { pgn } = useGame();
   const [moveHistory, setMoveHistory] = useState<FormattedMove[]>([]);
+  const moveHistoryRef = useRef<HTMLDivElement>(null);
   
   // Update move history whenever the game state changes
   useEffect(() => {
-    if (!game || !game.pgn) return;
     
     // Use the game's PGN to generate move history
     const formatMovesFromPgn = () => {
@@ -23,7 +23,7 @@ const MoveHistory = () => {
       
       try {
         // Load the game from PGN
-        chess.loadPgn(game.pgn);
+        chess.loadPgn(pgn);
         
         const moveHistory = chess.history({ verbose: true });
         const formattedMoves: FormattedMove[] = [];
@@ -67,18 +67,28 @@ const MoveHistory = () => {
     };
     
     formatMovesFromPgn();
-  }, [game?.pgn]);
+  }, [pgn]);
+
+  // Auto-scroll to bottom when move history changes
+  useEffect(() => {
+    if (moveHistoryRef.current && moveHistory.length > 0) {
+      moveHistoryRef.current.scrollTop = moveHistoryRef.current.scrollHeight;
+    }
+  }, [moveHistory]);
 
   return (
-    <Box sx={{ 
-      width: { xs: '100%', md: '200px' },
-      height: { xs: 'auto', md: 'min(500px, 60vh)' },
-      bgcolor: 'rgba(10,10,10,0.8)',
-      borderRadius: 1,
-      alignSelf: 'center',
-      overflow: 'auto',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-    }}>
+    <Box 
+      ref={moveHistoryRef}
+      sx={{ 
+        width: { xs: '100%', md: '200px' },
+        height: { xs: 'auto', md: 'min(500px, 60vh)' },
+        bgcolor: 'rgba(10,10,10,0.8)',
+        borderRadius: 1,
+        alignSelf: 'center',
+        overflow: 'auto',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+      }}
+    >
       {/* Header */}
       <Box sx={{
         p: 1,

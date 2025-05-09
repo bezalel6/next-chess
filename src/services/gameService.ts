@@ -128,6 +128,23 @@ export class GameService {
         return subscription;
     }
 
+    static async getUserActiveGames(userId: string): Promise<Game[]> {
+        console.log(`[GameService] Getting active games for user ${userId}`);
+        const { data, error } = await supabase
+            .from('games')
+            .select('*')
+            .or(`white_player_id.eq.${userId},black_player_id.eq.${userId}`)
+            .eq('status', 'active')
+            .order('updated_at', { ascending: false });
+
+        if (error) {
+            console.error(`[GameService] Error getting active games: ${error.message}`);
+            throw error;
+        }
+
+        return data.map(this.mapGameFromDB);
+    }
+
     static mapGameFromDB(dbGame: any): Game {
         const chess = new Chess(dbGame.current_fen);
         return {

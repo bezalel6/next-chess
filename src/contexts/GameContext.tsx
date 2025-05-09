@@ -8,6 +8,7 @@ import { GameService } from '@/services/gameService';
 import { useAuth } from './AuthContext';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Square } from 'chess.ts/dist/types';
+import { Chess } from 'chess.ts';
 
 interface GameProviderProps {
     children: ReactNode;
@@ -123,6 +124,27 @@ export function GameProvider({ children }: GameProviderProps) {
 
         try {
             const move = { from, to, promotion };
+            
+            // Optimistically update the PGN
+            const tempChess = new Chess(game.currentFen);
+            if (game.pgn) {
+                tempChess.loadPgn(game.pgn);
+            }
+            
+            // Try the move locally to generate the new PGN
+            const result = tempChess.move(move);
+            if (result) {
+                // Only update the PGN optimistically, everything else will be updated after server response
+                setGame(prevGame => {
+                    if (!prevGame) return null;
+                    return {
+                        ...prevGame,
+                        pgn: tempChess.pgn()
+                    };
+                });
+            }
+            
+            // Proceed with the actual server update
             const updatedGame = await GameService.makeMove(game.id, move);
             setGame(updatedGame);
         } catch (error) {

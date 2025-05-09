@@ -15,16 +15,17 @@ const MoveHistory = () => {
   
   // Update move history whenever the game state changes
   useEffect(() => {
-    if (!game) return;
+    if (!game || !game.pgn) return;
     
     // Use the game's PGN to generate move history
     const formatMovesFromPgn = () => {
       const chess = new Chess();
       
-      // Load the current game state from PGN if available
-      // If no PGN (new game), use the current game state
-      if (game.chess && game.chess.history && typeof game.chess.history === 'function') {
-        const moveHistory = game.chess.history({ verbose: true });
+      try {
+        // Load the game from PGN
+        chess.loadPgn(game.pgn);
+        
+        const moveHistory = chess.history({ verbose: true });
         const formattedMoves: FormattedMove[] = [];
         
         let moveNumber = 1;
@@ -59,11 +60,14 @@ const MoveHistory = () => {
         });
         
         setMoveHistory(formattedMoves);
+      } catch (error) {
+        console.error("Error parsing PGN:", error);
+        setMoveHistory([]);
       }
     };
     
     formatMovesFromPgn();
-  }, [game]);
+  }, [game?.pgn]);
 
   return (
     <Box sx={{ 

@@ -19,9 +19,37 @@ export function GameProvider({ children }: GameProviderProps) {
     const [game, setGame] = useState<Game | null>(null);
     const [myColor, setMyColor] = useState<'white' | 'black' | null>(null);
     const [subscription, setSubscription] = useState<RealtimeChannel | null>(null);
+    const [loading, setLoading] = useState<boolean>(false);
     const { playGameStart, playGameEnd } = useChessSounds();
     const router = useRouter();
     const { user } = useAuth();
+    const { id: gameId } = router.query;
+
+    // Load game when the game ID is in the URL
+    useEffect(() => {
+        if (!gameId || !user || typeof gameId !== 'string') return;
+        
+        const loadGame = async () => {
+            try {
+                setLoading(true);
+                const loadedGame = await GameService.getGame(gameId);
+                if (loadedGame) {
+                    setGame(loadedGame);
+                    // Color will be set in the useEffect below that handles myColor
+                } else {
+                    console.error('Game not found:', gameId);
+                    router.replace('/');
+                }
+            } catch (error) {
+                console.error('Error loading game:', error);
+                router.replace('/');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadGame();
+    }, [gameId, user, router]);
 
     // Clean up subscription when component unmounts or when game changes
     const cleanupSubscription = useCallback(() => {
@@ -107,7 +135,8 @@ export function GameProvider({ children }: GameProviderProps) {
         makeMove,
         resetGame,
         isMyTurn: game?.status === 'active' && game?.turn === myColor,
-        myColor
+        myColor,
+        loading
     };
 
     return (

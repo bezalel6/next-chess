@@ -4,13 +4,15 @@ import { Chess } from 'chess.ts';
 
 export class GameService {
     static async createGame(whitePlayerId: string, blackPlayerId: string): Promise<Game> {
+        const chess = new Chess();
         const { data: game, error } = await supabase
             .from('games')
             .insert({
                 white_player_id: whitePlayerId,
                 black_player_id: blackPlayerId,
                 status: 'active',
-                current_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                current_fen: chess.fen(),
+                pgn: chess.pgn(),
                 turn: 'white'
             })
             .select()
@@ -42,10 +44,15 @@ export class GameService {
         if (!game) throw new Error('Game not found');
 
         const chess = new Chess(game.currentFen);
+        if (game.pgn) {
+            chess.loadPgn(game.pgn);
+        }
+        
         const result = chess.move(move);
         if (!result) throw new Error('Invalid move');
 
         console.log(`[GameService] Move valid. New FEN: ${chess.fen()}`);
+        console.log(`[GameService] Updated PGN: ${chess.pgn()}`);
         
         const isGameOver = chess.gameOver();
         const status = isGameOver ? 'finished' : 'active';
@@ -59,6 +66,7 @@ export class GameService {
             .from('games')
             .update({
                 current_fen: chess.fen(),
+                pgn: chess.pgn(),
                 last_move: move,
                 turn: game.turn === 'white' ? 'black' : 'white',
                 status,
@@ -106,6 +114,7 @@ export class GameService {
                         console.log(`[GameService] Game update received for game ${gameId}`, {
                             event: payload.eventType,
                             fen: gameData.current_fen,
+                            pgn: gameData.pgn,
                             turn: gameData.turn,
                             status: gameData.status
                         });
@@ -120,6 +129,7 @@ export class GameService {
     }
 
     private static mapGameFromDB(dbGame: any): Game {
+        const chess = new Chess(dbGame.current_fen);
         return {
             id: dbGame.id,
             whitePlayer: dbGame.white_player_id,
@@ -127,7 +137,8 @@ export class GameService {
             status: dbGame.status,
             result: dbGame.result,
             currentFen: dbGame.current_fen,
-            chess: new Chess(dbGame.current_fen),
+            pgn: dbGame.pgn || '',
+            chess,
             lastMove: dbGame.last_move,
             turn: dbGame.turn,
             startTime: new Date(dbGame.created_at).getTime(),

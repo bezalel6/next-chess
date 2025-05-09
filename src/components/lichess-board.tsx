@@ -51,6 +51,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
             check:true,
             lastMove:true
         },
+        lastMove: game?.lastMove ? [game.lastMove.from, game.lastMove.to] : undefined,
         movable: {
             free: false,
             color: 'both',

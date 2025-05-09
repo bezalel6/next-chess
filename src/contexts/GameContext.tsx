@@ -7,6 +7,7 @@ import { useChessSounds } from '@/hooks/useChessSounds';
 import { GameService } from '@/services/gameService';
 import { useAuth } from './AuthContext';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { Square } from 'chess.ts/dist/types';
 
 interface GameProviderProps {
     children: ReactNode;
@@ -117,7 +118,7 @@ export function GameProvider({ children }: GameProviderProps) {
         };
     }, [game?.id, playGameEnd]);
 
-    const makeMove = useCallback(async (from: string, to: string, promotion?: PromoteablePieces) => {
+    const makeMove = useCallback(async (from: Square, to: Square, promotion?: PromoteablePieces) => {
         if (!game || game.status !== 'active' || game.turn !== myColor || !user) return;
 
         try {

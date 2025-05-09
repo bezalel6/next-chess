@@ -4,9 +4,14 @@ import LichessBoard from "@/components/lichess-board";
 import FindMatch from "@/components/find-match";
 import Login from "@/components/login";
 import ServerStats from "@/components/server-stats";
-import { Box, Container, Grid } from "@mui/material";
+import { Box, Container, Grid, Paper, Typography } from "@mui/material";
+import { useGame } from "@/contexts/GameContext";
+import { useConnection } from "@/contexts/ConnectionContext";
 
 export default function Home() {
+  const { game } = useGame();
+  const { queue } = useConnection();
+
   return (
     <>
       <Head>
@@ -37,7 +42,34 @@ export default function Home() {
                   alignItems: 'center'
                 }}>
                   <div className={styles.chessContainer}>
-                    <LichessBoard />
+                    {game ? (
+                      <LichessBoard />
+                    ) : (
+                      <Paper 
+                        elevation={2} 
+                        sx={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          display: 'flex', 
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          p: 4
+                        }}
+                      >
+                        <Typography variant="h5" gutterBottom>
+                          Welcome to Chess 2.0
+                        </Typography>
+                        <Typography variant="body1" align="center" sx={{ mb: 2 }}>
+                          Click &quot;Play&quot; below to find an opponent and start a new game.
+                        </Typography>
+                        {queue.inQueue && (
+                          <Typography variant="body2" color="text.secondary">
+                            Finding opponent... {queue.position > 0 && `(${queue.position}/${queue.size})`}
+                          </Typography>
+                        )}
+                      </Paper>
+                    )}
                   </div>
                   <FindMatch />
                 </Box>

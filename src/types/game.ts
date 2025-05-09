@@ -36,6 +36,7 @@ export interface GameContextType {
     resetGame: () => void;
     isMyTurn: boolean;
     myColor: PlayerColor | null;
+    loading: boolean;
 }
 
 

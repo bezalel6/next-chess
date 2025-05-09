@@ -139,6 +139,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 setMatchDetails(data);
                 setQueue({ inQueue: false, position: 0, size: 0 });
                 addLogEntry(`Game matched! Game ID: ${data.gameId}, Playing as: ${data.color}`);
+                
+                // Redirect to the game page
+                window.location.href = `/game/${data.gameId}`;
             });
         
         setQueueChannel(channel);

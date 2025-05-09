@@ -37,6 +37,7 @@ export class GameService {
     }
 
     static async makeMove(gameId: string, move: ChessMove): Promise<Game> {
+        console.log(`[GameService] Making move ${JSON.stringify(move)} for game ${gameId}`);
         const game = await this.getGame(gameId);
         if (!game) throw new Error('Game not found');
 
@@ -44,9 +45,15 @@ export class GameService {
         const result = chess.move(move);
         if (!result) throw new Error('Invalid move');
 
+        console.log(`[GameService] Move valid. New FEN: ${chess.fen()}`);
+        
         const isGameOver = chess.gameOver();
         const status = isGameOver ? 'finished' : 'active';
         const result_ = isGameOver ? (chess.inCheckmate() ? game.turn : 'draw') : null;
+        
+        if (isGameOver) {
+            console.log(`[GameService] Game over. Result: ${result_}`);
+        }
 
         const { data: updatedGame, error } = await supabase
             .from('games')
@@ -61,7 +68,12 @@ export class GameService {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error(`[GameService] Error updating game: ${error.message}`);
+            throw error;
+        }
+        
+        console.log(`[GameService] Game updated. Turn: ${updatedGame.turn}`);
 
         // Record the move
         await supabase
@@ -70,12 +82,15 @@ export class GameService {
                 game_id: gameId,
                 move
             });
+            
+        console.log(`[GameService] Move recorded in history`);
 
         return this.mapGameFromDB(updatedGame);
     }
 
     static async subscribeToGame(gameId: string, callback: (game: Game) => void) {
-        return supabase
+        console.log(`[GameService] Subscribing to game ${gameId}`);
+        const subscription = supabase
             .channel(`game:${gameId}`)
             .on(
                 'postgres_changes',
@@ -86,10 +101,22 @@ export class GameService {
                     filter: `id=eq.${gameId}`
                 },
                 (payload) => {
+                    if (payload.new && typeof payload.new === 'object') {
+                        const gameData = payload.new as any;
+                        console.log(`[GameService] Game update received for game ${gameId}`, {
+                            event: payload.eventType,
+                            fen: gameData.current_fen,
+                            turn: gameData.turn,
+                            status: gameData.status
+                        });
+                    }
                     callback(this.mapGameFromDB(payload.new));
                 }
             )
             .subscribe();
+            
+        console.log(`[GameService] Subscription initiated for game ${gameId}`);
+        return subscription;
     }
 
     private static mapGameFromDB(dbGame: any): Game {

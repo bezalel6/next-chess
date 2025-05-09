@@ -22,6 +22,7 @@ export interface Game {
     status: GameStatus;
     result: GameResult;
     currentFen: string;
+    pgn: string;
     chess: Chess;
     lastMove: ChessMove | null;
     turn: PlayerColor;

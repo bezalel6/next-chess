@@ -9,6 +9,8 @@ interface AuthContextType {
     signIn: (email: string, password: string) => Promise<void>;
     signUp: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
+    signInAsGuest: () => Promise<void>;
+    isGuest: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isGuest, setIsGuest] = useState(false);
 
     useEffect(() => {
         // Get initial session
@@ -24,6 +27,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(session);
             setUser(session?.user ?? null);
             setIsLoading(false);
+            // Check if user is anonymous
+            if (session?.user) {
+                setIsGuest(session.user.app_metadata.provider === 'anonymous');
+            }
         });
 
         // Listen for auth changes
@@ -31,6 +38,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(session);
             setUser(session?.user ?? null);
             setIsLoading(false);
+            // Check if user is anonymous
+            if (session?.user) {
+                setIsGuest(session.user.app_metadata.provider === 'anonymous');
+            } else {
+                setIsGuest(false);
+            }
         });
 
         return () => {
@@ -59,6 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
     };
 
+    const signInAsGuest = async () => {
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (error) throw error;
+    };
+
     const value = {
         user,
         session,
@@ -66,6 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signUp,
         signOut,
+        signInAsGuest,
+        isGuest,
     };
 
     return (

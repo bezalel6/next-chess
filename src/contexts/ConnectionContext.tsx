@@ -10,6 +10,7 @@ interface ConnectionContextType {
     transport: string;
     inQueue: boolean;
     queuePosition: number;
+    queueSize: number;
     matchDetails: GameMatch | null;
     handleQueueToggle: () => void;
 }
@@ -22,6 +23,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     const [transport, setTransport] = useState("N/A");
     const [inQueue, setInQueue] = useState(false);
     const [queuePosition, setQueuePosition] = useState(0);
+    const [queueSize, setQueueSize] = useState(0);
     const [matchDetails, setMatchDetails] = useState<GameMatch | null>(null);
     const [presenceChannel, setPresenceChannel] = useState<RealtimeChannel | null>(null);
     const [queueChannel, setQueueChannel] = useState<RealtimeChannel | null>(null);
@@ -79,6 +81,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         if (!session?.user) {
             setInQueue(false);
             setQueuePosition(0);
+            setQueueSize(0);
             setMatchDetails(null);
             return;
         }
@@ -89,20 +92,29 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     const presenceState = channel.presenceState();
                     const queue = Object.values(presenceState).flat() as unknown as Array<{ user_id: string; joined_at: string }>;
                     const position = queue.findIndex(user => user.user_id === session.user.id) + 1;
+                    console.debug('[Queue] Sync event:', {
+                        queueSize: queue.length,
+                        userPosition: position,
+                        queueState: presenceState
+                    });
                     setQueuePosition(position);
+                    setQueueSize(queue.length);
                     setInQueue(position > 0);
                 } catch (error) {
                     console.error('Error in queue sync:', error);
                     setInQueue(false);
                     setQueuePosition(0);
+                    setQueueSize(0);
                 }
             })
             .on('broadcast', { event: 'game-matched' }, ({ payload }) => {
                 try {
                     const data = payload as GameMatch;
+                    console.debug('[Queue] Game matched:', data);
                     setMatchDetails(data);
                     setInQueue(false);
                     setQueuePosition(0);
+                    setQueueSize(0);
                 } catch (error) {
                     console.error('Error handling game match:', error);
                 }
@@ -111,6 +123,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 console.error('Queue channel error:', error);
                 setInQueue(false);
                 setQueuePosition(0);
+                setQueueSize(0);
             });
 
         setQueueChannel(channel);
@@ -125,9 +138,16 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
         try {
             if (inQueue) {
+                console.debug('[Queue] User leaving queue');
                 await queueChannel.untrack();
+                setInQueue(false);
+                setQueuePosition(0);
+                setQueueSize(0);
             } else {
+                console.debug('[Queue] User joining queue');
+                await queueChannel.subscribe();
                 await queueChannel.track({ user_id: session.user.id, joined_at: new Date().toISOString() });
+                setInQueue(true);
             }
         } catch (error) {
             console.error('Error toggling queue:', error);
@@ -139,6 +159,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         transport,
         inQueue,
         queuePosition,
+        queueSize,
         matchDetails,
         handleQueueToggle
     };

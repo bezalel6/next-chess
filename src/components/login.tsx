@@ -5,7 +5,7 @@ import { useConnection } from "@/contexts/ConnectionContext";
 import AuthForm from "@/components/auth-form";
 
 function Login() {
-    const { user, signOut, isLoading } = useAuth();
+    const { user, profile, signOut, isLoading } = useAuth();
     const { isConnected } = useConnection();
 
     if (isLoading) {
@@ -17,11 +17,14 @@ function Login() {
     }
 
     if (user) {
+        // Use username if available, otherwise fall back to email
+        const displayName = profile?.username || user.email;
+        
         return (
             <Paper elevation={2} sx={{ p: 3, maxWidth: '400px', width: '100%' }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
                     <Typography variant="h6" color="text.primary">
-                        Welcome, {user.email}
+                        Welcome, {displayName}
                     </Typography>
                     <Typography variant="body2" color={isConnected ? "success.main" : "error.main"}>
                         {isConnected ? "Connected" : "Disconnected"}

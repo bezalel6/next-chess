@@ -195,9 +195,24 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 setQueue({ inQueue: false, position: 0, size: 0 });
                 addLogEntry("Manually left queue");
             } else {
-                // Join queue - no need to subscribe again, just track
+                // Join queue - first check if user has active games
                 if (!queueSubscribed) {
                     addLogEntry("Queue channel not yet subscribed, please try again in a moment");
+                    return;
+                }
+
+                // Check for active games before joining queue
+                try {
+                    const { GameService } = await import('../services/gameService');
+                    const activeGames = await GameService.getUserActiveGames(session.user.id);
+                    
+                    if (activeGames.length > 0) {
+                        addLogEntry("Cannot join queue: You have unfinished games");
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error checking active games:', error);
+                    addLogEntry(`Error checking active games: ${error instanceof Error ? error.message : 'Unknown error'}`);
                     return;
                 }
                 

@@ -4,6 +4,8 @@ import { useChessSounds } from '../hooks/useChessSounds';
 import { Box, Paper, Button, Typography } from '@mui/material';
 import { clr, PROMOTION_PIECES, type LongColor, type PromoteablePieces, type ShortColor } from '@/types/game';
 import { useGame } from '@/contexts/GameContext';
+import { Chess } from 'chess.ts';
+import type { Square } from 'chess.ts/dist/types';
 const Chessground = dynamic(() => import('@react-chess/chessground'), {
     ssr: false
 });
@@ -19,7 +21,7 @@ interface PromotionState {
 }
 
 const LichessBoard = ({ }: LichessBoardProps) => {
-    const { game, makeMove, isMyTurn, myColor } = useGame();
+    const { game, makeMove, isMyTurn, myColor ,pgn} = useGame();
     const { playMoveSound } = useChessSounds();
     const [overlay, setOverlay] = useState<React.ReactNode | null>(null)
     const legalMoves = useMemo(() => {
@@ -40,9 +42,14 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         makeMove(promotionState.from, promotionState.to, piece);
         setOverlay(null);
     }, [makeMove])
-
+    const [fen,lastMove,check] = useMemo(()=>{
+        const chess = new Chess()
+        chess.loadPgn(pgn);
+        const history = chess.history({verbose:true})
+        return [chess.fen(),history[history.length-1],chess.inCheck()?clr(chess.turn()):false]
+    },[pgn])
     const config = useMemo(() => ({
-        fen: game?.currentFen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        fen,
         orientation: myColor ?? 'white',
         draggable: {
             enabled: true
@@ -51,7 +58,8 @@ const LichessBoard = ({ }: LichessBoardProps) => {
             check:true,
             lastMove:true
         },
-        lastMove: game?.lastMove ? [game.lastMove.from, game.lastMove.to] : undefined,
+        check,
+        lastMove: lastMove?[lastMove.from as Square,lastMove.to as Square]:undefined,
         movable: {
             free: false,
             color: 'both',
@@ -84,7 +92,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 }
             },
         },
-    } satisfies ComponentProps<typeof Chessground>['config']), [game?.currentFen, game?.chess, myColor, legalMoves, isMyTurn, playMoveSound, makeMove, handlePromotion]);
+    } satisfies ComponentProps<typeof Chessground>['config']), [game?.currentFen, game.lastMove, game.chess, myColor, legalMoves, isMyTurn, playMoveSound, makeMove, handlePromotion]);
 
     return (
         <>

@@ -2,12 +2,11 @@ import { Box, Button, Typography, Paper } from "@mui/material";
 import { Logout, Login as LoginIcon } from "@mui/icons-material";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConnection } from "@/contexts/ConnectionContext";
-import { useRouter } from "next/router";
+import AuthForm from "@/components/auth-form";
 
 function Login() {
-    const { user, signOut, isLoading } = useAuth();
+    const { user, profile, signOut, isLoading } = useAuth();
     const { isConnected } = useConnection();
-    const router = useRouter();
 
     if (isLoading) {
         return (
@@ -18,11 +17,14 @@ function Login() {
     }
 
     if (user) {
+        // Use username if available, otherwise fall back to email
+        const displayName = profile?.username || user.email;
+        
         return (
             <Paper elevation={2} sx={{ p: 3, maxWidth: '400px', width: '100%' }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
                     <Typography variant="h6" color="text.primary">
-                        Welcome, {user.email}
+                        Welcome, {displayName}
                     </Typography>
                     <Typography variant="body2" color={isConnected ? "success.main" : "error.main"}>
                         {isConnected ? "Connected" : "Disconnected"}
@@ -42,25 +44,9 @@ function Login() {
     }
 
     return (
-        <Paper elevation={2} sx={{ p: 3, maxWidth: '400px', width: '100%' }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
-                <Typography variant="h6" color="text.primary">
-                    Welcome to Chess
-                </Typography>
-                <Typography variant="body2" color="text.secondary" align="center">
-                    Please sign in to start playing
-                </Typography>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<LoginIcon />}
-                    onClick={() => router.push('/auth')}
-                    fullWidth
-                >
-                    Sign In
-                </Button>
-            </Box>
-        </Paper>
+        <Box sx={{ width: '100%' }}>
+            <AuthForm />
+        </Box>
     );
 }
 

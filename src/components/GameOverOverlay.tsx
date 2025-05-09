@@ -1,9 +1,40 @@
 import { Box, Typography, Button } from "@mui/material";
 import { useGame } from "@/contexts/GameContext";
-import { useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { UserService } from "@/services/userService";
 
 const GameOverOverlay = () => {
   const { game, myColor, resetGame } = useGame();
+  const [playerNames, setPlayerNames] = useState<{
+    white: string;
+    black: string;
+  }>({
+    white: "White Player",
+    black: "Black Player",
+  });
+  
+  // Fetch player usernames when game data changes
+  useEffect(() => {
+    if (!game) return;
+    
+    const fetchUsernames = async () => {
+      try {
+        const usernames = await UserService.getUsernamesByIds([
+          game.whitePlayer,
+          game.blackPlayer
+        ]);
+        
+        setPlayerNames({
+          white: usernames[game.whitePlayer] || "White Player",
+          black: usernames[game.blackPlayer] || "Black Player"
+        });
+      } catch (error) {
+        console.error("Error fetching player usernames:", error);
+      }
+    };
+    
+    fetchUsernames();
+  }, [game]);
   
   // Generate the game result message based on result and player's color
   const gameResultInfo = useMemo(() => {
@@ -15,10 +46,10 @@ const GameOverOverlay = () => {
     
     // Determine the result header (objective statement)
     if (game.result === 'white') {
-      resultHeader = 'White won';
+      resultHeader = `${playerNames.white} won`;
       resultDetail = game.chess.inCheckmate() ? 'by checkmate' : 'by resignation';
     } else if (game.result === 'black') {
-      resultHeader = 'Black won';
+      resultHeader = `${playerNames.black} won`;
       resultDetail = game.chess.inCheckmate() ? 'by checkmate' : 'by resignation';
     } else {
       resultHeader = 'Game drawn';
@@ -37,23 +68,24 @@ const GameOverOverlay = () => {
     
     // Determine the personal message based on player's color and result
     if (myColor) {
+      const opponentName = myColor === 'white' ? playerNames.black : playerNames.white;
       const isWinner = (myColor === 'white' && game.result === 'white') || 
                       (myColor === 'black' && game.result === 'black');
       
       if (isWinner) {
-        personalMessage = 'Congratulations! You won the game.';
+        personalMessage = `Congratulations! You defeated ${opponentName}.`;
       } else if (game.result === 'draw') {
-        personalMessage = 'The game ended in a draw.';
+        personalMessage = `The game ended in a draw between you and ${opponentName}.`;
       } else {
-        personalMessage = 'Better luck next time!';
+        personalMessage = `Better luck next time against ${opponentName}!`;
       }
     } else {
       // Message for spectators
-      personalMessage = 'Game has ended.';
+      personalMessage = `Game between ${playerNames.white} and ${playerNames.black} has ended.`;
     }
     
     return { resultHeader, resultDetail, personalMessage };
-  }, [game, myColor]);
+  }, [game, myColor, playerNames]);
 
   if (!gameResultInfo) return null;
 

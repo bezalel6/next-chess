@@ -2,9 +2,48 @@ import { Box, Typography } from "@mui/material";
 import LichessBoard from "./lichess-board";
 import { useGame } from "@/contexts/GameContext";
 import GameOverOverlay from "./GameOverOverlay";
+import { useState, useEffect } from "react";
+import { UserService } from "@/services/userService";
 
 const GameBoard = () => {
   const { game, myColor } = useGame();
+  const [playerNames, setPlayerNames] = useState<{
+    white: string;
+    black: string;
+  }>({
+    white: "White Player",
+    black: "Black Player",
+  });
+  
+  // Fetch player usernames when game data changes
+  useEffect(() => {
+    if (!game) return;
+    
+    const fetchUsernames = async () => {
+      try {
+        const usernames = await UserService.getUsernamesByIds([
+          game.whitePlayer,
+          game.blackPlayer
+        ]);
+        
+        setPlayerNames({
+          white: usernames[game.whitePlayer] || "White Player",
+          black: usernames[game.blackPlayer] || "Black Player"
+        });
+      } catch (error) {
+        console.error("Error fetching player usernames:", error);
+      }
+    };
+    
+    fetchUsernames();
+  }, [game]);
+  
+  // Determine which username to display for opponent and current player
+  const opponentName = myColor === 'white' ? playerNames.black : playerNames.white;
+  const myName = myColor === 'white' ? playerNames.white : playerNames.black;
+  
+  // Get current turn player name
+  const currentTurnName = game?.turn === 'white' ? playerNames.white : playerNames.black;
   
   return (
     <Box sx={{ 
@@ -24,7 +63,7 @@ const GameBoard = () => {
         alignItems: 'center'
       }}>
         <Typography sx={{ color: 'white' }}>
-          {myColor === 'white' ? 'Opponent' : 'Player 1'}
+          {opponentName}
         </Typography>
       </Box>
       
@@ -51,7 +90,7 @@ const GameBoard = () => {
         alignItems: 'center'
       }}>
         <Typography sx={{ color: 'white' }}>
-          {myColor === 'black' ? 'Opponent' : 'Player 2'}
+          {myName}
         </Typography>
       </Box>
       
@@ -68,7 +107,7 @@ const GameBoard = () => {
         borderRadius: 1
       }}>
         <Typography sx={{ color: 'white' }}>
-          Status: {game.status} • Turn: {game.turn} 
+          Status: {game.status} • Current Turn: {currentTurnName} ({game.turn})
         </Typography>
       </Box>
     </Box>

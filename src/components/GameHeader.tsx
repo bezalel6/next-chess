@@ -1,9 +1,22 @@
 import { Box, Typography } from "@mui/material";
 import styles from "../pages/index.module.css";
 import { useGame } from "@/contexts/GameContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const GameHeader = () => {
   const { game, loading, myColor } = useGame();
+  const { profile } = useAuth();
+
+  // Display username or role
+  const displayRole = () => {
+    if (!game || loading) return null;
+    
+    if (myColor) {
+      return `${profile?.username || 'You'} (${myColor})`;
+    } else {
+      return 'Spectator';
+    }
+  };
 
   return (
     <Box sx={{ 
@@ -18,7 +31,7 @@ const GameHeader = () => {
       </Typography>
       {game && !loading && (
         <Typography variant="body2" sx={{ color: 'white' }}>
-          {myColor || 'Spectator'}
+          {displayRole()}
         </Typography>
       )}
     </Box>

@@ -1,4 +1,5 @@
 import type { Chess } from 'chess.ts';
+import type { Square } from 'chess.ts/dist/types';
 /**
  * Type definitions for color representations
  */
@@ -10,8 +11,8 @@ export type GameStatus = 'active' | 'finished' | 'abandoned';
 export type GameResult = 'white' | 'black' | 'draw' | null;
 
 export interface ChessMove {
-    from: string;
-    to: string;
+    from: Square;
+    to: Square;
     promotion?: PromoteablePieces;
 }
 

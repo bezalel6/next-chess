@@ -60,7 +60,7 @@ export default function GamePage() {
                 <meta name="description" content="Play chess online" />
                 <link rel="icon" href="/favicon.ico" />
             </Head>
-            <main style={{ height: '100vh', width: '100%', overflow: 'hidden', backgroundColor: '#121212' }}>
+            <main style={{ height: '100vh', width: '100%', overflowY: 'auto', backgroundColor: '#121212' }}>
                 {/* Header */}
                 <GameHeader />
                 
@@ -68,11 +68,13 @@ export default function GamePage() {
                 <Box sx={{ 
                     display: 'flex',
                     flexDirection: { xs: 'column', md: 'row' },
-                    height: 'calc(100vh - 56px)',
+                    minHeight: { xs: 'auto', md: 'calc(100vh - 56px)' },
+                    height: { xs: 'auto', md: 'calc(100vh - 56px)' },
                     p: { xs: 2, md: 3 },
                     gap: 3,
                     justifyContent: 'center',
-                    position: 'relative'
+                    position: 'relative',
+                    pb: { xs: 5, md: 3 }
                 }}>
                     {loading ? (
                         <LoadingScreen />

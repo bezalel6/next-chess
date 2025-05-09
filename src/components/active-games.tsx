@@ -3,6 +3,7 @@ import { Box, Button, Typography, CircularProgress, Alert, Divider } from '@mui/
 import { SportsEsports } from '@mui/icons-material';
 import { useAuth } from '@/contexts/AuthContext';
 import { GameService } from '@/services/gameService';
+import { UserService } from '@/services/userService';
 import type { Game } from '@/types/game';
 import { useRouter } from 'next/router';
 
@@ -10,8 +11,12 @@ interface ActiveGamesProps {
   fullHeight?: boolean;
 }
 
+interface GameWithOpponent extends Game {
+  opponentName: string;
+}
+
 function ActiveGames({ fullHeight = false }: ActiveGamesProps) {
-  const [activeGames, setActiveGames] = useState<Game[]>([]);
+  const [activeGames, setActiveGames] = useState<GameWithOpponent[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const router = useRouter();
@@ -26,7 +31,25 @@ function ActiveGames({ fullHeight = false }: ActiveGamesProps) {
 
       try {
         const games = await GameService.getUserActiveGames(user.id);
-        setActiveGames(games);
+        
+        // Extract all opponent IDs
+        const opponentIds = games.map(game => 
+          game.whitePlayer === user.id ? game.blackPlayer : game.whitePlayer
+        );
+        
+        // Fetch usernames for all opponents at once
+        const usernames = await UserService.getUsernamesByIds(opponentIds);
+        
+        // Add opponent names to game objects
+        const gamesWithOpponents = games.map(game => {
+          const opponentId = game.whitePlayer === user.id ? game.blackPlayer : game.whitePlayer;
+          return {
+            ...game,
+            opponentName: usernames[opponentId] || "Unknown Player"
+          };
+        });
+        
+        setActiveGames(gamesWithOpponents);
       } catch (error) {
         console.error('Error fetching active games:', error);
       } finally {
@@ -100,14 +123,14 @@ function ActiveGames({ fullHeight = false }: ActiveGamesProps) {
               >
                 <Box>
                   <Typography variant={fullHeight ? "body1" : "body2"} fontWeight={500}>
-                    Game #{game.id.substring(0, 8)}
+                    vs. {game.opponentName}
                   </Typography>
                   <Typography 
                     variant={fullHeight ? "body2" : "caption"} 
                     color={opponentTurn ? "text.secondary" : "primary"}
                     sx={{ mt: fullHeight ? 0.5 : 0 }}
                   >
-                    {opponentTurn ? "Opponent's turn" : "Your turn"} • {colorPlaying}
+                    {opponentTurn ? `${game.opponentName}'s turn` : "Your turn"} • {colorPlaying}
                   </Typography>
                 </Box>
                 <Button

@@ -86,7 +86,10 @@ const MoveHistory = () => {
         borderRadius: 1,
         alignSelf: 'center',
         overflow: 'auto',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+        mb: { xs: 3, md: 0 },
+        maxHeight: { xs: '40vh', md: 'min(500px, 60vh)' },
+        position: 'relative'
       }}
     >
       {/* Header */}

@@ -1,6 +1,9 @@
-import { supabase } from '../utils/supabase.js';
-import { GameService } from './gameService.js';
+import { supabase } from '../utils/supabase';
+import { GameService } from './gameService';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '../env';
+import { Chess } from 'chess.ts';
 
 interface QueueUser {
     user_id: string;
@@ -22,15 +25,43 @@ export class MatchmakingService {
 
     static async matchPlayers(player1Id: string, player2Id: string, channel: RealtimeChannel) {
         try {
-            // Create a new game
-            const game = await GameService.createGame(player1Id, player2Id);
+            console.log(`Attempting to match players ${player1Id} and ${player2Id}`);
+            
+            // Initialize server-side Supabase client with service role key
+            // This bypasses RLS policies for admin operations
+            const serverSupabase = createClient(
+                env.NEXT_PUBLIC_SUPABASE_URL,
+                env.SUPABASE_SERVICE_ROLE_KEY
+            );
+            
+            // Create a new chess game
+            const chess = new Chess();
+            const { data: game, error } = await serverSupabase
+                .from('games')
+                .insert({
+                    white_player_id: player1Id,
+                    black_player_id: player2Id,
+                    status: 'active',
+                    current_fen: chess.fen(),
+                    pgn: chess.pgn(),
+                    turn: 'white'
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error creating game:', error);
+                throw error;
+            }
+
+            const mappedGame = GameService.mapGameFromDB(game);
 
             // Notify both players
             await channel.send({
                 type: 'broadcast',
                 event: 'game-matched',
                 payload: {
-                    gameId: game.id,
+                    gameId: mappedGame.id,
                     color: 'white'
                 }
             });
@@ -39,7 +70,7 @@ export class MatchmakingService {
                 type: 'broadcast',
                 event: 'game-matched',
                 payload: {
-                    gameId: game.id,
+                    gameId: mappedGame.id,
                     color: 'black'
                 }
             });
@@ -48,11 +79,10 @@ export class MatchmakingService {
             await channel.untrack({ user_id: player1Id });
             await channel.untrack({ user_id: player2Id });
 
-            console.log(`Matched players ${player1Id} and ${player2Id} in game ${game.id}`);
-            return game;
+            console.log(`Matched players ${player1Id} and ${player2Id} in game ${mappedGame.id}`);
+            return mappedGame;
         } catch (error) {
             console.error('Error matching players:', error);
-            console.error('Error occured with game:', error);
             throw error;
         }
     }

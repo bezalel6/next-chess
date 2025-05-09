@@ -128,7 +128,7 @@ export class GameService {
         return subscription;
     }
 
-    private static mapGameFromDB(dbGame: any): Game {
+    static mapGameFromDB(dbGame: any): Game {
         const chess = new Chess(dbGame.current_fen);
         return {
             id: dbGame.id,

@@ -34,7 +34,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
             }, new Map())
     }, [game?.chess, isMyTurn]);
 
-    const handlePromotion = useCallback(() => (piece: PromoteablePieces, promotionState: PromotionState) => {
+    const handlePromotion = useCallback((piece: PromoteablePieces, promotionState: PromotionState) => {
         if (!promotionState) return;
 
         makeMove(promotionState.from, promotionState.to, piece);

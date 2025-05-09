@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import type { Game, GameContextType, PromoteablePieces } from '@/types/game';
@@ -24,6 +24,7 @@ export function GameProvider({ children }: GameProviderProps) {
     const router = useRouter();
     const { user } = useAuth();
     const { id: gameId } = router.query;
+    const currentGameId = useRef<string | null>(null);
 
     // Load game when the game ID is in the URL
     useEffect(() => {
@@ -54,26 +55,51 @@ export function GameProvider({ children }: GameProviderProps) {
     // Clean up subscription when component unmounts or when game changes
     const cleanupSubscription = useCallback(() => {
         if (subscription) {
+            console.log('Cleaning up subscription');
             subscription.unsubscribe();
             setSubscription(null);
         }
     }, [subscription]);
 
-    // Set up game subscription
+    // Set up game subscription - completely rewritten to prevent loops
     useEffect(() => {
+        // Don't do anything if we don't have a game ID
         if (!game?.id) return;
 
-        // Clean up any existing subscription before creating a new one
-        cleanupSubscription();
+        // Check if we're already subscribed to this game
+        if (currentGameId.current === game.id && subscription) {
+            console.log('Already subscribed to this game, skipping subscription setup');
+            return;
+        }
 
+        // Clean up existing subscription
+        if (subscription) {
+            console.log('Cleaning up existing subscription before creating new one');
+            subscription.unsubscribe();
+            setSubscription(null);
+        }
+
+        // Update current game ID reference
+        currentGameId.current = game.id;
+
+        // Set up new subscription
+        console.log(`Setting up subscription for game ${game.id}`);
         const setupSubscription = async () => {
             try {
-                const newSubscription = await GameService.subscribeToGame(game.id, (updatedGame) => {
-                    setGame(updatedGame);
-                    if (updatedGame.status === 'finished') {
-                        playGameEnd();
+                const newSubscription = await GameService.subscribeToGame(
+                    game.id,
+                    // Define a stable callback
+                    (updatedGame) => {
+                        console.log(`Game update received: ${updatedGame.id}, turn: ${updatedGame.turn}`);
+                        // Only update if this is the current game we're viewing
+                        if (currentGameId.current === updatedGame.id) {
+                            setGame(updatedGame);
+                            if (updatedGame.status === 'finished') {
+                                playGameEnd();
+                            }
+                        }
                     }
-                });
+                );
                 setSubscription(newSubscription);
             } catch (error) {
                 console.error('Error setting up game subscription:', error);
@@ -82,9 +108,14 @@ export function GameProvider({ children }: GameProviderProps) {
 
         setupSubscription();
 
-        // Cleanup subscription on unmount or game change
-        return cleanupSubscription;
-    }, [game?.id, playGameEnd, cleanupSubscription]);
+        // Clean up on unmount or game change
+        return () => {
+            if (subscription) {
+                console.log('Cleaning up subscription on unmount or game change');
+                subscription.unsubscribe();
+            }
+        };
+    }, [game?.id, playGameEnd]);
 
     const makeMove = useCallback(async (from: string, to: string, promotion?: PromoteablePieces) => {
         if (!game || game.status !== 'active' || game.turn !== myColor || !user) return;

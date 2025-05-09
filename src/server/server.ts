@@ -1,119 +1,148 @@
+// server.ts
 import { createServer, Server as HttpServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
-import { Server as SocketServer } from 'socket.io';
-import { Socket } from 'socket.io';
-import { v4 as uuidv4 } from 'uuid';
-import type { ClientToServerEvents, ServerToClientEvents, GameMove, QueueStatus, GameMatch } from '../types/socket';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '../env';
+import { MatchmakingService } from '../services/matchmakingService';
 
-const dev = process.env.NODE_ENV !== 'production';
+const dev = env.NODE_ENV !== 'production';
 const hostname = 'localhost';
-const port = Number(process.env.PORT) || 3000;
+const port = Number(env.PORT) || 3000;
 
 // Initialize Next.js
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-interface QueuedPlayer {
-    socketId: string;
-    joinedAt: number;
-}
+// Initialize Supabase client with service role and ws for Node.js
+const supabase = createClient(
+  env.NEXT_PUBLIC_SUPABASE_URL!,
+  env.SUPABASE_SERVICE_ROLE_KEY!,
+);
 
-// Queue management
-const matchmakingQueue: QueuedPlayer[] = [];
-
-app.prepare().then(() => {
-    const server: HttpServer = createServer(async (req, res) => {
-        try {
-            const parsedUrl = parse(req.url!, true);
-            await handle(req, res, parsedUrl);
-        } catch (err) {
-            console.error('Error occurred handling', req.url, err);
-            res.statusCode = 500;
-            res.end('Internal Server Error');
-        }
-    });
-
-    // Initialize Socket.IO with type declarations
-    const io = new SocketServer<ClientToServerEvents, ServerToClientEvents>(server, {
-        cors: {
-            origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-            methods: ['GET', 'POST'],
+app.prepare().then(async () => {
+  // Set up Supabase Realtime subscriptions for monitoring
+  const queueChannel = supabase
+    .channel('queue-system', {
+      config: {
+        presence: {
+          key: 'user_id', // Use a unique key for presence tracking
         },
-    });
+      },
+    })
+    .on('presence', { event: 'sync' }, async () => {
+      try {
+        const presenceState = queueChannel.presenceState();
+        const queue = Object.values(presenceState).flat() as unknown as Array<{
+          user_id: string;
+          joined_at: string;
+        }>;
 
-    function matchPlayers() {
-        if (matchmakingQueue.length >= 2) {
-            const player1 = matchmakingQueue.shift()!;
-            const player2 = matchmakingQueue.shift()!;
-            const gameId = uuidv4();
+        // Filter out the server's presence entry
+        const filteredQueue = queue.filter(entry => entry.user_id !== 'server');
 
-            // Notify both players about the match
-            const gameMatch1: GameMatch = { gameId, color: 'white' };
-            const gameMatch2: GameMatch = { gameId, color: 'black' };
+        console.debug('[Server Queue] Sync event:', {
+          queueSize: filteredQueue.length,
+          queueState: presenceState,
+        });
 
-            io.to(player1.socketId).emit('game-matched', gameMatch1);
-            io.to(player2.socketId).emit('game-matched', gameMatch2);
+        // Sort queue by join time
+        filteredQueue.sort(
+          (a, b) =>
+            new Date(a.joined_at).getTime() -
+            new Date(b.joined_at).getTime()
+        );
 
-            console.log(`Matched players ${player1.socketId} and ${player2.socketId} in game ${gameId}`);
+        // Match players in pairs
+        let currentQueue = [...filteredQueue];
+        for (let i = 0; i < currentQueue.length - 1; i += 2) {
+          const player1 = currentQueue[i];
+          const player2 = currentQueue[i + 1];
+
+          console.debug('[Server Queue] Attempting to match players:', {
+            player1: player1.user_id,
+            player2: player2.user_id,
+            player1JoinedAt: player1.joined_at,
+            player2JoinedAt: player2.joined_at,
+          });
+
+          try {
+            // Use MatchmakingService to handle the match
+            await MatchmakingService.matchPlayers(
+              player1.user_id,
+              player2.user_id,
+              queueChannel
+            );
+            console.debug('[Server Queue] Successfully matched players:', {
+              player1: player1.user_id,
+              player2: player2.user_id,
+            });
+            
+            // Remove matched players from current queue
+            currentQueue = currentQueue.filter(
+              player => player.user_id !== player1.user_id && player.user_id !== player2.user_id
+            );
+            i -= 2; // Adjust index since we removed two players
+          } catch (error) {
+            console.error('[Server Queue] Error in matchmaking:', {
+              player1: player1.user_id,
+              player2: player2.user_id,
+              error,
+            });
+          }
         }
+
+        // Log remaining players if any
+        if (currentQueue.length % 2 !== 0) {
+          const remainingPlayer = currentQueue[currentQueue.length - 1];
+          console.debug('[Server Queue] Player waiting for match:', {
+            player: remainingPlayer.user_id,
+            joinedAt: remainingPlayer.joined_at,
+            waitTime:
+              new Date().getTime() -
+              new Date(remainingPlayer.joined_at).getTime(),
+          });
+        }
+      } catch (error) {
+        console.error('[Server Queue] Error processing queue:', error);
+      }
+    })
+    .on('system', { event: 'error' }, (error) => {
+      console.error('[Server Queue] Channel error:', error);
+    });
+
+  // Subscribe to the queue channel and track presence
+  await queueChannel.subscribe((status,err) => {
+    if (status === 'SUBSCRIBED') {
+      console.log('[Server Queue] Monitor channel subscribed successfully');
+      // Track presence for this server instance
+      queueChannel.track({
+        user_id: 'server', // Use a unique id for the server
+        joined_at: new Date().toISOString(),
+      });
+    } else if (status === 'CHANNEL_ERROR') {
+      console.error('[Server Queue] Monitor channel error');
     }
+    if (err) {
+      console.error('[Server Queue] Error subscribing to channel:', err);
+    }
+  });
+  queueChannel
+  .on('presence', { event: 'join' }, (payload) => {
+    console.log('[Server Queue] Presence join:', payload);
+  })
+  .on('presence', { event: 'leave' }, (payload) => {
+    console.log('[Server Queue] Presence leave:', payload);
+  })
 
-    // Socket.IO connection handling
-    io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>) => {
-        console.log('Client connected:', socket.id);
 
-        // Queue management
-        socket.on('join-queue', () => {
-            if (!matchmakingQueue.find(p => p.socketId === socket.id)) {
-                matchmakingQueue.push({
-                    socketId: socket.id,
-                    joinedAt: Date.now()
-                });
-                console.log(`Player ${socket.id} joined the queue`);
-                const queueStatus: QueueStatus = { position: matchmakingQueue.length };
-                socket.emit('queue-status', queueStatus);
-                matchPlayers();
-            }
-        });
 
-        socket.on('leave-queue', () => {
-            const index = matchmakingQueue.findIndex(p => p.socketId === socket.id);
-            if (index !== -1) {
-                matchmakingQueue.splice(index, 1);
-                console.log(`Player ${socket.id} left the queue`);
-                const queueStatus: QueueStatus = { position: 0 };
-                socket.emit('queue-status', queueStatus);
-            }
-        });
+  createServer((req, res) => {
+    const parsedUrl = parse(req.url!, true)
+    handle(req, res, parsedUrl)
+  }).listen(port,(err?: Error) => {
+    if (err) throw err;
+    console.log(`> Ready on http://${hostname}:${port}`);
+  }) 
 
-        // Handle game-related events
-        socket.on('join-game', (gameId: string) => {
-            socket.join(gameId);
-            console.log(`Client ${socket.id} joined game ${gameId}`);
-        });
-
-        socket.on('leave-game', (gameId: string) => {
-            socket.leave(gameId);
-            console.log(`Client ${socket.id} left game ${gameId}`);
-        });
-
-        socket.on('make-move', ({ gameId, move }: GameMove) => {
-            socket.to(gameId).emit('move-made', move);
-        });
-
-        socket.on('disconnect', () => {
-            // Remove from queue if they were in it
-            const index = matchmakingQueue.findIndex(p => p.socketId === socket.id);
-            if (index !== -1) {
-                matchmakingQueue.splice(index, 1);
-            }
-            console.log('Client disconnected:', socket.id);
-        });
-    });
-
-    server.listen(port, (err?: Error) => {
-        if (err) throw err;
-        console.log(`> Ready on http://${hostname}:${port}`);
-    });
 });

@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { withAuth } from "./with-auth";
 
 function ConnectionStatus() {
-    const { isConnected, transport, inQueue, queuePosition, matchDetails, handleQueueToggle } = useConnection();
+    const { isConnected, transport, inQueue, queuePosition, queueSize, matchDetails, handleQueueToggle } = useConnection();
     const { signOut } = useAuth();
 
     return (
@@ -30,14 +30,21 @@ function ConnectionStatus() {
                     Transport: {transport}
                 </Typography>
                 {isConnected && !matchDetails && (
-                    <Button
-                        variant="contained"
-                        color={inQueue ? "error" : "primary"}
-                        startIcon={inQueue ? <Stop /> : <PlayArrow />}
-                        onClick={handleQueueToggle}
-                    >
-                        {inQueue ? `Leave Queue (${queuePosition})` : "Join Queue"}
-                    </Button>
+                    <>
+                        <Button
+                            variant="contained"
+                            color={inQueue ? "error" : "primary"}
+                            startIcon={inQueue ? <Stop /> : <PlayArrow />}
+                            onClick={handleQueueToggle}
+                        >
+                            {inQueue ? `Leave Queue (${queuePosition}/${queueSize})` : "Join Queue"}
+                        </Button>
+                        {inQueue && (
+                            <Typography variant="body2" color="text.secondary">
+                                Queue Size: {queueSize}
+                            </Typography>
+                        )}
+                    </>
                 )}
                 {matchDetails && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

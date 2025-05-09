@@ -52,6 +52,7 @@ export class MatchmakingService {
             return game;
         } catch (error) {
             console.error('Error matching players:', error);
+            console.error('Error occured with game:', error);
             throw error;
         }
     }

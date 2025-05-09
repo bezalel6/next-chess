@@ -1,5 +1,4 @@
 import type { Chess } from 'chess.ts';
-import type { ChessMove, GameMatch } from './socket';
 /**
  * Type definitions for color representations
  */

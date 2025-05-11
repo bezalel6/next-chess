@@ -1,60 +1,60 @@
-import type { Chess } from 'chess.ts';
-import type { Square } from 'chess.ts/dist/types';
+import type { Chess } from "chess.ts";
+import type { Square } from "chess.ts/dist/types";
 /**
  * Type definitions for color representations
  */
-export type ShortColor = 'w' | 'b';
-export type LongColor = 'white' | 'black';
-export type PlayerColor = 'white' | 'black';
+export type ShortColor = "w" | "b";
+export type LongColor = "white" | "black";
+export type PlayerColor = "white" | "black";
 
-export type GameStatus = 'active' | 'finished' | 'abandoned';
-export type GameResult = 'white' | 'black' | 'draw' | null;
+export type GameStatus = "active" | "finished" | "abandoned";
+export type GameResult = "white" | "black" | "draw" | null;
 
 export interface ChessMove {
-    from: Square;
-    to: Square;
-    promotion?: PromoteablePieces;
+  from: Square;
+  to: Square;
+  promotion?: PromoteablePieces;
 }
 
 export interface Game {
-    id: string;
-    whitePlayer: string;
-    blackPlayer: string;
-    status: GameStatus;
-    result: GameResult;
-    currentFen: string;
-    pgn: string;
-    chess: Chess;
-    lastMove: ChessMove | null;
-    turn: PlayerColor;
-    startTime: number;
-    lastMoveTime: number;
+  id: string;
+  whitePlayer: string;
+  blackPlayer: string;
+  status: GameStatus;
+  result: GameResult;
+  currentFen: string;
+  pgn: string;
+  chess: Chess;
+  lastMove: ChessMove | null;
+  turn: PlayerColor;
+  startTime: number;
+  lastMoveTime: number;
 }
 
 export interface GameContextType {
-    game: Game | null;
-    setGame: (game: Game | null) => void;
-    pgn: string;
-    setPgn: (pgn: string) => void;
-    makeMove: (from: string, to: string, promotion?: PromoteablePieces) => void;
-    resetGame: () => void;
-    isMyTurn: boolean;
-    myColor: PlayerColor | null;
-    loading: boolean;
+  game: Game | null;
+  setGame: (game: Game | null) => void;
+  pgn: string;
+  setPgn: (pgn: string) => void;
+  makeMove: (from: string, to: string, promotion?: PromoteablePieces) => void;
+  resetGame: () => void;
+  isMyTurn: boolean;
+  myColor: PlayerColor | null;
+  loading: boolean;
+  playerUsernames: { white: string; black: string };
 }
-
 
 /**
  * Maps for conversion between short and long color formats
  */
 const shortToLong: Record<ShortColor, LongColor> = {
-    'w': 'white',
-    'b': 'black'
+  w: "white",
+  b: "black",
 };
 
 const longToShort: Record<LongColor, ShortColor> = {
-    'white': 'w',
-    'black': 'b'
+  white: "w",
+  black: "b",
 };
 
 /**
@@ -64,21 +64,26 @@ const longToShort: Record<LongColor, ShortColor> = {
  * @param color The color to convert
  * @returns The converted color in the target format
  */
-export function clr<Target extends ShortColor | LongColor>(color: Target extends ShortColor ? LongColor : ShortColor): Target {
-    if ((typeof color === 'string' && color.length === 1) || color === 'w' || color === 'b') {
-        // Converting from short to long
-        return shortToLong[color as ShortColor] as Target;
-    } else {
-        // Converting from long to short
-        return longToShort[color as LongColor] as Target;
-    }
+export function clr<Target extends ShortColor | LongColor>(
+  color: Target extends ShortColor ? LongColor : ShortColor,
+): Target {
+  if (
+    (typeof color === "string" && color.length === 1) ||
+    color === "w" ||
+    color === "b"
+  ) {
+    // Converting from short to long
+    return shortToLong[color as ShortColor] as Target;
+  } else {
+    // Converting from long to short
+    return longToShort[color as LongColor] as Target;
+  }
 }
-export type PromoteablePieces = 'q' | 'r' | 'b' | 'n';
+export type PromoteablePieces = "q" | "r" | "b" | "n";
 
 export const PROMOTION_PIECES: Record<PromoteablePieces, string> = {
-    q: '♛',
-    r: '♜',
-    b: '♝',
-    n: '♞'
+  q: "♛",
+  r: "♜",
+  b: "♝",
+  n: "♞",
 } as const;
-

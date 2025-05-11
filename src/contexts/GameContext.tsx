@@ -9,6 +9,7 @@ import { useAuth } from './AuthContext';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Square } from 'chess.ts/dist/types';
 import { Chess } from 'chess.ts';
+import { UserService } from '@/services/userService';
 
 interface GameProviderProps {
     children: ReactNode;
@@ -23,6 +24,10 @@ export function GameProvider({ children }: GameProviderProps) {
     const [myColor, setMyColor] = useState<'white' | 'black' | null>(null);
     const [subscription, setSubscription] = useState<RealtimeChannel | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
+    const [playerUsernames, setPlayerUsernames] = useState<{ white: string; black: string }>({
+        white: "White Player",
+        black: "Black Player",
+    });
     const { playGameStart, playGameEnd } = useChessSounds();
     const router = useRouter();
     const { user } = useAuth();
@@ -32,7 +37,7 @@ export function GameProvider({ children }: GameProviderProps) {
     // Load game when the game ID is in the URL
     useEffect(() => {
         if (!gameId || !user || typeof gameId !== 'string') return;
-        
+
         const loadGame = async () => {
             try {
                 setLoading(true);
@@ -127,20 +132,20 @@ export function GameProvider({ children }: GameProviderProps) {
 
         try {
             const move = { from: from as Square, to: to as Square, promotion };
-            
+
             // Optimistically update the PGN
             const tempChess = new Chess(game.currentFen);
             if (pgn) {
                 tempChess.loadPgn(pgn);
             }
-            
+
             // Try the move locally to generate the new PGN
             const result = tempChess.move(move);
             if (result) {
                 // Update only the PGN state optimistically
                 setPgn(tempChess.pgn());
             }
-            
+
             // Proceed with the actual server update
             const updatedGame = await GameService.makeMove(game.id, move);
             setGame(updatedGame);
@@ -182,6 +187,29 @@ export function GameProvider({ children }: GameProviderProps) {
         }
     }, [game?.status, playGameStart]);
 
+    // Fetch player usernames when game data changes
+    useEffect(() => {
+        if (!game) return;
+
+        const fetchUsernames = async () => {
+            try {
+                const usernames = await UserService.getUsernamesByIds([
+                    game.whitePlayer,
+                    game.blackPlayer
+                ]);
+
+                setPlayerUsernames({
+                    white: usernames[game.whitePlayer] || "White Player",
+                    black: usernames[game.blackPlayer] || "Black Player"
+                });
+            } catch (error) {
+                console.error("Error fetching player usernames:", error);
+            }
+        };
+
+        fetchUsernames();
+    }, [game?.whitePlayer, game?.blackPlayer]);
+
     const value: GameContextType = {
         game,
         setGame,
@@ -191,7 +219,8 @@ export function GameProvider({ children }: GameProviderProps) {
         resetGame,
         isMyTurn: game?.status === 'active' && game?.turn === myColor,
         myColor,
-        loading
+        loading,
+        playerUsernames
     };
 
     return (

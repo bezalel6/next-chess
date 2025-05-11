@@ -9,6 +9,15 @@ export type PlayerColor = "white" | "black";
 
 export type GameStatus = "active" | "finished" | "abandoned";
 export type GameResult = "white" | "black" | "draw" | null;
+export type GameEndReason =
+  | "checkmate"
+  | "resignation"
+  | "draw_agreement"
+  | "stalemate"
+  | "insufficient_material"
+  | "threefold_repetition"
+  | "fifty_move_rule"
+  | null;
 
 export interface ChessMove {
   from: Square;
@@ -29,7 +38,12 @@ export interface DBGame {
   banningPlayer: PlayerColor | null;
   created_at?: number;
   updated_at?: number;
+  draw_offered_by?: PlayerColor | null;
+  end_reason?: GameEndReason;
+  rematch_offered_by?: PlayerColor | null;
+  parent_game_id?: string | null;
 }
+
 export interface Game {
   id: string;
   whitePlayer: string;
@@ -44,6 +58,10 @@ export interface Game {
   startTime: number;
   lastMoveTime: number;
   banningPlayer: PlayerColor | null;
+  drawOfferedBy: PlayerColor | null;
+  endReason: GameEndReason;
+  rematchOfferedBy: PlayerColor | null;
+  parentGameId: string | null;
 }
 
 export interface GameContextType {
@@ -58,6 +76,13 @@ export interface GameContextType {
   myColor: PlayerColor | null;
   loading: boolean;
   playerUsernames: { white: string; black: string };
+  offerDraw: () => Promise<void>;
+  acceptDraw: () => Promise<void>;
+  declineDraw: () => Promise<void>;
+  resign: () => Promise<void>;
+  offerRematch: () => Promise<void>;
+  acceptRematch: () => Promise<void>;
+  declineRematch: () => Promise<void>;
 }
 
 /**

@@ -1,10 +1,22 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Stack, Button, Tooltip } from "@mui/material";
 import LichessBoard from "./lichess-board";
 import { useGame } from "@/contexts/GameContext";
 import GameOverOverlay from "./GameOverOverlay";
+import FlagIcon from '@mui/icons-material/Flag';
+import HandshakeIcon from '@mui/icons-material/Handshake';
+import CancelIcon from '@mui/icons-material/Cancel';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 const GameBoard = () => {
-  const { game, myColor, playerUsernames } = useGame();
+  const {
+    game,
+    myColor,
+    playerUsernames,
+    resign,
+    offerDraw,
+    acceptDraw,
+    declineDraw
+  } = useGame();
 
   // Determine which username to display for opponent and current player
   const opponentName = myColor === 'white' ? playerUsernames.black : playerUsernames.white;
@@ -12,6 +24,82 @@ const GameBoard = () => {
 
   // Get current turn player name
   const currentTurnName = game?.turn === 'white' ? playerUsernames.white : playerUsernames.black;
+
+  // Game action buttons component
+  const GameActions = () => {
+    if (!game || game.status !== 'active' || !myColor) return null;
+
+    // Determine opponent color
+    const opponentColor = myColor === 'white' ? 'black' : 'white';
+
+    return (
+      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+        {/* Resignation button always available */}
+        <Tooltip title="Resign Game" arrow>
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            onClick={resign}
+            startIcon={<FlagIcon />}
+            sx={{ minWidth: 40 }}
+          >
+            Resign
+          </Button>
+        </Tooltip>
+
+        {/* Draw offer/response buttons */}
+        {!game.drawOfferedBy && (
+          <Tooltip title="Offer Draw" arrow>
+            <Button
+              variant="outlined"
+              color="info"
+              size="small"
+              onClick={offerDraw}
+              startIcon={<HandshakeIcon />}
+              sx={{ minWidth: 40 }}
+            >
+              Offer Draw
+            </Button>
+          </Tooltip>
+        )}
+
+        {game.drawOfferedBy === myColor && (
+          <Typography variant="body2" sx={{ color: 'white', fontStyle: 'italic', alignSelf: 'center' }}>
+            Draw offer sent
+          </Typography>
+        )}
+
+        {game.drawOfferedBy === opponentColor && (
+          <>
+            <Tooltip title="Accept Draw Offer" arrow>
+              <Button
+                variant="outlined"
+                color="success"
+                size="small"
+                onClick={acceptDraw}
+                startIcon={<CheckCircleIcon />}
+              >
+                Accept Draw
+              </Button>
+            </Tooltip>
+            <Tooltip title="Decline Draw Offer" arrow>
+              <Button
+                variant="outlined"
+                color="warning"
+                size="small"
+                onClick={declineDraw}
+                startIcon={<CancelIcon />}
+              >
+                Decline
+              </Button>
+            </Tooltip>
+          </>
+        )}
+      </Stack>
+    );
+  };
+
   function Status() {
     return <>
       {game.banningPlayer && myColor === game.banningPlayer && <Typography sx={{ color: 'white' }}>
@@ -22,6 +110,7 @@ const GameBoard = () => {
       </Typography>
     </>
   }
+
   return (
     <Box sx={{
       display: 'flex',
@@ -52,10 +141,8 @@ const GameBoard = () => {
         position: 'relative'
       }}>
         <LichessBoard />
-
-        {/* Game over overlay */}
+        {game.status === 'finished' && <GameOverOverlay />}
       </Box>
-      {game.status === 'finished' && <GameOverOverlay />}
 
       {/* Player info */}
       <Box sx={{
@@ -69,6 +156,18 @@ const GameBoard = () => {
         <Typography sx={{ color: 'white' }}>
           {myName}
         </Typography>
+      </Box>
+
+      {/* Game actions */}
+      <Box sx={{
+        width: '100%',
+        maxWidth: 800,
+        mt: 1,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <GameActions />
       </Box>
 
       {/* Game Status */}

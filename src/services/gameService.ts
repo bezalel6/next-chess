@@ -1,5 +1,11 @@
 import { supabase } from "../utils/supabase";
-import type { Game, ChessMove, DBGame } from "@/types/game";
+import type {
+  Game,
+  ChessMove,
+  DBGame,
+  GameEndReason,
+  PlayerColor,
+} from "@/types/game";
 import { Chess } from "chess.ts";
 
 export class GameService {
@@ -82,14 +88,29 @@ export class GameService {
 
     const isGameOver = chess.gameOver();
     const status = isGameOver ? "finished" : "active";
-    const result_ = isGameOver
-      ? chess.inCheckmate()
-        ? game.turn
-        : "draw"
-      : null;
+    let gameResult = null;
+    let endReason = null;
 
     if (isGameOver) {
-      console.log(`[GameService] Game over. Result: ${result_}`);
+      if (chess.inCheckmate()) {
+        gameResult = game.turn;
+        endReason = "checkmate";
+      } else if (chess.inStalemate()) {
+        gameResult = "draw";
+        endReason = "stalemate";
+      } else if (chess.insufficientMaterial()) {
+        gameResult = "draw";
+        endReason = "insufficient_material";
+      } else if (chess.inThreefoldRepetition()) {
+        gameResult = "draw";
+        endReason = "threefold_repetition";
+      } else if (chess.inDraw()) {
+        gameResult = "draw";
+        endReason = "fifty_move_rule";
+      }
+      console.log(
+        `[GameService] Game over. Result: ${gameResult}, Reason: ${endReason}`,
+      );
     }
 
     const { data: updatedGame, error } = await supabase
@@ -101,7 +122,9 @@ export class GameService {
         turn: game.turn === "white" ? "black" : "white",
         banningPlayer: game.turn,
         status,
-        result: result_,
+        result: gameResult,
+        end_reason: endReason,
+        draw_offered_by: null,
       })
       .eq("id", gameId)
       .select()
@@ -195,6 +218,190 @@ export class GameService {
       banningPlayer: dbGame.banningPlayer,
       startTime: new Date(dbGame.created_at).getTime(),
       lastMoveTime: new Date(dbGame.updated_at).getTime(),
+      drawOfferedBy: dbGame.draw_offered_by || null,
+      endReason: dbGame.end_reason || null,
+      rematchOfferedBy: dbGame.rematch_offered_by || null,
+      parentGameId: dbGame.parent_game_id || null,
     };
+  }
+
+  static async offerDraw(
+    gameId: string,
+    playerColor: PlayerColor,
+  ): Promise<Game> {
+    console.log(
+      `[GameService] Draw offered by ${playerColor} in game ${gameId}`,
+    );
+
+    const { data: updatedGame, error } = await supabase
+      .from("games")
+      .update({
+        draw_offered_by: playerColor,
+      })
+      .eq("id", gameId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`[GameService] Error offering draw: ${error.message}`);
+      throw error;
+    }
+
+    return this.mapGameFromDB(updatedGame);
+  }
+
+  static async acceptDraw(gameId: string): Promise<Game> {
+    console.log(`[GameService] Draw accepted in game ${gameId}`);
+
+    const { data: updatedGame, error } = await supabase
+      .from("games")
+      .update({
+        status: "finished",
+        result: "draw",
+        draw_offered_by: null,
+        end_reason: "draw_agreement",
+      })
+      .eq("id", gameId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`[GameService] Error accepting draw: ${error.message}`);
+      throw error;
+    }
+
+    return this.mapGameFromDB(updatedGame);
+  }
+
+  static async declineDraw(gameId: string): Promise<Game> {
+    console.log(`[GameService] Draw declined in game ${gameId}`);
+
+    const { data: updatedGame, error } = await supabase
+      .from("games")
+      .update({
+        draw_offered_by: null,
+      })
+      .eq("id", gameId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`[GameService] Error declining draw: ${error.message}`);
+      throw error;
+    }
+
+    return this.mapGameFromDB(updatedGame);
+  }
+
+  static async resign(gameId: string, playerColor: PlayerColor): Promise<Game> {
+    console.log(
+      `[GameService] Player ${playerColor} resigned in game ${gameId}`,
+    );
+
+    const result = playerColor === "white" ? "black" : "white";
+
+    const { data: updatedGame, error } = await supabase
+      .from("games")
+      .update({
+        status: "finished",
+        result,
+        end_reason: "resignation",
+      })
+      .eq("id", gameId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`[GameService] Error resigning game: ${error.message}`);
+      throw error;
+    }
+
+    return this.mapGameFromDB(updatedGame);
+  }
+
+  static async offerRematch(
+    gameId: string,
+    playerColor: PlayerColor,
+  ): Promise<Game> {
+    console.log(
+      `[GameService] Rematch offered by ${playerColor} in game ${gameId}`,
+    );
+
+    const { data: updatedGame, error } = await supabase
+      .from("games")
+      .update({
+        rematch_offered_by: playerColor,
+      })
+      .eq("id", gameId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`[GameService] Error offering rematch: ${error.message}`);
+      throw error;
+    }
+
+    return this.mapGameFromDB(updatedGame);
+  }
+
+  static async acceptRematch(gameId: string): Promise<Game> {
+    console.log(`[GameService] Rematch accepted for game ${gameId}`);
+
+    // First get the current game to get player IDs and swap them
+    const currentGame = await this.getGame(gameId);
+    if (!currentGame) throw new Error("Game not found");
+
+    // Create a new game with swapped colors
+    const newGame = await this.createGame(
+      currentGame.blackPlayer, // Swap colors
+      currentGame.whitePlayer, // Swap colors
+    );
+
+    // Update parent game reference
+    await supabase
+      .from("games")
+      .update({
+        rematch_offered_by: null, // Clear the offer
+      })
+      .eq("id", gameId);
+
+    // Update the new game with parent reference
+    const { data: updatedNewGame, error } = await supabase
+      .from("games")
+      .update({
+        parent_game_id: gameId,
+      })
+      .eq("id", newGame.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(
+        `[GameService] Error setting up rematch game: ${error.message}`,
+      );
+      throw error;
+    }
+
+    return this.mapGameFromDB(updatedNewGame);
+  }
+
+  static async declineRematch(gameId: string): Promise<Game> {
+    console.log(`[GameService] Rematch declined for game ${gameId}`);
+
+    const { data: updatedGame, error } = await supabase
+      .from("games")
+      .update({
+        rematch_offered_by: null,
+      })
+      .eq("id", gameId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`[GameService] Error declining rematch: ${error.message}`);
+      throw error;
+    }
+
+    return this.mapGameFromDB(updatedGame);
   }
 }

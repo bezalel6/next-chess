@@ -6,9 +6,10 @@ import { clr, PROMOTION_PIECES, type LongColor, type PromoteablePieces, type Sho
 import { useGame } from '@/contexts/GameContext';
 import { Chess } from 'chess.ts';
 import type { Square } from 'chess.ts/dist/types';
-import { getBannedMove, isMoveFuzzyEq } from '@/utils/gameUtils';
+import { getBannedMove, isGameOver, isMoveFuzzyEq } from '@/utils/gameUtils';
 const Chessground = dynamic(() => import('@react-chess/chessground'), {
     ssr: false
+
 });
 
 interface LichessBoardProps {

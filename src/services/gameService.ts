@@ -1,11 +1,6 @@
 import { supabase } from "../utils/supabase";
-import type {
-  Game,
-  ChessMove,
-  DBGame,
-  GameEndReason,
-  PlayerColor,
-} from "@/types/game";
+import type { Game, ChessMove, DBGame, PlayerColor } from "@/types/game";
+import { getBannedMove, isGameOver as isGameOverFunc } from "@/utils/gameUtils";
 import { Chess } from "chess.ts";
 
 export class GameService {
@@ -51,11 +46,19 @@ export class GameService {
     const chess = new Chess();
     chess.loadPgn(game.pgn);
     chess.setComment(`banning: ${move.from}${move.to}`);
+    const gameOverState = isGameOverFunc(chess);
+    const status = gameOverState.isOver ? "finished" : "active";
+    const gameResult = gameOverState.result;
+    const endReason = gameOverState.reason;
+
     const { error, data } = await supabase
       .from("games")
       .update({
         banningPlayer: null,
         pgn: chess.pgn(),
+        status,
+        result: gameResult,
+        end_reason: endReason,
       })
       .eq("id", gameId)
       .select()
@@ -85,33 +88,18 @@ export class GameService {
 
     console.log(`[GameService] Move valid. New FEN: ${chess.fen()}`);
     console.log(`[GameService] Updated PGN: ${chess.pgn()}`);
-    // TODO: customize game over to take banned move into account
-    const isGameOver = chess.gameOver();
-    const status = isGameOver ? "finished" : "active";
-    let gameResult = null;
-    let endReason = null;
+    const bannedMove = getBannedMove(game.pgn);
 
-    if (isGameOver) {
-      if (chess.inCheckmate()) {
-        gameResult = game.turn;
-        endReason = "checkmate";
-      } else if (chess.inStalemate()) {
-        gameResult = "draw";
-        endReason = "stalemate";
-      } else if (chess.insufficientMaterial()) {
-        gameResult = "draw";
-        endReason = "insufficient_material";
-      } else if (chess.inThreefoldRepetition()) {
-        gameResult = "draw";
-        endReason = "threefold_repetition";
-      } else if (chess.inDraw()) {
-        gameResult = "draw";
-        endReason = "fifty_move_rule";
-      }
-      console.log(
-        `[GameService] Game over. Result: ${gameResult}, Reason: ${endReason}`,
-      );
-    }
+    // Check game over with banned move consideration
+    const gameOverState = isGameOverFunc(chess, game.pgn);
+    const isGameOver = gameOverState.isOver;
+    const status = isGameOver ? "finished" : "active";
+    const gameResult = gameOverState.result;
+    const endReason = gameOverState.reason;
+
+    console.log(
+      `[GameService] Game state: ${isGameOver ? "Game over" : "Active"}. Result: ${gameResult}, Reason: ${endReason}`,
+    );
 
     const { data: updatedGame, error } = await supabase
       .from("games")

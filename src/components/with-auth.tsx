@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/compat/router';
+
 import { useAuth } from '@/contexts/AuthContext';
 import type { ComponentType } from 'react';
 

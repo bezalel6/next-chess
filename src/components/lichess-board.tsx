@@ -1,7 +1,7 @@
 import dynamic from 'next/dynamic';
 import React, { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import { useChessSounds } from '../hooks/useChessSounds';
-import { Box, Paper, Button, Typography } from '@mui/material';
+import { Box, Paper, Button, Typography, Chip } from '@mui/material';
 import { clr, PROMOTION_PIECES, type LongColor, type PromoteablePieces, type ShortColor } from '@/types/game';
 import { useGame } from '@/contexts/GameContext';
 import { Chess } from 'chess.ts';
@@ -104,6 +104,9 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         ];
     }, [bannedMove]);
 
+    // Add state to track if we're in banning mode
+    const isBanningMode = game.banningPlayer === myColor;
+
     const config = useMemo(() => ({
         fen,
         orientation: myColor ?? 'white',
@@ -168,6 +171,25 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     return (
         <>
             <Chessground contained config={config} />
+            {isBanningMode && (
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: '10px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 20,
+                    }}
+                >
+                    <Chip
+                        label="BAN MODE - SELECT OPPONENT'S MOVE TO BAN"
+                        color="warning"
+                        sx={{
+                            fontWeight: 'bold'
+                        }}
+                    />
+                </Box>
+            )}
             {overlay && (
                 <Box
                     sx={{

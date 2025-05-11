@@ -1,9 +1,17 @@
-import { Box, Typography, Button } from "@mui/material";
+import { Box, Typography, Button, Stack } from "@mui/material";
 import { useGame } from "@/contexts/GameContext";
 import { useMemo } from "react";
 
 const GameOverOverlay = () => {
-  const { game, myColor, resetGame, playerUsernames } = useGame();
+  const {
+    game,
+    myColor,
+    resetGame,
+    playerUsernames,
+    offerRematch,
+    acceptRematch,
+    declineRematch
+  } = useGame();
 
   // Generate the game result message based on result and player's color
   const gameResultInfo = useMemo(() => {
@@ -16,22 +24,24 @@ const GameOverOverlay = () => {
     // Determine the result header (objective statement)
     if (game.result === 'white') {
       resultHeader = `${playerUsernames.white} won`;
-      resultDetail = game.chess.inCheckmate() ? 'by checkmate' : 'by resignation';
+      resultDetail = game.endReason === 'checkmate' ? 'by checkmate' : 'by resignation';
     } else if (game.result === 'black') {
       resultHeader = `${playerUsernames.black} won`;
-      resultDetail = game.chess.inCheckmate() ? 'by checkmate' : 'by resignation';
+      resultDetail = game.endReason === 'checkmate' ? 'by checkmate' : 'by resignation';
     } else {
       resultHeader = 'Game drawn';
-      if (game.chess.inStalemate()) {
+      if (game.endReason === 'stalemate') {
         resultDetail = 'by stalemate';
-      } else if (game.chess.insufficientMaterial()) {
+      } else if (game.endReason === 'insufficient_material') {
         resultDetail = 'by insufficient material';
-      } else if (game.chess.inThreefoldRepetition()) {
+      } else if (game.endReason === 'threefold_repetition') {
         resultDetail = 'by threefold repetition';
-      } else if (game.chess.inDraw()) {
+      } else if (game.endReason === 'fifty_move_rule') {
         resultDetail = 'by 50-move rule';
-      } else {
+      } else if (game.endReason === 'draw_agreement') {
         resultDetail = 'by agreement';
+      } else {
+        resultDetail = '';
       }
     }
 
@@ -55,6 +65,65 @@ const GameOverOverlay = () => {
 
     return { resultHeader, resultDetail, personalMessage };
   }, [game, myColor, playerUsernames]);
+
+  // Function to render rematch buttons
+  const RematchButtons = () => {
+    if (!game || !myColor) return null;
+
+    const opponentColor = myColor === 'white' ? 'black' : 'white';
+
+    // Case 1: No rematch offered yet, show Offer Rematch button
+    if (!game.rematchOfferedBy) {
+      return (
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={offerRematch}
+          sx={{
+            mt: 1,
+            textTransform: 'none'
+          }}
+        >
+          Offer Rematch
+        </Button>
+      );
+    }
+
+    // Case 2: I've offered a rematch, show pending message
+    if (game.rematchOfferedBy === myColor) {
+      return (
+        <Typography variant="body2" sx={{ color: 'white', mt: 1, fontStyle: 'italic' }}>
+          Rematch offer sent, waiting for opponent...
+        </Typography>
+      );
+    }
+
+    // Case 3: Opponent offered rematch, show Accept/Decline buttons
+    if (game.rematchOfferedBy === opponentColor) {
+      return (
+        <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={acceptRematch}
+            sx={{ textTransform: 'none' }}
+          >
+            Accept Rematch
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={declineRematch}
+            sx={{ textTransform: 'none' }}
+          >
+            Decline
+          </Button>
+        </Stack>
+      );
+    }
+
+    return null;
+  };
 
   if (!gameResultInfo) return null;
 
@@ -98,6 +167,9 @@ const GameOverOverlay = () => {
       }}>
         {gameResultInfo.personalMessage}
       </Typography>
+
+      {/* Rematch controls */}
+      {myColor && <RematchButtons />}
 
       <Button
         variant="contained"

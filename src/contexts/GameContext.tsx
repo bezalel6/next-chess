@@ -11,6 +11,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Square } from 'chess.ts/dist/types';
 import { Chess } from 'chess.ts';
 import { UserService } from '@/services/userService';
+import { supabase } from '@/utils/supabase';
 
 interface GameProviderProps {
     children: ReactNode;
@@ -226,6 +227,143 @@ export function GameProvider({ children }: GameProviderProps) {
         fetchUsernames();
     }, [game?.whitePlayer, game?.blackPlayer]);
 
+    // New function to offer a draw
+    const offerDraw = useCallback(async () => {
+        if (!game || game.status !== 'active' || !myColor || !user) return;
+
+        try {
+            const updatedGame = await GameService.offerDraw(game.id, myColor);
+            setGame(updatedGame);
+        } catch (error) {
+            console.error('Error offering draw:', error);
+        }
+    }, [game, myColor, user]);
+
+    // New function to accept a draw
+    const acceptDraw = useCallback(async () => {
+        if (!game || game.status !== 'active' || !user) return;
+
+        try {
+            const updatedGame = await GameService.acceptDraw(game.id);
+            setGame(updatedGame);
+            setPgn(updatedGame.pgn || '');
+            playGameEnd();
+        } catch (error) {
+            console.error('Error accepting draw:', error);
+        }
+    }, [game, user, playGameEnd]);
+
+    // New function to decline a draw
+    const declineDraw = useCallback(async () => {
+        if (!game || game.status !== 'active' || !user) return;
+
+        try {
+            const updatedGame = await GameService.declineDraw(game.id);
+            setGame(updatedGame);
+        } catch (error) {
+            console.error('Error declining draw:', error);
+        }
+    }, [game, user]);
+
+    // New function to resign
+    const resign = useCallback(async () => {
+        if (!game || game.status !== 'active' || !myColor || !user) return;
+
+        if (window.confirm('Are you sure you want to resign?')) {
+            try {
+                const updatedGame = await GameService.resign(game.id, myColor);
+                setGame(updatedGame);
+                setPgn(updatedGame.pgn || '');
+                playGameEnd();
+            } catch (error) {
+                console.error('Error resigning:', error);
+            }
+        }
+    }, [game, myColor, user, playGameEnd]);
+
+    // New function to offer a rematch
+    const offerRematch = useCallback(async () => {
+        if (!game || game.status !== 'finished' || !myColor || !user) return;
+
+        try {
+            const updatedGame = await GameService.offerRematch(game.id, myColor);
+            setGame(updatedGame);
+        } catch (error) {
+            console.error('Error offering rematch:', error);
+        }
+    }, [game, myColor, user]);
+
+    // New function to accept a rematch
+    const acceptRematch = useCallback(async () => {
+        if (!game || game.status !== 'finished' || !user) return;
+
+        try {
+            // First clear the rematch offer from the current game
+            // This prevents errors if the accepting player refreshes
+            await GameService.declineRematch(game.id);
+
+            // Create the new game with swapped colors
+            const newGame = await GameService.acceptRematch(game.id);
+
+            // Update the local state for the current game
+            setGame({
+                ...game,
+                rematchOfferedBy: null
+            });
+
+            // Notify players via realtime channel that a rematch has been created
+            // This will be picked up by all connected clients still viewing the original game
+            await supabase
+                .channel('game_rematch')
+                .send({
+                    type: 'broadcast',
+                    event: 'rematch_accepted',
+                    payload: {
+                        originalGameId: game.id,
+                        newGameId: newGame.id
+                    }
+                });
+
+            // Navigate to the new game
+            router.push(`/game/${newGame.id}`);
+        } catch (error) {
+            console.error('Error accepting rematch:', error);
+        }
+    }, [game, user, router]);
+
+    // New function to decline a rematch
+    const declineRematch = useCallback(async () => {
+        if (!game || game.status !== 'finished' || !user) return;
+
+        try {
+            const updatedGame = await GameService.declineRematch(game.id);
+            setGame(updatedGame);
+        } catch (error) {
+            console.error('Error declining rematch:', error);
+        }
+    }, [game, user]);
+
+    // Listen for rematch broadcasts to redirect both players
+    useEffect(() => {
+        if (!game?.id) return;
+
+        const rematchChannel = supabase
+            .channel('game_rematch')
+            .on('broadcast', { event: 'rematch_accepted' }, (payload) => {
+                // Check if this broadcast is relevant to the current game
+                if (payload.payload.originalGameId === game.id) {
+                    console.log('Rematch accepted, redirecting to new game:', payload.payload.newGameId);
+                    // Navigate to the new game
+                    router.push(`/game/${payload.payload.newGameId}`);
+                }
+            })
+            .subscribe();
+
+        return () => {
+            rematchChannel.unsubscribe();
+        };
+    }, [game?.id, router]);
+
     const value: GameContextType = {
         game,
         setGame,
@@ -237,7 +375,14 @@ export function GameProvider({ children }: GameProviderProps) {
         isMyTurn: game?.status === 'active' && game?.turn === myColor,
         myColor,
         loading,
-        playerUsernames
+        playerUsernames,
+        offerDraw,
+        acceptDraw,
+        declineDraw,
+        resign,
+        offerRematch,
+        acceptRematch,
+        declineRematch
     };
 
     return (

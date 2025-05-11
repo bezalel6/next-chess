@@ -125,7 +125,7 @@ export function GameProvider({ children }: GameProviderProps) {
                 subscription.unsubscribe();
             }
         };
-    }, [game?.id, playGameEnd]);
+    }, [game.id, playGameEnd, subscription]);
 
     const makeMove = useCallback(async (from: string, to: string, promotion?: PromoteablePieces) => {
         if (!game || game.status !== 'active' || game.turn !== myColor || !user) return;

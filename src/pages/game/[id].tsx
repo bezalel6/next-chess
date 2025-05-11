@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import Head from "next/head";
 import { Box } from "@mui/material";
 import { useGame } from "@/contexts/GameContext";
-import { useRouter } from "next/router";
+import { useRouter } from 'next/compat/router';
+
 import { useAuth } from "@/contexts/AuthContext";
 import { GameService } from "@/services/gameService";
 import GameHeader from "@/components/GameHeader";
@@ -22,24 +23,24 @@ export default function GamePage() {
         async function checkGameAccess() {
             // Don't check if we don't have a user or game ID yet
             if (!user || !id || typeof id !== 'string') return;
-            
+
             // Don't check again if the game is already loaded
             if (game) return;
-            
+
             try {
                 const gameData = await GameService.getGame(id);
-                
+
                 if (!gameData) {
                     console.error('Game not found');
                     router.replace('/');
                     return;
                 }
-                
+
                 // Check if user is a player in this game
-                const isPlayerInGame = 
-                    gameData.whitePlayer === user.id || 
+                const isPlayerInGame =
+                    gameData.whitePlayer === user.id ||
                     gameData.blackPlayer === user.id;
-                
+
                 if (!isPlayerInGame) {
                     console.error('User is not authorized to view this game');
                     router.replace('/');
@@ -49,7 +50,7 @@ export default function GamePage() {
                 router.replace('/');
             }
         }
-        
+
         checkGameAccess();
     }, [user, id, game, router]);
 
@@ -63,9 +64,9 @@ export default function GamePage() {
             <main style={{ height: '100vh', width: '100%', overflowY: 'auto', backgroundColor: '#121212' }}>
                 {/* Header */}
                 <GameHeader />
-                
+
                 {/* Content area */}
-                <Box sx={{ 
+                <Box sx={{
                     display: 'flex',
                     flexDirection: { xs: 'column', md: 'row' },
                     minHeight: { xs: 'auto', md: 'calc(100vh - 56px)' },

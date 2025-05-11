@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/compat/router';
+;
 import type { Game, GameContextType, PromoteablePieces } from '@/types/game';
 import type { GameMatch } from '@/types/realtime';
 import { useChessSounds } from '@/hooks/useChessSounds';

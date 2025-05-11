@@ -1,17 +1,18 @@
 import { Box, Typography, Button } from "@mui/material";
-import { useRouter } from "next/router";
+import { useRouter } from 'next/compat/router';
+
 import { Home } from "@mui/icons-material";
 
 const NotFoundScreen = () => {
   const router = useRouter();
 
   return (
-    <Box sx={{ 
-      display: 'flex', 
+    <Box sx={{
+      display: 'flex',
       flexDirection: 'column',
-      width: '100%', 
-      height: '100%', 
-      justifyContent: 'center', 
+      width: '100%',
+      height: '100%',
+      justifyContent: 'center',
       alignItems: 'center',
       gap: 3
     }}>

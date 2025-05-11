@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { GameService } from '@/services/gameService';
 import { UserService } from '@/services/userService';
 import type { Game } from '@/types/game';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/compat/router';
 
 interface ActiveGamesProps {
   fullHeight?: boolean;
@@ -31,15 +31,15 @@ function ActiveGames({ fullHeight = false }: ActiveGamesProps) {
 
       try {
         const games = await GameService.getUserActiveGames(user.id);
-        
+
         // Extract all opponent IDs
-        const opponentIds = games.map(game => 
+        const opponentIds = games.map(game =>
           game.whitePlayer === user.id ? game.blackPlayer : game.whitePlayer
         );
-        
+
         // Fetch usernames for all opponents at once
         const usernames = await UserService.getUsernamesByIds(opponentIds);
-        
+
         // Add opponent names to game objects
         const gamesWithOpponents = games.map(game => {
           const opponentId = game.whitePlayer === user.id ? game.blackPlayer : game.whitePlayer;
@@ -48,7 +48,7 @@ function ActiveGames({ fullHeight = false }: ActiveGamesProps) {
             opponentName: usernames[opponentId] || "Unknown Player"
           };
         });
-        
+
         setActiveGames(gamesWithOpponents);
       } catch (error) {
         console.error('Error fetching active games:', error);
@@ -69,32 +69,32 @@ function ActiveGames({ fullHeight = false }: ActiveGamesProps) {
   }
 
   return (
-    <Box sx={{ 
-      width: '100%', 
+    <Box sx={{
+      width: '100%',
       height: fullHeight ? '100%' : 'auto',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: fullHeight ? 'center' : 'flex-start',
-      mt: fullHeight ? 0 : 2 
+      mt: fullHeight ? 0 : 2
     }}>
       {!fullHeight && <Divider sx={{ mb: 2 }} />}
-      
+
       <Typography variant="h6" gutterBottom color="warning.dark" align="center" sx={{ mt: fullHeight ? 0 : 2 }}>
         Unfinished Games ({activeGames.length})
       </Typography>
-      
+
       <Alert severity="warning" sx={{ mb: 3 }}>
         You must finish these games before starting a new one
       </Alert>
-      
+
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
           <CircularProgress size={24} />
         </Box>
       ) : (
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
+        <Box sx={{
+          display: 'flex',
+          flexDirection: 'column',
           gap: 2,
           flex: fullHeight ? 1 : 'auto',
           maxHeight: fullHeight ? '100%' : '200px',
@@ -106,12 +106,12 @@ function ActiveGames({ fullHeight = false }: ActiveGamesProps) {
             const isWhite = game.whitePlayer === user?.id;
             const colorPlaying = isWhite ? 'white' : 'black';
             const opponentTurn = game.turn !== colorPlaying;
-            
+
             return (
-              <Box 
-                key={game.id} 
-                sx={{ 
-                  display: 'flex', 
+              <Box
+                key={game.id}
+                sx={{
+                  display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   p: fullHeight ? 2 : 1.5,
@@ -125,8 +125,8 @@ function ActiveGames({ fullHeight = false }: ActiveGamesProps) {
                   <Typography variant={fullHeight ? "body1" : "body2"} fontWeight={500}>
                     vs. {game.opponentName}
                   </Typography>
-                  <Typography 
-                    variant={fullHeight ? "body2" : "caption"} 
+                  <Typography
+                    variant={fullHeight ? "body2" : "caption"}
                     color={opponentTurn ? "text.secondary" : "primary"}
                     sx={{ mt: fullHeight ? 0.5 : 0 }}
                   >

@@ -125,7 +125,7 @@ export function GameProvider({ children }: GameProviderProps) {
                 subscription.unsubscribe();
             }
         };
-    }, [game.id, playGameEnd, subscription]);
+    }, [game?.id, playGameEnd, subscription]);
 
     const makeMove = useCallback(async (from: string, to: string, promotion?: PromoteablePieces) => {
         if (!game || game.status !== 'active' || game.turn !== myColor || !user) return;
@@ -154,6 +154,21 @@ export function GameProvider({ children }: GameProviderProps) {
             console.error('Invalid move:', error);
         }
     }, [game, pgn, myColor, user]);
+
+    const banMove = useCallback(async (from: string, to: string) => {
+        if (!game || game.status !== 'active' || !user) return;
+
+        try {
+            const move = { from: from as Square, to: to as Square };
+
+            // Call the service to ban the move
+            const updatedGame = await GameService.banMove(game.id, move);
+            setGame(updatedGame);
+            setPgn(updatedGame.pgn || '');
+        } catch (error) {
+            console.error('Error banning move:', error);
+        }
+    }, [game, user]);
 
     const resetGame = useCallback(async () => {
         // Make sure to clean up subscription before resetting game state
@@ -216,6 +231,7 @@ export function GameProvider({ children }: GameProviderProps) {
         pgn,
         setPgn,
         makeMove,
+        banMove,
         resetGame,
         isMyTurn: game?.status === 'active' && game?.turn === myColor,
         myColor,

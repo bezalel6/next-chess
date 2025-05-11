@@ -70,30 +70,30 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 presence: { key: session.user.id }
             }
         })
-        .on('presence', { event: 'sync' }, () => {
-            const presenceState = channel.presenceState();
-            const activeUsers = Object.keys(presenceState).length;
-            const wasConnected = isConnected;
-            setIsConnected(activeUsers > 0);
-            setTransport('supabase');
-            
-            if (activeUsers > 0 && !wasConnected) {
-                addLogEntry(`Connected to realtime service (${activeUsers} active users)`);
-            } else if (activeUsers === 0 && wasConnected) {
-                addLogEntry("Disconnected from realtime service");
-            }
-            
-            setStats(prev => ({
-                ...prev,
-                activeUsers
-            }));
-        })
-        .subscribe(async (status) => {
-            if (status === 'SUBSCRIBED') {
-                await channel.track({ user_id: session.user.id, online_at: new Date().toISOString() });
-                addLogEntry("Successfully subscribed to presence channel");
-            }
-        });
+            .on('presence', { event: 'sync' }, () => {
+                const presenceState = channel.presenceState();
+                const activeUsers = Object.keys(presenceState).length;
+                const wasConnected = isConnected;
+                setIsConnected(activeUsers > 0);
+                setTransport('supabase');
+
+                if (activeUsers > 0 && !wasConnected) {
+                    addLogEntry(`Connected to realtime service (${activeUsers} active users)`);
+                } else if (activeUsers === 0 && wasConnected) {
+                    addLogEntry("Disconnected from realtime service");
+                }
+
+                setStats(prev => ({
+                    ...prev,
+                    activeUsers
+                }));
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({ user_id: session.user.id, online_at: new Date().toISOString() });
+                    addLogEntry("Successfully subscribed to presence channel");
+                }
+            });
 
         return () => {
             channel.unsubscribe();
@@ -119,7 +119,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 const queueUsers = Object.values(presenceState).flat();
                 const position = queueUsers.findIndex(user => user.user_id === session.user.id) + 1;
                 const oldPosition = queue.position;
-                
+
                 setQueue({
                     inQueue: position > 0,
                     position,
@@ -138,12 +138,12 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 const data = payload as GameMatch;
                 setMatchDetails(data);
                 setQueue({ inQueue: false, position: 0, size: 0 });
-                addLogEntry(`Game matched! Game ID: ${data.gameId}, Playing as: ${data.color}`);
-                
+                addLogEntry(`Game matched! Game ID: ${data.gameId}`);
+
                 // Redirect to the game page
                 window.location.href = `/game/${data.gameId}`;
             });
-        
+
         setQueueChannel(channel);
 
         return () => {
@@ -162,6 +162,8 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 addLogEntry("Queue channel cleanup complete");
             }
         };
+        // needs to stay without the queue deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session]);
 
     // Subscribe to queue channel when needed
@@ -187,7 +189,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
     const handleQueueToggle = async () => {
         if (!session?.user || !queueChannel) return;
-        
+
         try {
             if (queue.inQueue) {
                 // Leave queue
@@ -205,7 +207,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 try {
                     const { GameService } = await import('../services/gameService');
                     const activeGames = await GameService.getUserActiveGames(session.user.id);
-                    
+
                     if (activeGames.length > 0) {
                         addLogEntry("Cannot join queue: You have unfinished games");
                         return;
@@ -215,10 +217,10 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     addLogEntry(`Error checking active games: ${error instanceof Error ? error.message : 'Unknown error'}`);
                     return;
                 }
-                
-                await queueChannel.track({ 
-                    user_id: session.user.id, 
-                    joined_at: new Date().toISOString() 
+
+                await queueChannel.track({
+                    user_id: session.user.id,
+                    joined_at: new Date().toISOString()
                 });
                 setQueue(prev => ({ ...prev, inQueue: true }));
                 addLogEntry("Joined matchmaking queue");

@@ -24,17 +24,32 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     const { game, makeMove, banMove, isMyTurn, myColor, pgn } = useGame();
     const { playMoveSound } = useChessSounds();
     const [overlay, setOverlay] = useState<React.ReactNode | null>(null)
+
+    // Calculate banned move at component scope
+    const bannedMove = useMemo(() => {
+        if (game.banningPlayer) return null;
+        const bannedMoveMatch = pgn.match(/\{banning: ([a-zA-Z0-9]{4})\}$/);
+        return bannedMoveMatch ? bannedMoveMatch[1] : null;
+    }, [pgn, game.banningPlayer]);
+
     const legalMoves = useMemo(() => {
         if (!game?.chess || (!isMyTurn && !game.banningPlayer)) return new Map();
+
         return Array.from(game.chess.moves({ verbose: true }))
             .reduce((map, move) => {
                 const from = move.from;
                 const to = move.to;
+
+                // Skip this move if it matches the banned move
+                if (bannedMove && `${from}${to}` === bannedMove) {
+                    return map;
+                }
+
                 const dests = map.get(from) || [];
                 map.set(from, [...dests, to]);
                 return map;
             }, new Map())
-    }, [game?.chess, game?.banningPlayer, isMyTurn]);
+    }, [game.chess, game.banningPlayer, isMyTurn, bannedMove]);
 
     useEffect(() => {
         if (game?.banningPlayer && myColor === game.banningPlayer) {

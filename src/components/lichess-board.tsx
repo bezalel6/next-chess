@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-import React, { useCallback, useMemo, useState, type ComponentProps } from "react";
+import React, { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import { useChessSounds } from '../hooks/useChessSounds';
 import { Box, Paper, Button, Typography } from '@mui/material';
 import { clr, PROMOTION_PIECES, type LongColor, type PromoteablePieces, type ShortColor } from '@/types/game';
@@ -21,11 +21,11 @@ interface PromotionState {
 }
 
 const LichessBoard = ({ }: LichessBoardProps) => {
-    const { game, makeMove, isMyTurn, myColor, pgn } = useGame();
+    const { game, makeMove, banMove, isMyTurn, myColor, pgn } = useGame();
     const { playMoveSound } = useChessSounds();
     const [overlay, setOverlay] = useState<React.ReactNode | null>(null)
     const legalMoves = useMemo(() => {
-        if (!game?.chess || !isMyTurn) return new Map();
+        if (!game?.chess || (!isMyTurn && !game.banningPlayer)) return new Map();
         return Array.from(game.chess.moves({ verbose: true }))
             .reduce((map, move) => {
                 const from = move.from;
@@ -34,7 +34,17 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 map.set(from, [...dests, to]);
                 return map;
             }, new Map())
-    }, [game?.chess, isMyTurn]);
+    }, [game?.chess, game?.banningPlayer, isMyTurn]);
+
+    useEffect(() => {
+        if (game?.banningPlayer && myColor === game.banningPlayer) {
+            setOverlay(<Typography variant="h6">Select a move to ban</Typography>);
+        } else if (game?.banningPlayer) {
+            setOverlay(<Typography variant="h6">Please wait for {game.banningPlayer} to ban a move</Typography>);
+        } else {
+            setOverlay(null);
+        }
+    }, [game?.banningPlayer, myColor]);
 
     const handlePromotion = useCallback((piece: PromoteablePieces, promotionState: PromotionState) => {
         if (!promotionState) return;
@@ -42,12 +52,14 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         makeMove(promotionState.from, promotionState.to, piece);
         setOverlay(null);
     }, [makeMove])
+
     const [fen, lastMove, check] = useMemo(() => {
         const chess = new Chess()
         chess.loadPgn(pgn);
         const history = chess.history({ verbose: true })
         return [chess.fen(), history[history.length - 1], chess.inCheck() ? clr(chess.turn()) : false]
     }, [pgn])
+
     const config = useMemo(() => ({
         fen,
         orientation: myColor ?? 'white',
@@ -68,7 +80,16 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         },
         events: {
             move: (from: string, to: string) => {
-                if (!game?.chess || !isMyTurn) return;
+                if (!game?.chess) return;
+
+                // If it's my turn to ban a move
+                if (game.banningPlayer === myColor) {
+                    banMove(from, to);
+                    return;
+                }
+
+                // Regular move
+                if (!isMyTurn) return;
 
                 try {
                     const move = game.chess.move({ from, to, promotion: 'q' });
@@ -92,7 +113,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 }
             },
         },
-    } satisfies ComponentProps<typeof Chessground>['config']), [game?.currentFen, game.lastMove, game.chess, myColor, legalMoves, isMyTurn, playMoveSound, makeMove, handlePromotion]);
+    } satisfies ComponentProps<typeof Chessground>['config']), [game?.currentFen, game.lastMove, game.chess, myColor, legalMoves, isMyTurn, game?.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion]);
 
     return (
         <>

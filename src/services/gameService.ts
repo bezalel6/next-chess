@@ -1,5 +1,5 @@
 import { supabase } from "../utils/supabase";
-import type { Game, ChessMove } from "@/types/game";
+import type { Game, ChessMove, DBGame } from "@/types/game";
 import { Chess } from "chess.ts";
 
 export class GameService {
@@ -40,7 +40,28 @@ export class GameService {
 
     return this.mapGameFromDB(game);
   }
+  static async banMove(gameId: string, move: Omit<ChessMove, "promotion">) {
+    const game = await this.getGame(gameId);
+    const chess = new Chess();
+    chess.loadPgn(game.pgn);
+    chess.setComment(`banning: ${move.from}${move.to}`);
+    const { error, data } = await supabase
+      .from("games")
+      .update({
+        banningPlayer: null,
+        pgn: chess.pgn(),
+      })
+      .eq("id", gameId)
+      .select()
+      .single();
+    if (error) {
+      console.error(`[GameService] Error updating game: ${error.message}`);
+      throw error;
+    }
 
+    console.log(`[GameService] Game updated. Turn: ${data.turn}`);
+    return this.mapGameFromDB(data);
+  }
   static async makeMove(gameId: string, move: ChessMove): Promise<Game> {
     console.log(
       `[GameService] Making move ${JSON.stringify(move)} for game ${gameId}`,
@@ -157,7 +178,7 @@ export class GameService {
     return data.map(this.mapGameFromDB);
   }
 
-  static mapGameFromDB(dbGame: any): Game {
+  static mapGameFromDB(dbGame: DBGame | any): Game {
     const chess = new Chess(dbGame.current_fen);
     return {
       id: dbGame.id,
@@ -170,6 +191,7 @@ export class GameService {
       chess,
       lastMove: dbGame.last_move,
       turn: dbGame.turn,
+      banningPlayer: dbGame.banningPlayer,
       startTime: new Date(dbGame.created_at).getTime(),
       lastMoveTime: new Date(dbGame.updated_at).getTime(),
     };

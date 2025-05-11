@@ -16,6 +16,20 @@ export interface ChessMove {
   promotion?: PromoteablePieces;
 }
 
+export interface DBGame {
+  id?: string;
+  white_player_id: string;
+  black_player_id: string;
+  status: GameStatus;
+  last_move?: ChessMove;
+  result?: GameResult;
+  current_fen: string;
+  pgn: string;
+  turn: PlayerColor;
+  banningPlayer: PlayerColor | null;
+  created_at?: number;
+  updated_at?: number;
+}
 export interface Game {
   id: string;
   whitePlayer: string;
@@ -29,6 +43,7 @@ export interface Game {
   turn: PlayerColor;
   startTime: number;
   lastMoveTime: number;
+  banningPlayer: PlayerColor | null;
 }
 
 export interface GameContextType {
@@ -37,6 +52,7 @@ export interface GameContextType {
   pgn: string;
   setPgn: (pgn: string) => void;
   makeMove: (from: string, to: string, promotion?: PromoteablePieces) => void;
+  banMove: (from: string, to: string) => void;
   resetGame: () => void;
   isMyTurn: boolean;
   myColor: PlayerColor | null;

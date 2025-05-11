@@ -57,9 +57,9 @@ export default function GamePage() {
     return (
         <>
             <Head>
-                <title>Chess 2.0 - Game</title>
-                <meta name="description" content="Play chess online" />
-                <link rel="icon" href="/favicon.ico" />
+                <title>Ban Chess - Game in Progress</title>
+                <meta name="description" content="Play Ban Chess - the unique chess variant where you can ban one of your opponent's moves each turn" />
+                <link rel="icon" href="/logo.png" />
             </Head>
             <main style={{ height: '100vh', width: '100%', overflowY: 'auto', backgroundColor: '#121212' }}>
                 {/* Header */}

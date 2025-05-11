@@ -75,6 +75,35 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         return [chess.fen(), history[history.length - 1], chess.inCheck() ? clr(chess.turn()) : false]
     }, [pgn])
 
+    // Create drawable shapes for banned move
+    const drawableShapes = useMemo(() => {
+        if (!bannedMove) return [];
+
+        // Extract from and to squares from banned move
+        const from = bannedMove.substring(0, 2);
+        const to = bannedMove.substring(2, 4);
+
+        return [
+            // Circle the from square
+            {
+                orig: from as Square,
+                brush: 'red',
+            },
+            // Circle the to square
+            {
+                orig: to as Square,
+                brush: 'red',
+            },
+            // Draw an arrow from the from square to the to square
+            {
+                orig: from as Square,
+                dest: to as Square,
+                brush: 'red',
+                modifiers: { lineWidth: 8 }
+            }
+        ];
+    }, [bannedMove]);
+
     const config = useMemo(() => ({
         fen,
         orientation: myColor ?? 'white',
@@ -92,6 +121,12 @@ const LichessBoard = ({ }: LichessBoardProps) => {
             color: 'both',
             showDests: true,
             dests: legalMoves,
+        },
+        drawable: {
+            enabled: true,
+            visible: true,
+            autoShapes: drawableShapes,
+            defaultSnapToValidMove: false
         },
         events: {
             move: (from: string, to: string) => {
@@ -128,7 +163,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 }
             },
         },
-    } satisfies ComponentProps<typeof Chessground>['config']), [game?.currentFen, game.lastMove, game.chess, myColor, legalMoves, isMyTurn, game?.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion]);
+    } satisfies ComponentProps<typeof Chessground>['config']), [game?.currentFen, game.lastMove, game.chess, myColor, legalMoves, isMyTurn, game?.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove]);
 
     return (
         <>

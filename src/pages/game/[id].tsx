@@ -6,7 +6,6 @@ import { useRouter } from 'next/compat/router';
 
 import { useAuth } from "@/contexts/AuthContext";
 import { GameService } from "@/services/gameService";
-import GameHeader from "@/components/GameHeader";
 import GameBoard from "@/components/GameBoard";
 import MoveHistory from "@/components/MoveHistory";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -55,40 +54,27 @@ export default function GamePage() {
     }, [user, id, game, router]);
 
     return (
-        <>
-            <Head>
-                <title>Ban Chess - Game in Progress</title>
-                <meta name="description" content="Play Ban Chess - the unique chess variant where you can ban one of your opponent's moves each turn" />
-                <link rel="icon" href="/logo.png" />
-            </Head>
-            <main style={{ height: '100vh', width: '100%', overflowY: 'auto', backgroundColor: '#121212' }}>
-                {/* Header */}
-                <GameHeader />
-
-                {/* Content area */}
-                <Box sx={{
-                    display: 'flex',
-                    flexDirection: { xs: 'column', md: 'row' },
-                    minHeight: { xs: 'auto', md: 'calc(100vh - 56px)' },
-                    height: { xs: 'auto', md: 'calc(100vh - 56px)' },
-                    p: { xs: 2, md: 3 },
-                    gap: 3,
-                    justifyContent: 'center',
-                    position: 'relative',
-                    pb: { xs: 5, md: 3 }
-                }}>
-                    {loading ? (
-                        <LoadingScreen />
-                    ) : game ? (
-                        <>
-                            <GameBoard />
-                            <MoveHistory />
-                        </>
-                    ) : (
-                        <NotFoundScreen />
-                    )}
-                </Box>
-            </main>
-        </>
+        <Box sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            minHeight: { xs: 'auto', md: '100%' },
+            height: { xs: 'auto', md: '100%' },
+            p: { xs: 2, md: 3 },
+            gap: 3,
+            justifyContent: 'center',
+            position: 'relative',
+            pb: { xs: 5, md: 3 }
+        }}>
+            {loading ? (
+                <LoadingScreen />
+            ) : game ? (
+                <>
+                    <GameBoard />
+                    <MoveHistory />
+                </>
+            ) : (
+                <NotFoundScreen />
+            )}
+        </Box>
     );
 }

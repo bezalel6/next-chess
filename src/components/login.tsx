@@ -1,4 +1,4 @@
-import { Box, Button, Typography, Paper } from "@mui/material";
+import { Box, Button, Typography, Paper, CircularProgress } from "@mui/material";
 import { Logout, Login as LoginIcon } from "@mui/icons-material";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConnection } from "@/contexts/ConnectionContext";
@@ -11,7 +11,7 @@ function Login() {
     if (isLoading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-                <Typography>Loading...</Typography>
+                <CircularProgress color="primary" />
             </Box>
         );
     }
@@ -19,9 +19,19 @@ function Login() {
     if (user) {
         // Use username if available, otherwise fall back to email
         const displayName = profile?.username || user.email;
-        
+
         return (
-            <Paper elevation={2} sx={{ p: 3, maxWidth: '400px', width: '100%' }}>
+            <Paper
+                elevation={3}
+                sx={{
+                    p: 3,
+                    maxWidth: '400px',
+                    width: '100%',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                    backdropFilter: 'blur(8px)',
+                    borderRadius: 2
+                }}
+            >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
                     <Typography variant="h6" color="text.primary">
                         Welcome, {displayName}
@@ -35,6 +45,7 @@ function Login() {
                         startIcon={<Logout />}
                         onClick={signOut}
                         fullWidth
+                        sx={{ mt: 1 }}
                     >
                         Sign Out
                     </Button>

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/compat/router';
-
+import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ComponentType } from 'react';
 
@@ -28,7 +28,19 @@ export function withAuth<P extends object>(
         }, [user, isLoading, requireAuth, redirectTo, router]);
 
         if (isLoading) {
-            return <div>Loading...</div>; // You might want to replace this with a proper loading component
+            return (
+                <Box
+                    sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        minHeight: '100vh',
+                        bgcolor: 'background.default'
+                    }}
+                >
+                    <CircularProgress color="primary" />
+                </Box>
+            );
         }
 
         if (requireAuth && !user) {

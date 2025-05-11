@@ -1,55 +1,24 @@
 import { Box, Typography, Button } from "@mui/material";
 import { useGame } from "@/contexts/GameContext";
-import { useState, useEffect, useMemo } from "react";
-import { UserService } from "@/services/userService";
+import { useMemo } from "react";
 
 const GameOverOverlay = () => {
-  const { game, myColor, resetGame } = useGame();
-  const [playerNames, setPlayerNames] = useState<{
-    white: string;
-    black: string;
-  }>({
-    white: "White Player",
-    black: "Black Player",
-  });
-  
-  // Fetch player usernames when game data changes
-  useEffect(() => {
-    if (!game) return;
-    
-    const fetchUsernames = async () => {
-      try {
-        const usernames = await UserService.getUsernamesByIds([
-          game.whitePlayer,
-          game.blackPlayer
-        ]);
-        
-        setPlayerNames({
-          white: usernames[game.whitePlayer] || "White Player",
-          black: usernames[game.blackPlayer] || "Black Player"
-        });
-      } catch (error) {
-        console.error("Error fetching player usernames:", error);
-      }
-    };
-    
-    fetchUsernames();
-  }, [game]);
-  
+  const { game, myColor, resetGame, playerUsernames } = useGame();
+
   // Generate the game result message based on result and player's color
   const gameResultInfo = useMemo(() => {
     if (!game || game.status !== 'finished') return null;
-    
+
     let resultHeader = '';
     let resultDetail = '';
     let personalMessage = '';
-    
+
     // Determine the result header (objective statement)
     if (game.result === 'white') {
-      resultHeader = `${playerNames.white} won`;
+      resultHeader = `${playerUsernames.white} won`;
       resultDetail = game.chess.inCheckmate() ? 'by checkmate' : 'by resignation';
     } else if (game.result === 'black') {
-      resultHeader = `${playerNames.black} won`;
+      resultHeader = `${playerUsernames.black} won`;
       resultDetail = game.chess.inCheckmate() ? 'by checkmate' : 'by resignation';
     } else {
       resultHeader = 'Game drawn';
@@ -65,13 +34,13 @@ const GameOverOverlay = () => {
         resultDetail = 'by agreement';
       }
     }
-    
+
     // Determine the personal message based on player's color and result
     if (myColor) {
-      const opponentName = myColor === 'white' ? playerNames.black : playerNames.white;
-      const isWinner = (myColor === 'white' && game.result === 'white') || 
-                      (myColor === 'black' && game.result === 'black');
-      
+      const opponentName = myColor === 'white' ? playerUsernames.black : playerUsernames.white;
+      const isWinner = (myColor === 'white' && game.result === 'white') ||
+        (myColor === 'black' && game.result === 'black');
+
       if (isWinner) {
         personalMessage = `Congratulations! You defeated ${opponentName}.`;
       } else if (game.result === 'draw') {
@@ -81,11 +50,11 @@ const GameOverOverlay = () => {
       }
     } else {
       // Message for spectators
-      personalMessage = `Game between ${playerNames.white} and ${playerNames.black} has ended.`;
+      personalMessage = `Game between ${playerUsernames.white} and ${playerUsernames.black} has ended.`;
     }
-    
+
     return { resultHeader, resultDetail, personalMessage };
-  }, [game, myColor, playerNames]);
+  }, [game, myColor, playerUsernames]);
 
   if (!gameResultInfo) return null;
 
@@ -107,34 +76,34 @@ const GameOverOverlay = () => {
       backdropFilter: 'blur(4px)',
       zIndex: 100,
     }}>
-      <Typography variant="h4" sx={{ 
-        color: 'white', 
+      <Typography variant="h4" sx={{
+        color: 'white',
         fontWeight: 'bold',
-        mb: 1 
+        mb: 1
       }}>
         Game Over
       </Typography>
-      
-      <Typography variant="h6" sx={{ 
+
+      <Typography variant="h6" sx={{
         color: 'white',
         mb: 1
       }}>
         {gameResultInfo.resultHeader} {gameResultInfo.resultDetail}
       </Typography>
-      
-      <Typography variant="body1" sx={{ 
+
+      <Typography variant="body1" sx={{
         color: 'white',
         mb: 3,
         opacity: 0.9
       }}>
         {gameResultInfo.personalMessage}
       </Typography>
-      
-      <Button 
-        variant="contained" 
+
+      <Button
+        variant="contained"
         color="primary"
         onClick={resetGame}
-        sx={{ 
+        sx={{
           mt: 2,
           textTransform: 'none'
         }}

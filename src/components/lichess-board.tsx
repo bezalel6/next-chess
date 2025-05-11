@@ -21,7 +21,7 @@ interface PromotionState {
 }
 
 const LichessBoard = ({ }: LichessBoardProps) => {
-    const { game, makeMove, isMyTurn, myColor ,pgn} = useGame();
+    const { game, makeMove, isMyTurn, myColor, pgn } = useGame();
     const { playMoveSound } = useChessSounds();
     const [overlay, setOverlay] = useState<React.ReactNode | null>(null)
     const legalMoves = useMemo(() => {
@@ -42,24 +42,24 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         makeMove(promotionState.from, promotionState.to, piece);
         setOverlay(null);
     }, [makeMove])
-    const [fen,lastMove,check] = useMemo(()=>{
+    const [fen, lastMove, check] = useMemo(() => {
         const chess = new Chess()
         chess.loadPgn(pgn);
-        const history = chess.history({verbose:true})
-        return [chess.fen(),history[history.length-1],chess.inCheck()?clr(chess.turn()):false]
-    },[pgn])
+        const history = chess.history({ verbose: true })
+        return [chess.fen(), history[history.length - 1], chess.inCheck() ? clr(chess.turn()) : false]
+    }, [pgn])
     const config = useMemo(() => ({
         fen,
         orientation: myColor ?? 'white',
         draggable: {
             enabled: true
         },
-        highlight:{
-            check:true,
-            lastMove:true
+        highlight: {
+            check: true,
+            lastMove: true
         },
         check,
-        lastMove: lastMove?[lastMove.from as Square,lastMove.to as Square]:undefined,
+        lastMove: lastMove ? [lastMove.from as Square, lastMove.to as Square] : undefined,
         movable: {
             free: false,
             color: 'both',

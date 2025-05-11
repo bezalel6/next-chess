@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { GameService } from "@/services/gameService";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   const { game } = useGame();
@@ -41,9 +42,9 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Chess 2.0</title>
-        <meta name="description" content="Play chess online" />
-        <link rel="icon" href="/favicon.ico" />
+        <title>Ban Chess - A Unique Chess Variant</title>
+        <meta name="description" content="Play Ban Chess - the unique chess variant where you can ban one of your opponent's moves each turn" />
+        <link rel="icon" href="/logo.png" />
       </Head>
       <main className={styles.main}>
         <Container maxWidth="lg">
@@ -54,11 +55,12 @@ export default function Home() {
             gap: 4,
             py: 4
           }}>
-            <h1 className={styles.title}>
-              <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <Link href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center' }}>
+              <Image src="/logo.png" alt="Ban Chess Logo" width={64} height={64} style={{ marginRight: '16px' }} />
+              <h1 className={styles.title}>
                 Ban<span className={styles.pinkSpan}>Chess</span>
-              </Link>
-            </h1>
+              </h1>
+            </Link>
 
             <Grid container spacing={4} justifyContent="center">
               {/* Left column - Game board */}
@@ -98,7 +100,7 @@ export default function Home() {
                               flex: 1
                             }}>
                               <Typography variant="h5" gutterBottom>
-                                Welcome to Chess 2.0
+                                Welcome to Ban Chess
                               </Typography>
                               <Typography variant="body1" align="center" sx={{ mb: 2 }}>
                                 Click &quot;Play&quot; below to find an opponent and start a new game.

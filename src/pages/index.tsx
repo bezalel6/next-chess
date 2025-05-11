@@ -1,5 +1,4 @@
 import Head from "next/head";
-import styles from "../styles/index.module.css"
 import LichessBoard from "@/components/lichess-board";
 import FindMatch from "@/components/find-match";
 import Login from "@/components/login";
@@ -46,96 +45,92 @@ export default function Home() {
         <meta name="description" content="Play Ban Chess - the unique chess variant where you can ban one of your opponent's moves each turn" />
         <link rel="icon" href="/logo.png" />
       </Head>
-      <main className={styles.main}>
-        <Container maxWidth="lg">
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 4,
-            py: 4
-          }}>
-            <Link href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center' }}>
-              <Image src="/logo.png" alt="Ban Chess Logo" width={64} height={64} style={{ marginRight: '16px' }} />
-              <h1 className={styles.title}>
-                Ban<span className={styles.pinkSpan}>Chess</span>
-              </h1>
-            </Link>
+      <Container maxWidth="lg">
+        <Box sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 4,
+          py: 4
+        }}>
+          {/* Content area */}
+          <Typography variant="h6" sx={{ color: 'grey.500', mb: 2, textAlign: 'center' }}>
+            A unique chess variant where you can ban one of your opponent&apos;s moves each turn
+          </Typography>
 
-            <Grid container spacing={4} justifyContent="center">
-              {/* Left column - Game board */}
-              <Grid item xs={12} md={8}>
-                <Box sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 3,
-                  alignItems: 'center'
-                }}>
-                  <div className={`${styles.chessContainer} ${hasActiveGames && !game ? styles.expandedContainer : ''}`}>
-                    {game ? (
-                      <LichessBoard />
-                    ) : (
-                      <Paper
-                        elevation={2}
-                        sx={{
-                          width: '100%',
-                          height: '100%',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          p: 4
-                        }}
-                      >
-                        {hasActiveGames ? (
-                          /* When there are active games, show only those */
-                          <ActiveGames fullHeight />
-                        ) : (
-                          /* When no active games, show welcome message */
-                          <>
-                            <Box sx={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flex: 1
-                            }}>
-                              <Typography variant="h5" gutterBottom>
-                                Welcome to Ban Chess
+          <Grid container spacing={4} justifyContent="center">
+            {/* Left column - Game board */}
+            <Grid item xs={12} md={8}>
+              <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
+                alignItems: 'center'
+              }}>
+                <div className={`chess-container ${hasActiveGames && !game ? 'expanded-container' : ''}`}>
+                  {game ? (
+                    <LichessBoard />
+                  ) : (
+                    <Paper
+                      elevation={2}
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        p: 4
+                      }}
+                    >
+                      {hasActiveGames ? (
+                        /* When there are active games, show only those */
+                        <ActiveGames fullHeight />
+                      ) : (
+                        /* When no active games, show welcome message */
+                        <>
+                          <Box sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flex: 1
+                          }}>
+                            <Typography variant="h5" gutterBottom>
+                              Welcome to Ban Chess
+                            </Typography>
+                            <Typography variant="body1" align="center" sx={{ mb: 2 }}>
+                              Click &quot;Play&quot; below to find an opponent and start a new game.
+                            </Typography>
+                            {queue.inQueue && (
+                              <Typography variant="body2" color="text.secondary">
+                                Finding opponent... {queue.position > 0 && `(${queue.position}/${queue.size})`}
                               </Typography>
-                              <Typography variant="body1" align="center" sx={{ mb: 2 }}>
-                                Click &quot;Play&quot; below to find an opponent and start a new game.
-                              </Typography>
-                              {queue.inQueue && (
-                                <Typography variant="body2" color="text.secondary">
-                                  Finding opponent... {queue.position > 0 && `(${queue.position}/${queue.size})`}
-                                </Typography>
-                              )}
-                            </Box>
-                          </>
-                        )}
-                      </Paper>
-                    )}
-                  </div>
-                  <FindMatch />
-                </Box>
-              </Grid>
-
-              {/* Right column - Stats and Login */}
-              <Grid item xs={12} md={4}>
-                <Box sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 3,
-                  alignItems: 'center'
-                }}>
-                  <ServerStats />
-                  <Login />
-                </Box>
-              </Grid>
+                            )}
+                          </Box>
+                        </>
+                      )}
+                    </Paper>
+                  )}
+                </div>
+                <FindMatch />
+              </Box>
             </Grid>
-          </Box>
-        </Container>
-      </main>
+
+            {/* Right column - Stats and Login */}
+            <Grid item xs={12} md={4}>
+              <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
+                alignItems: 'center'
+              }}>
+                <ServerStats />
+                <Login />
+              </Box>
+            </Grid>
+          </Grid>
+        </Box>
+      </Container>
     </>
   );
 }

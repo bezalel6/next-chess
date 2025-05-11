@@ -49,10 +49,9 @@ function FindMatch() {
             sx={{
                 minWidth: 200,
                 height: 56,
-                borderRadius: 2,
-                textTransform: 'none',
                 fontSize: '1.2rem',
-                position: 'relative'
+                position: 'relative',
+                boxShadow: 3
             }}
         >
             {queue.inQueue ? "Cancel" : "Play"}
@@ -78,13 +77,13 @@ function FindMatch() {
             ) : (
                 playButton
             )}
-            
+
             {queue.inQueue && (
                 <Typography variant="body2" color="text.secondary">
                     Finding opponent... {queue.position > 0 && `(${queue.position}/${queue.size})`}
                 </Typography>
             )}
-            
+
             {hasActiveGames && !queue.inQueue && (
                 <Typography variant="body2" color="error">
                     Please finish your active games before starting a new one

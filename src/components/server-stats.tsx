@@ -21,27 +21,35 @@ function ServerStats() {
 
     return (
         <Paper
-            elevation={2}
+            elevation={3}
             sx={{
-                p: 2,
+                p: 3,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 2,
-                maxWidth: 'fit-content'
+                maxWidth: '400px',
+                width: '100%',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                backdropFilter: 'blur(8px)',
+                borderRadius: 2
             }}
         >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="h6" color="text.primary" sx={{ mb: 1 }}>
+                Server Status
+            </Typography>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Chip
                     icon={<People />}
                     label={`${stats.activeUsers} Active Users`}
                     color="primary"
-                    variant="outlined"
+                    sx={{ fontWeight: 'medium', px: 1 }}
                 />
                 <Chip
                     icon={<SportsEsports />}
                     label={`${stats.activeGames} Active Games`}
                     color="secondary"
-                    variant="outlined"
+                    sx={{ fontWeight: 'medium', px: 1 }}
                 />
             </Box>
 
@@ -52,7 +60,13 @@ function ServerStats() {
                     flexDirection: 'column',
                     gap: 1,
                     maxHeight: '200px',
-                    overflow: 'auto'
+                    overflow: 'auto',
+                    mt: 1,
+                    borderRadius: 1,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    p: 1
                 }}
             >
                 <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -67,7 +81,7 @@ function ServerStats() {
                                 animation: index === stats.log.length - 1 ? 'highlight 1s ease-out' : 'none',
                                 '@keyframes highlight': {
                                     '0%': {
-                                        backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                                        backgroundColor: 'rgba(144, 202, 249, 0.1)',
                                     },
                                     '100%': {
                                         backgroundColor: 'transparent',
@@ -79,7 +93,7 @@ function ServerStats() {
                                 primary={entry.message}
                                 secondary={new Date(entry.timestamp).toLocaleTimeString()}
                                 primaryTypographyProps={{ variant: 'body2' }}
-                                secondaryTypographyProps={{ variant: 'caption' }}
+                                secondaryTypographyProps={{ variant: 'caption', sx: { color: 'text.secondary' } }}
                             />
                         </ListItem>
                     ))}

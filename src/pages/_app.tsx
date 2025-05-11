@@ -10,12 +10,24 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '@/theme';
 import { AuthProvider } from "@/contexts/AuthContext";
+import Head from "next/head";
 
 
 const MyApp: AppType = ({ Component, pageProps }) => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <Head>
+        {/* Open Graph meta tags for social sharing */}
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Ban Chess" />
+        <meta property="og:image" content="/logo.png" />
+        <meta property="og:image:alt" content="Ban Chess Logo" />
+
+        {/* Twitter Card meta tags */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="/logo.png" />
+      </Head>
       <AuthProvider>
         <ConnectionProvider>
           <div className={''}>

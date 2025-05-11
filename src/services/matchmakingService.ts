@@ -4,6 +4,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "../env";
 import { Chess } from "chess.ts";
+import type { DBGame } from "@/types/game";
 
 interface QueueUser {
   user_id: string;
@@ -52,9 +53,10 @@ export class MatchmakingService {
           current_fen: chess.fen(),
           pgn: chess.pgn(),
           turn: "white",
-        })
+          banningPlayer: "black",
+        } satisfies DBGame)
         .select()
-        .single();
+        .single<DBGame>();
 
       if (error) {
         console.error("Error creating game:", error);

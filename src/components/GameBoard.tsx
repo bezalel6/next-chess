@@ -12,7 +12,16 @@ const GameBoard = () => {
 
   // Get current turn player name
   const currentTurnName = game?.turn === 'white' ? playerUsernames.white : playerUsernames.black;
-
+  function Status() {
+    return <>
+      {game.banningPlayer && myColor === game.banningPlayer && <Typography sx={{ color: 'white' }}>
+        Select a move to ban for your opponent
+      </Typography>}
+      <Typography sx={{ color: 'white' }}>
+        Status: {game.status} • Current Turn: {currentTurnName} ({game.turn})
+      </Typography>
+    </>
+  }
   return (
     <Box sx={{
       display: 'flex',
@@ -68,15 +77,14 @@ const GameBoard = () => {
         maxWidth: 800,
         mt: 3,
         display: 'flex',
+        flexDirection: "column",
         justifyContent: 'center',
         alignItems: 'center',
         p: 1,
         bgcolor: 'rgba(255,255,255,0.05)',
         borderRadius: 1
       }}>
-        <Typography sx={{ color: 'white' }}>
-          Status: {game.status} • Current Turn: {currentTurnName} ({game.turn})
-        </Typography>
+        <Status />
       </Box>
     </Box>
   );

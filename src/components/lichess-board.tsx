@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-import React, { useCallback, useMemo, useState, type ComponentProps } from "react";
+import React, { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import { useChessSounds } from '../hooks/useChessSounds';
 import { Box, Paper, Button, Typography } from '@mui/material';
 import { clr, PROMOTION_PIECES, type LongColor, type PromoteablePieces, type ShortColor } from '@/types/game';
@@ -21,20 +21,45 @@ interface PromotionState {
 }
 
 const LichessBoard = ({ }: LichessBoardProps) => {
-    const { game, makeMove, isMyTurn, myColor, pgn } = useGame();
+    const { game, makeMove, banMove, isMyTurn, myColor, pgn } = useGame();
     const { playMoveSound } = useChessSounds();
     const [overlay, setOverlay] = useState<React.ReactNode | null>(null)
+
+    // Calculate banned move at component scope
+    const bannedMove = useMemo(() => {
+        if (game.banningPlayer) return null;
+        const bannedMoveMatch = pgn.match(/\{banning: ([a-zA-Z0-9]{4})\}$/);
+        return bannedMoveMatch ? bannedMoveMatch[1] : null;
+    }, [pgn, game.banningPlayer]);
+
     const legalMoves = useMemo(() => {
-        if (!game?.chess || !isMyTurn) return new Map();
+        if (!game?.chess || (!isMyTurn && !game.banningPlayer)) return new Map();
+
         return Array.from(game.chess.moves({ verbose: true }))
             .reduce((map, move) => {
                 const from = move.from;
                 const to = move.to;
+
+                // Skip this move if it matches the banned move
+                if (bannedMove && `${from}${to}` === bannedMove) {
+                    return map;
+                }
+
                 const dests = map.get(from) || [];
                 map.set(from, [...dests, to]);
                 return map;
             }, new Map())
-    }, [game?.chess, isMyTurn]);
+    }, [game.chess, game.banningPlayer, isMyTurn, bannedMove]);
+
+    useEffect(() => {
+        if (game?.banningPlayer && myColor === game.banningPlayer) {
+            setOverlay(null);
+        } else if (game?.banningPlayer) {
+            setOverlay(<Typography variant="h6">Please wait for {game.banningPlayer} to ban a move</Typography>);
+        } else {
+            setOverlay(null);
+        }
+    }, [game?.banningPlayer, myColor]);
 
     const handlePromotion = useCallback((piece: PromoteablePieces, promotionState: PromotionState) => {
         if (!promotionState) return;
@@ -42,12 +67,43 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         makeMove(promotionState.from, promotionState.to, piece);
         setOverlay(null);
     }, [makeMove])
+
     const [fen, lastMove, check] = useMemo(() => {
         const chess = new Chess()
         chess.loadPgn(pgn);
         const history = chess.history({ verbose: true })
         return [chess.fen(), history[history.length - 1], chess.inCheck() ? clr(chess.turn()) : false]
     }, [pgn])
+
+    // Create drawable shapes for banned move
+    const drawableShapes = useMemo(() => {
+        if (!bannedMove) return [];
+
+        // Extract from and to squares from banned move
+        const from = bannedMove.substring(0, 2);
+        const to = bannedMove.substring(2, 4);
+
+        return [
+            // Circle the from square
+            {
+                orig: from as Square,
+                brush: 'red',
+            },
+            // Circle the to square
+            {
+                orig: to as Square,
+                brush: 'red',
+            },
+            // Draw an arrow from the from square to the to square
+            {
+                orig: from as Square,
+                dest: to as Square,
+                brush: 'red',
+                modifiers: { lineWidth: 8 }
+            }
+        ];
+    }, [bannedMove]);
+
     const config = useMemo(() => ({
         fen,
         orientation: myColor ?? 'white',
@@ -66,9 +122,24 @@ const LichessBoard = ({ }: LichessBoardProps) => {
             showDests: true,
             dests: legalMoves,
         },
+        drawable: {
+            enabled: true,
+            visible: true,
+            autoShapes: drawableShapes,
+            defaultSnapToValidMove: false
+        },
         events: {
             move: (from: string, to: string) => {
-                if (!game?.chess || !isMyTurn) return;
+                if (!game?.chess) return;
+
+                // If it's my turn to ban a move
+                if (game.banningPlayer === myColor) {
+                    banMove(from, to);
+                    return;
+                }
+
+                // Regular move
+                if (!isMyTurn) return;
 
                 try {
                     const move = game.chess.move({ from, to, promotion: 'q' });
@@ -92,7 +163,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 }
             },
         },
-    } satisfies ComponentProps<typeof Chessground>['config']), [game?.currentFen, game.lastMove, game.chess, myColor, legalMoves, isMyTurn, playMoveSound, makeMove, handlePromotion]);
+    } satisfies ComponentProps<typeof Chessground>['config']), [game?.currentFen, game.lastMove, game.chess, myColor, legalMoves, isMyTurn, game?.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove]);
 
     return (
         <>

@@ -1,107 +1,109 @@
-import { supabase } from '../utils/supabase';
-import { GameService } from './gameService';
-import type { RealtimeChannel } from '@supabase/supabase-js';
-import { createClient } from '@supabase/supabase-js';
-import { env } from '../env';
-import { Chess } from 'chess.ts';
+import { supabase } from "../utils/supabase";
+import { GameService } from "./gameService";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
+import { env } from "../env";
+import { Chess } from "chess.ts";
 
 interface QueueUser {
-    user_id: string;
-    joined_at: string;
+  user_id: string;
+  joined_at: string;
 }
 
 export class MatchmakingService {
-    static async joinQueue(userId: string) {
-        const channel = supabase.channel('queue-system', {
-            config: {
-                broadcast: { self: true },
-                presence: { key: userId }
-            }
-        });
+  static async joinQueue(userId: string) {
+    const channel = supabase.channel("queue-system", {
+      config: {
+        broadcast: { self: true },
+        presence: { key: userId },
+      },
+    });
 
-        await channel.track({ user_id: userId, joined_at: new Date().toISOString() });
-        return channel;
+    await channel.track({
+      user_id: userId,
+      joined_at: new Date().toISOString(),
+    });
+    return channel;
+  }
+
+  static async matchPlayers(
+    player1Id: string,
+    player2Id: string,
+    channel: RealtimeChannel,
+  ) {
+    try {
+      console.log(`Attempting to match players ${player1Id} and ${player2Id}`);
+
+      // Initialize server-side Supabase client with service role key
+      // This bypasses RLS policies for admin operations
+      const serverSupabase = createClient(
+        env.NEXT_PUBLIC_SUPABASE_URL,
+        env.SUPABASE_SERVICE_ROLE_KEY,
+      );
+
+      // Create a new chess game
+      const chess = new Chess();
+      const { data: game, error } = await serverSupabase
+        .from("games")
+        .insert({
+          white_player_id: player1Id,
+          black_player_id: player2Id,
+          status: "active",
+          current_fen: chess.fen(),
+          pgn: chess.pgn(),
+          turn: "white",
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating game:", error);
+        throw error;
+      }
+
+      const mappedGame = GameService.mapGameFromDB(game);
+
+      // Notify both players
+      await channel.send({
+        type: "broadcast",
+        event: "game-matched",
+        payload: {
+          gameId: mappedGame.id,
+        },
+      });
+
+      // Remove matched players from queue
+      await channel.untrack({ user_id: player1Id });
+      await channel.untrack({ user_id: player2Id });
+
+      console.log(
+        `Matched players ${player1Id} and ${player2Id} in game ${mappedGame.id}`,
+      );
+      return mappedGame;
+    } catch (error) {
+      console.error("Error matching players:", error);
+      throw error;
     }
+  }
 
-    static async matchPlayers(player1Id: string, player2Id: string, channel: RealtimeChannel) {
-        try {
-            console.log(`Attempting to match players ${player1Id} and ${player2Id}`);
-            
-            // Initialize server-side Supabase client with service role key
-            // This bypasses RLS policies for admin operations
-            const serverSupabase = createClient(
-                env.NEXT_PUBLIC_SUPABASE_URL,
-                env.SUPABASE_SERVICE_ROLE_KEY
-            );
-            
-            // Create a new chess game
-            const chess = new Chess();
-            const { data: game, error } = await serverSupabase
-                .from('games')
-                .insert({
-                    white_player_id: player1Id,
-                    black_player_id: player2Id,
-                    status: 'active',
-                    current_fen: chess.fen(),
-                    pgn: chess.pgn(),
-                    turn: 'white'
-                })
-                .select()
-                .single();
+  static async leaveQueue(userId: string, channel: any) {
+    await channel.untrack({ user_id: userId });
+    await channel.unsubscribe();
+  }
 
-            if (error) {
-                console.error('Error creating game:', error);
-                throw error;
-            }
+  static async getQueuePosition(userId: string): Promise<number> {
+    const { data: presenceState } = await supabase
+      .channel("queue-system")
+      .presenceState();
 
-            const mappedGame = GameService.mapGameFromDB(game);
+    if (!presenceState) return 0;
 
-            // Notify both players
-            await channel.send({
-                type: 'broadcast',
-                event: 'game-matched',
-                payload: {
-                    gameId: mappedGame.id,
-                    color: 'white'
-                }
-            });
+    const queue = Object.values(presenceState).flat() as unknown as QueueUser[];
+    queue.sort(
+      (a, b) =>
+        new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime(),
+    );
 
-            await channel.send({
-                type: 'broadcast',
-                event: 'game-matched',
-                payload: {
-                    gameId: mappedGame.id,
-                    color: 'black'
-                }
-            });
-
-            // Remove matched players from queue
-            await channel.untrack({ user_id: player1Id });
-            await channel.untrack({ user_id: player2Id });
-
-            console.log(`Matched players ${player1Id} and ${player2Id} in game ${mappedGame.id}`);
-            return mappedGame;
-        } catch (error) {
-            console.error('Error matching players:', error);
-            throw error;
-        }
-    }
-
-    static async leaveQueue(userId: string, channel: any) {
-        await channel.untrack({ user_id: userId });
-        await channel.unsubscribe();
-    }
-
-    static async getQueuePosition(userId: string): Promise<number> {
-        const { data: presenceState } = await supabase
-            .channel('queue-system')
-            .presenceState();
-
-        if (!presenceState) return 0;
-
-        const queue = Object.values(presenceState).flat() as unknown as QueueUser[];
-        queue.sort((a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime());
-        
-        return queue.findIndex(user => user.user_id === userId) + 1;
-    }
-} 
+    return queue.findIndex((user) => user.user_id === userId) + 1;
+  }
+}

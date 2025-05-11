@@ -99,6 +99,7 @@ export class GameService {
         pgn: chess.pgn(),
         last_move: move,
         turn: game.turn === "white" ? "black" : "white",
+        banningPlayer: game.turn,
         status,
         result: result_,
       })

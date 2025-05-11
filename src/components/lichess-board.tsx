@@ -38,7 +38,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
 
     useEffect(() => {
         if (game?.banningPlayer && myColor === game.banningPlayer) {
-            setOverlay(<Typography variant="h6">Select a move to ban</Typography>);
+            setOverlay(null);
         } else if (game?.banningPlayer) {
             setOverlay(<Typography variant="h6">Please wait for {game.banningPlayer} to ban a move</Typography>);
         } else {

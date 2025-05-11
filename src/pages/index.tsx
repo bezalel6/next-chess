@@ -1,5 +1,5 @@
 import Head from "next/head";
-import styles from "./index.module.css";
+import styles from "../styles/index.module.css"
 import LichessBoard from "@/components/lichess-board";
 import FindMatch from "@/components/find-match";
 import Login from "@/components/login";
@@ -46,9 +46,9 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
         <Container maxWidth="lg">
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             gap: 4,
             py: 4
@@ -60,9 +60,9 @@ export default function Home() {
             <Grid container spacing={4} justifyContent="center">
               {/* Left column - Game board */}
               <Grid item xs={12} md={8}>
-                <Box sx={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
+                <Box sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
                   gap: 3,
                   alignItems: 'center'
                 }}>
@@ -70,12 +70,12 @@ export default function Home() {
                     {game ? (
                       <LichessBoard />
                     ) : (
-                      <Paper 
-                        elevation={2} 
-                        sx={{ 
-                          width: '100%', 
-                          height: '100%', 
-                          display: 'flex', 
+                      <Paper
+                        elevation={2}
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
                           p: 4
@@ -87,10 +87,10 @@ export default function Home() {
                         ) : (
                           /* When no active games, show welcome message */
                           <>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              flexDirection: 'column', 
-                              alignItems: 'center', 
+                            <Box sx={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
                               justifyContent: 'center',
                               flex: 1
                             }}>
@@ -117,9 +117,9 @@ export default function Home() {
 
               {/* Right column - Stats and Login */}
               <Grid item xs={12} md={4}>
-                <Box sx={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
+                <Box sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
                   gap: 3,
                   alignItems: 'center'
                 }}>

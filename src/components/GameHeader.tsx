@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import styles from "../pages/index.module.css";
+import styles from "../styles/index.module.css";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -10,7 +10,7 @@ const GameHeader = () => {
   // Display username or role
   const displayRole = () => {
     if (!game || loading) return null;
-    
+
     if (myColor) {
       return `${profile?.username || 'You'} (${myColor})`;
     } else {
@@ -19,8 +19,8 @@ const GameHeader = () => {
   };
 
   return (
-    <Box sx={{ 
-      p: 1.5, 
+    <Box sx={{
+      p: 1.5,
       borderBottom: '1px solid rgba(255,255,255,0.1)',
       display: 'flex',
       justifyContent: 'space-between',

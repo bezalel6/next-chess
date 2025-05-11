@@ -11,6 +11,7 @@ import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { GameService } from "@/services/gameService";
+import Link from "next/link";
 
 export default function Home() {
   const { game } = useGame();
@@ -54,7 +55,9 @@ export default function Home() {
             py: 4
           }}>
             <h1 className={styles.title}>
-              Chess<span className={styles.pinkSpan}>2.0</span>
+              <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                Ban<span className={styles.pinkSpan}>Chess</span>
+              </Link>
             </h1>
 
             <Grid container spacing={4} justifyContent="center">

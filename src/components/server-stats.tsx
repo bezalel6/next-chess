@@ -6,10 +6,13 @@ import { useEffect, useRef } from "react";
 function ServerStats() {
     const { isConnected, stats } = useConnection();
     const logEndRef = useRef<HTMLDivElement>(null);
+    const logContainerRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom when new logs are added
     useEffect(() => {
-        logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (logContainerRef.current && logEndRef.current) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+        }
     }, [stats.log]);
 
     if (!isConnected) {
@@ -41,22 +44,25 @@ function ServerStats() {
                     variant="outlined"
                 />
             </Box>
-            
-            <Box sx={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: 1,
-                maxHeight: '200px',
-                overflow: 'auto'
-            }}>
+
+            <Box
+                ref={logContainerRef}
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1,
+                    maxHeight: '200px',
+                    overflow: 'auto'
+                }}
+            >
                 <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <History fontSize="small" /> Activity Log
                 </Typography>
                 <List dense sx={{ p: 0 }}>
                     {stats.log.map((entry, index) => (
-                        <ListItem 
-                            key={index} 
-                            sx={{ 
+                        <ListItem
+                            key={index}
+                            sx={{
                                 py: 0.5,
                                 animation: index === stats.log.length - 1 ? 'highlight 1s ease-out' : 'none',
                                 '@keyframes highlight': {

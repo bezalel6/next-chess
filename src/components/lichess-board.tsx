@@ -6,6 +6,7 @@ import { clr, PROMOTION_PIECES, type LongColor, type PromoteablePieces, type Sho
 import { useGame } from '@/contexts/GameContext';
 import { Chess } from 'chess.ts';
 import type { Square } from 'chess.ts/dist/types';
+import { getBannedMove, isMoveFuzzyEq } from '@/utils/gameUtils';
 const Chessground = dynamic(() => import('@react-chess/chessground'), {
     ssr: false
 });
@@ -28,8 +29,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     // Calculate banned move at component scope
     const bannedMove = useMemo(() => {
         if (game.banningPlayer) return null;
-        const bannedMoveMatch = pgn.match(/\{banning: ([a-zA-Z0-9]{4})\}$/);
-        return bannedMoveMatch ? bannedMoveMatch[1] : null;
+        return getBannedMove(pgn)
     }, [pgn, game.banningPlayer]);
 
     const legalMoves = useMemo(() => {
@@ -40,9 +40,8 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 const from = move.from;
                 const to = move.to;
 
-                // Skip this move if it matches the banned move
-                if (bannedMove && `${from}${to}` === bannedMove) {
-                    return map;
+                if (isMoveFuzzyEq(move, bannedMove)) {
+                    return map
                 }
 
                 const dests = map.get(from) || [];

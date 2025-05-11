@@ -85,7 +85,7 @@ export class GameService {
 
     console.log(`[GameService] Move valid. New FEN: ${chess.fen()}`);
     console.log(`[GameService] Updated PGN: ${chess.pgn()}`);
-
+    // TODO: customize game over to take banned move into account
     const isGameOver = chess.gameOver();
     const status = isGameOver ? "finished" : "active";
     let gameResult = null;

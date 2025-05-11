@@ -1,23 +1,22 @@
 export interface QueueStatus {
-    position: number;
+  position: number;
 }
 
 export interface GameMatch {
-    gameId: string;
-    color: 'white' | 'black';
+  gameId: string;
 }
 
 export interface GameMove {
-    gameId: string;
-    move: {
-        from: string;
-        to: string;
-        promotion?: 'q' | 'r' | 'b' | 'n';
-    };
+  gameId: string;
+  move: {
+    from: string;
+    to: string;
+    promotion?: "q" | "r" | "b" | "n";
+  };
 }
 
 export interface ChessMove {
-    from: string;
-    to: string;
-    promotion?: 'q' | 'r' | 'b' | 'n';
-} 
+  from: string;
+  to: string;
+  promotion?: "q" | "r" | "b" | "n";
+}

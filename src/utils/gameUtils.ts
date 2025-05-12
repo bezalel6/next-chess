@@ -3,7 +3,7 @@ import type { PartialMove } from "chess.ts";
 import { Chess } from "chess.ts";
 
 export function getBannedMove(pgn: string): string | null {
-  const bannedMoveMatch = pgn.match(/\{banning: ([a-zA-Z0-9]{4})\}$/);
+  const bannedMoveMatch = pgn.match(/\{?banning: ([a-zA-Z0-9]{4})\}?$/);
   return bannedMoveMatch ? bannedMoveMatch[1] : null;
 }
 

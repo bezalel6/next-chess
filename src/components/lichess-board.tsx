@@ -23,9 +23,10 @@ interface PromotionState {
 }
 
 const LichessBoard = ({ }: LichessBoardProps) => {
-    const { game, makeMove, banMove, isMyTurn, myColor, pgn } = useGame();
+    const { game, makeMove, banMove, isMyTurn, myColor, pgn, isSpectator } = useGame();
     const { playMoveSound } = useChessSounds();
-    const [overlay, setOverlay] = useState<React.ReactNode | null>(null)
+    const [overlay, setOverlay] = useState<React.ReactNode | null>(null);
+    const [spectatorView, setSpectatorView] = useState<'white' | 'black'>('white');
 
     // Calculate banned move at component scope
     const bannedMove = useMemo(() => {
@@ -34,6 +35,9 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     }, [pgn, game.banningPlayer]);
 
     const legalMoves = useMemo(() => {
+        // For spectators, don't enable move selection
+        if (isSpectator) return new Map();
+
         if (!game?.chess || (!isMyTurn && !game.banningPlayer)) return new Map();
 
         return Array.from(game.chess.moves({ verbose: true }))
@@ -49,7 +53,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 map.set(from, [...dests, to]);
                 return map;
             }, new Map())
-    }, [game.chess, game.banningPlayer, isMyTurn, bannedMove]);
+    }, [game?.chess, game.banningPlayer, isMyTurn, bannedMove, isSpectator]);
 
     useEffect(() => {
         if (game?.banningPlayer && myColor === game.banningPlayer) {
@@ -107,11 +111,24 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     // Add state to track if we're in banning mode
     const isBanningMode = game.banningPlayer === myColor;
 
+    // Switch spectator view orientation
+    const toggleSpectatorView = useCallback(() => {
+        setSpectatorView(prev => prev === 'white' ? 'black' : 'white');
+    }, []);
+
+    // Determine board orientation based on player status
+    const boardOrientation = useMemo(() => {
+        if (isSpectator) {
+            return spectatorView;
+        }
+        return myColor ?? 'white';
+    }, [isSpectator, myColor, spectatorView]);
+
     const config = useMemo(() => ({
         fen,
-        orientation: myColor ?? 'white',
+        orientation: boardOrientation,
         draggable: {
-            enabled: true
+            enabled: !isSpectator && (isMyTurn || isBanningMode)
         },
         highlight: {
             check: true,
@@ -121,8 +138,8 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         lastMove: lastMove ? [lastMove.from as Square, lastMove.to as Square] : undefined,
         movable: {
             free: false,
-            color: 'both',
-            showDests: true,
+            color: isSpectator ? undefined : 'both',
+            showDests: !isSpectator,
             dests: legalMoves,
         },
         drawable: {
@@ -133,7 +150,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         },
         events: {
             move: (from: string, to: string) => {
-                if (!game?.chess) return;
+                if (!game?.chess || isSpectator) return;
 
                 // If it's my turn to ban a move
                 if (game.banningPlayer === myColor) {
@@ -166,7 +183,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 }
             },
         },
-    } satisfies ComponentProps<typeof Chessground>['config']), [game.chess, myColor, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove]);
+    } satisfies ComponentProps<typeof Chessground>['config']), [game?.chess, boardOrientation, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove, isSpectator, isBanningMode]);
 
     return (
         <>
@@ -186,6 +203,27 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                         color="warning"
                         sx={{
                             fontWeight: 'bold'
+                        }}
+                    />
+                </Box>
+            )}
+            {isSpectator && (
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: '10px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 20,
+                    }}
+                >
+                    <Chip
+                        label={`SPECTATOR MODE - VIEW FROM ${spectatorView.toUpperCase()}`}
+                        color="info"
+                        onClick={toggleSpectatorView}
+                        sx={{
+                            fontWeight: 'bold',
+                            cursor: 'pointer'
                         }}
                     />
                 </Box>

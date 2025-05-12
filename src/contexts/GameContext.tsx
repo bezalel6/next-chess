@@ -24,6 +24,7 @@ export function GameProvider({ children }: GameProviderProps) {
     const [game, setGame] = useState<Game | null>(null);
     const [pgn, setPgn] = useState<string>('');
     const [myColor, setMyColor] = useState<'white' | 'black' | null>(null);
+    const [isSpectator, setIsSpectator] = useState<boolean>(false);
     const [subscription, setSubscription] = useState<RealtimeChannel | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [playerUsernames, setPlayerUsernames] = useState<{ white: string; black: string }>({
@@ -178,6 +179,7 @@ export function GameProvider({ children }: GameProviderProps) {
         setGame(null);
         setPgn('');
         setMyColor(null);
+        setIsSpectator(false);
         router.replace('/', undefined, { shallow: true });
     }, [router, cleanupSubscription]);
 
@@ -185,15 +187,19 @@ export function GameProvider({ children }: GameProviderProps) {
     useEffect(() => {
         if (!game || !user) {
             setMyColor(null);
+            setIsSpectator(false);
             return;
         }
 
         if (game.whitePlayer === user.id) {
             setMyColor('white');
+            setIsSpectator(false);
         } else if (game.blackPlayer === user.id) {
             setMyColor('black');
+            setIsSpectator(false);
         } else {
             setMyColor(null); // Spectator
+            setIsSpectator(true);
         }
     }, [game, user]);
 
@@ -374,6 +380,7 @@ export function GameProvider({ children }: GameProviderProps) {
         resetGame,
         isMyTurn: game?.status === 'active' && game?.turn === myColor,
         myColor,
+        isSpectator,
         loading,
         playerUsernames,
         offerDraw,

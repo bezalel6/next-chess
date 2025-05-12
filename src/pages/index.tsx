@@ -4,7 +4,7 @@ import FindMatch from "@/components/find-match";
 import Login from "@/components/login";
 import ServerStats from "@/components/server-stats";
 import ActiveGames from "@/components/active-games";
-import { Box, Container, Grid, Paper, Typography, Divider } from "@mui/material";
+import { Box, Container, Grid, Paper, Typography, Divider, Button } from "@mui/material";
 import { useGame } from "@/contexts/GameContext";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -57,6 +57,15 @@ export default function Home() {
           <Typography variant="h6" sx={{ color: 'grey.500', mb: 2, textAlign: 'center' }}>
             A unique chess variant where you can ban one of your opponent&apos;s moves each turn
           </Typography>
+
+          {/* Add Games Link */}
+          <Box sx={{ mb: 2 }}>
+            <Link href="/games" passHref>
+              <Button variant="outlined" color="primary">
+                View All Games
+              </Button>
+            </Link>
+          </Box>
 
           <Grid container spacing={4} justifyContent="center">
             {/* Left column - Game board */}

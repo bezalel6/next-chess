@@ -12,46 +12,13 @@ import LoadingScreen from "@/components/LoadingScreen";
 import NotFoundScreen from "@/components/NotFoundScreen";
 
 export default function GamePage() {
-    const { game, loading } = useGame();
+    const { game, loading, playerUsernames } = useGame();
     const { user } = useAuth();
     const router = useRouter();
     const { id } = router.query;
 
-    // Verify the user has permission to view this game
-    useEffect(() => {
-        async function checkGameAccess() {
-            // Don't check if we don't have a user or game ID yet
-            if (!user || !id || typeof id !== 'string') return;
-
-            // Don't check again if the game is already loaded
-            if (game) return;
-
-            try {
-                const gameData = await GameService.getGame(id);
-
-                if (!gameData) {
-                    console.error('Game not found');
-                    router.replace('/');
-                    return;
-                }
-
-                // Check if user is a player in this game
-                const isPlayerInGame =
-                    gameData.whitePlayer === user.id ||
-                    gameData.blackPlayer === user.id;
-
-                if (!isPlayerInGame) {
-                    console.error('User is not authorized to view this game');
-                    router.replace('/');
-                }
-            } catch (error) {
-                console.error('Error checking game access:', error);
-                router.replace('/');
-            }
-        }
-
-        checkGameAccess();
-    }, [user, id, game, router]);
+    // We're removing the game access check to allow spectating
+    // The GameContext will automatically set isSpectator based on the user
 
     return (
         <Box sx={{
@@ -65,6 +32,11 @@ export default function GamePage() {
             position: 'relative',
             pb: { xs: 5, md: 3 }
         }}>
+            <Head>
+                <title>
+                    {game ? `Chess Game - ${playerUsernames.white} vs ${playerUsernames.black}` : 'Chess Game'}
+                </title>
+            </Head>
             {loading ? (
                 <LoadingScreen />
             ) : game ? (

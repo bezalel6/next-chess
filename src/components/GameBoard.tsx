@@ -1,4 +1,4 @@
-import { Box, Typography, Stack, Button, Tooltip } from "@mui/material";
+import { Box, Typography, Stack, Button, Tooltip, Chip } from "@mui/material";
 import LichessBoard from "./lichess-board";
 import { useGame } from "@/contexts/GameContext";
 import GameOverOverlay from "./GameOverOverlay";
@@ -6,11 +6,13 @@ import FlagIcon from '@mui/icons-material/Flag';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 
 const GameBoard = () => {
   const {
     game,
     myColor,
+    isSpectator,
     playerUsernames,
     resign,
     offerDraw,
@@ -101,14 +103,29 @@ const GameBoard = () => {
   };
 
   function Status() {
-    return <>
-      {/* {game.banningPlayer && myColor === game.banningPlayer && <Typography sx={{ color: 'white' }}>
-        Select a move to ban for your opponent
-      </Typography>} */}
-      <Typography sx={{ color: 'white' }}>
-        Status: {game.status} • Current Turn: {currentTurnName} ({game.turn})
-      </Typography>
-    </>
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+        <Typography sx={{ color: 'white' }}>
+          Status: {game.status === 'active' ? 'In Progress' : 'Finished'} • Current Turn: {currentTurnName} ({game.turn})
+        </Typography>
+
+        {isSpectator && (
+          <Chip
+            icon={<VisibilityIcon />}
+            label="You are watching as a spectator"
+            color="info"
+            size="small"
+            sx={{ mt: 1 }}
+          />
+        )}
+
+        {game.drawOfferedBy && isSpectator && (
+          <Typography variant="body2" sx={{ color: 'white', fontStyle: 'italic' }}>
+            {playerUsernames[game.drawOfferedBy]} has offered a draw
+          </Typography>
+        )}
+      </Box>
+    );
   }
 
   return (
@@ -119,7 +136,7 @@ const GameBoard = () => {
       justifyContent: 'center',
       flex: 1
     }}>
-      {/* Opponent info */}
+      {/* Player info - top */}
       <Box sx={{
         width: '100%',
         maxWidth: 800,
@@ -128,9 +145,15 @@ const GameBoard = () => {
         justifyContent: 'center',
         alignItems: 'center'
       }}>
-        <Typography sx={{ color: 'white' }}>
-          {opponentName}
-        </Typography>
+        {isSpectator ? (
+          <Typography sx={{ color: 'white' }}>
+            {playerUsernames.black}
+          </Typography>
+        ) : (
+          <Typography sx={{ color: 'white' }}>
+            {opponentName}
+          </Typography>
+        )}
       </Box>
 
       {/* Chess board */}
@@ -144,7 +167,7 @@ const GameBoard = () => {
         {game.status === 'finished' && <GameOverOverlay />}
       </Box>
 
-      {/* Player info */}
+      {/* Player info - bottom */}
       <Box sx={{
         width: '100%',
         maxWidth: 800,
@@ -153,22 +176,30 @@ const GameBoard = () => {
         justifyContent: 'center',
         alignItems: 'center'
       }}>
-        <Typography sx={{ color: 'white' }}>
-          {myName}
-        </Typography>
+        {isSpectator ? (
+          <Typography sx={{ color: 'white' }}>
+            {playerUsernames.white}
+          </Typography>
+        ) : (
+          <Typography sx={{ color: 'white' }}>
+            {myName}
+          </Typography>
+        )}
       </Box>
 
-      {/* Game actions */}
-      <Box sx={{
-        width: '100%',
-        maxWidth: 800,
-        mt: 1,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <GameActions />
-      </Box>
+      {/* Game actions - only for players */}
+      {!isSpectator && (
+        <Box sx={{
+          width: '100%',
+          maxWidth: 800,
+          mt: 1,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <GameActions />
+        </Box>
+      )}
 
       {/* Game Status */}
       <Box sx={{

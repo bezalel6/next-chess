@@ -190,6 +190,52 @@ export class GameService {
     return data.map(this.mapGameFromDB);
   }
 
+  // New method to fetch all active games with pagination
+  static async getActiveGames(
+    limit: number = 20,
+    offset: number = 0,
+  ): Promise<Game[]> {
+    console.log(`[GameService] Getting list of active games`);
+    const { data, error } = await supabase
+      .from("games")
+      .select("*")
+      .eq("status", "active")
+      .order("updated_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error(
+        `[GameService] Error getting active games: ${error.message}`,
+      );
+      throw error;
+    }
+
+    return data.map(this.mapGameFromDB);
+  }
+
+  // New method to fetch completed games with pagination
+  static async getCompletedGames(
+    limit: number = 20,
+    offset: number = 0,
+  ): Promise<Game[]> {
+    console.log(`[GameService] Getting list of completed games`);
+    const { data, error } = await supabase
+      .from("games")
+      .select("*")
+      .eq("status", "finished")
+      .order("updated_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error(
+        `[GameService] Error getting completed games: ${error.message}`,
+      );
+      throw error;
+    }
+
+    return data.map(this.mapGameFromDB);
+  }
+
   static mapGameFromDB(dbGame: DBGame | any): Game {
     const chess = new Chess(dbGame.current_fen);
     return {

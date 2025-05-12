@@ -74,6 +74,7 @@ export interface GameContextType {
   resetGame: () => void;
   isMyTurn: boolean;
   myColor: PlayerColor | null;
+  isSpectator: boolean;
   loading: boolean;
   playerUsernames: { white: string; black: string };
   offerDraw: () => Promise<void>;

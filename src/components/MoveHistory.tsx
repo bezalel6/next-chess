@@ -13,32 +13,32 @@ const MoveHistory = () => {
   const { pgn } = useGame();
   const [moveHistory, setMoveHistory] = useState<FormattedMove[]>([]);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
-  
+
   // Update move history whenever the game state changes
   useEffect(() => {
-    
+
     // Use the game's PGN to generate move history
     const formatMovesFromPgn = () => {
       const chess = new Chess();
-      
+
       try {
         // Load the game from PGN
         chess.loadPgn(pgn);
-        
+
         const moveHistory = chess.history({ verbose: true });
         const formattedMoves: FormattedMove[] = [];
-        
+
         let moveNumber = 1;
         let currentPair: { white: string, black: string } = { white: "", black: "" };
-        
+
         moveHistory.forEach((move, index) => {
           // Get the SAN notation for the move
           const sanNotation = move.san || "";
-          
+
           if (index % 2 === 0) {
             // White's move
             currentPair = { white: sanNotation, black: "" };
-            
+
             // If this is the last move and it's white's, add it now
             if (index === moveHistory.length - 1) {
               formattedMoves.push({
@@ -58,14 +58,14 @@ const MoveHistory = () => {
             moveNumber++;
           }
         });
-        
+
         setMoveHistory(formattedMoves);
       } catch (error) {
         console.error("Error parsing PGN:", error);
         setMoveHistory([]);
       }
     };
-    
+
     formatMovesFromPgn();
   }, [pgn]);
 
@@ -77,9 +77,9 @@ const MoveHistory = () => {
   }, [moveHistory]);
 
   return (
-    <Box 
+    <Box
       ref={moveHistoryRef}
-      sx={{ 
+      sx={{
         width: { xs: '100%', md: '200px' },
         height: { xs: 'auto', md: 'min(500px, 60vh)' },
         bgcolor: 'rgba(10,10,10,0.8)',
@@ -105,7 +105,7 @@ const MoveHistory = () => {
           Moves
         </Typography>
       </Box>
-      
+
       {/* Move table */}
       <Box sx={{ width: '100%', display: 'table', borderCollapse: 'collapse' }}>
         {/* Table header */}
@@ -120,51 +120,51 @@ const MoveHistory = () => {
             Black
           </Box>
         </Box>
-        
+
         {/* Game moves */}
-        {moveHistory.map((move) => (
-          <Box 
-            key={move.number} 
-            sx={{ 
-              display: 'table-row',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' }
-            }}
-          >
-            <Box sx={{ 
-              display: 'table-cell', 
-              p: 1, 
-              color: 'rgba(255,255,255,0.5)', 
-              borderBottom: '1px solid rgba(255,255,255,0.05)', 
-              fontSize: '0.75rem',
-              textAlign: 'center'
-            }}>
-              {move.number}
-            </Box>
-            <Box sx={{ 
-              display: 'table-cell', 
-              p: 1, 
-              color: 'white', 
-              borderBottom: '1px solid rgba(255,255,255,0.05)', 
-              fontSize: '0.8rem',
-              textAlign: 'center'
-            }}>
-              {move.white}
-            </Box>
-            <Box sx={{ 
-              display: 'table-cell', 
-              p: 1, 
-              color: 'white', 
-              borderBottom: '1px solid rgba(255,255,255,0.05)', 
-              fontSize: '0.8rem',
-              textAlign: 'center'
-            }}>
-              {move.black}
-            </Box>
-          </Box>
-        ))}
+        {moveHistory.map((move, i) => <Move move={move} key={i} />)}
       </Box>
     </Box>
   );
 };
-
+function Move({ move }: { move: FormattedMove }) {
+  return <Box
+    key={move.number}
+    sx={{
+      display: 'table-row',
+      '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' }
+    }}
+  >
+    <Box sx={{
+      display: 'table-cell',
+      p: 1,
+      color: 'rgba(255,255,255,0.5)',
+      borderBottom: '1px solid rgba(255,255,255,0.05)',
+      fontSize: '0.75rem',
+      textAlign: 'center'
+    }}>
+      {move.number}
+    </Box>
+    <Box sx={{
+      display: 'table-cell',
+      p: 1,
+      color: 'white',
+      borderBottom: '1px solid rgba(255,255,255,0.05)',
+      fontSize: '0.8rem',
+      textAlign: 'center'
+    }}>
+      {move.white}
+    </Box>
+    <Box sx={{
+      display: 'table-cell',
+      p: 1,
+      color: 'white',
+      borderBottom: '1px solid rgba(255,255,255,0.05)',
+      fontSize: '0.8rem',
+      textAlign: 'center'
+    }}>
+      {move.black}
+    </Box>
+  </Box>
+}
 export default MoveHistory; 

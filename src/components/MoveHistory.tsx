@@ -122,14 +122,13 @@ const MoveHistory = () => {
         </Box>
 
         {/* Game moves */}
-        {moveHistory.map((move, i) => <Move move={move} key={i} />)}
+        {moveHistory.map((move) => <Move move={move} key={move.number} />)}
       </Box>
     </Box>
   );
 };
 function Move({ move }: { move: FormattedMove }) {
   return <Box
-    key={move.number}
     sx={{
       display: 'table-row',
       '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' }

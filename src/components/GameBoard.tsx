@@ -102,9 +102,9 @@ const GameBoard = () => {
 
   function Status() {
     return <>
-      {game.banningPlayer && myColor === game.banningPlayer && <Typography sx={{ color: 'white' }}>
+      {/* {game.banningPlayer && myColor === game.banningPlayer && <Typography sx={{ color: 'white' }}>
         Select a move to ban for your opponent
-      </Typography>}
+      </Typography>} */}
       <Typography sx={{ color: 'white' }}>
         Status: {game.status} • Current Turn: {currentTurnName} ({game.turn})
       </Typography>

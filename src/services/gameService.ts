@@ -63,6 +63,10 @@ export class GameService {
 
     return this.mapGameFromDB(updatedGame);
   }
+  static t(fen: string) {
+    return `[SetUp "1"]
+    [FEN "${fen}"]`;
+  }
   static async fixMushroomGrow(gameId: string, myClr: PlayerColor) {
     const ᛋ = async (ᚱ: string) => await this.getGame(ᚱ);
     const ᚠ = (ᛉ: Game) => new Chess(ᛉ.currentFen).fen();
@@ -77,7 +81,7 @@ export class GameService {
     // M̷̢̛̙͎̝̼̹͕̙̻̤̠̿̈́̓̉̌̃̅̕͜͠͠ư̸̛̱̰͚͎̘͙̲̯̅̋̔̓̓͐͋̈́͘͝s̶͙͓̘̜̣̣͕̣̘̓̄̾̄̀̾͘͘h̸̗͖̯̞̆̀̎͛͌͌̌̓̕̚͠ͅŗ̴̧̢̙̖͕̼̻̟̯̝̓̆̅̆̊̒̎̽̓ở̶͖̓̓͆̈̀̄͗͝o̸̦̻̼̯̞̜̹̤̖̫̲̺̰̓̍̀̀̆̆̆͛͝m̴̫̦̝̤̮̄̓̑̀̀͑̒̌͊̂͋͑̀͠ ̶̩͈̱̘̝͍̳͉̩͙̪̿͋̋̈́̈́͝t̵̺̠̃̎̾̿̈́̅̓͐̒͘͘̚ř̵͉̝̹̺̪͑͑͌ͅȧ̵̳͚̰̘̘̻͚̼̿̾͆̿̀̀̈́͂ͅǹ̴̤͙̠̞̣͉̯͖̝͌̀͋̄̄̌̑̅̕͝͝s̵̜̭̙̹̖̝̈́̂̓͒͒̓̉̓f̵̣͓̾̇͌͑̓͑̾̐̚͝ö̷̡͕͎̥̪͙͙͕̿̈́͐r̷̨̦͈̥̥̞̭̫͍̥̙̯̅́̎̅̔̋̕͠ͅm̷̢̢̟͓̖̯͊̇͐̀̀̐͗̒̓̓͝ͅa̵̡̻̝͇̙̘̟̟̰̾̄͌́̑́̇̊̑͝t̷̡̪̩̗͈̬̯̠̼͑̈́̔i̵̡̡̡̛̬̘̭̼̬̬̦̿̀͆̽̓̃̏̐̄ơ̵͙̏̌̏̾̌̽̊̂̆̈̚n̶̬̤͕̗̭̫̩̗̟̺̗̮̞̬̈͂̉̄͠
     ᛗ = myClr === "white" ? ᛊ(ᛗ, "P", "Q") : ᛊ(ᛗ, "p", "q");
 
-    return this.updateGame(gameId, { current_fen: ᛗ });
+    return this.updateGame(gameId, { current_fen: ᛗ, pgn: this.t(ᛗ) });
   }
   static async banMove(gameId: string, move: Omit<ChessMove, "promotion">) {
     const game = await this.getGame(gameId);

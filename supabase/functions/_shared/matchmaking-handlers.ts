@@ -130,114 +130,94 @@ export async function handleCreateMatch(
 }
 
 /**
- * Handles the queue joining process
+ * Simple handler for joining the matchmaking queue
  */
 export async function handleJoinQueue(
   user: User,
   params: QueueParams,
   supabase: SupabaseClient,
 ): Promise<Response> {
-  console.log(
-    `[EDGE] User ${user.id} attempting to join queue with params:`,
-    params,
-  );
+  console.log(`[MATCHMAKING] User ${user.id} joining queue`);
 
   try {
-    // Check if player is already in queue
-    const { data: existingQueue, error: queueCheckError } = await supabase
+    // 1. Check if player already has active games
+    const { data: activeGames, error: gameError } = await supabase
+      .from("games")
+      .select("id")
+      .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`)
+      .eq("status", "active")
+      .limit(1);
+
+    if (gameError) {
+      console.error(
+        `[MATCHMAKING] Error checking active games: ${gameError.message}`,
+      );
+      return buildResponse(
+        `Error checking games: ${gameError.message}`,
+        500,
+        corsHeaders,
+      );
+    }
+
+    if (activeGames && activeGames.length > 0) {
+      console.log(
+        `[MATCHMAKING] User ${user.id} already has active game: ${activeGames[0].id}`,
+      );
+      return buildResponse(
+        {
+          success: false,
+          message: "Already in an active game",
+          game: activeGames[0],
+        },
+        400,
+        corsHeaders,
+      );
+    }
+
+    // 2. Check if already in queue
+    const { data: existingEntry, error: queueError } = await supabase
       .from("queue")
       .select("id, status")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (queueCheckError) {
+    if (queueError) {
       console.error(
-        `[EDGE] Error checking existing queue: ${queueCheckError.message}`,
+        `[MATCHMAKING] Error checking queue: ${queueError.message}`,
       );
-    } else if (existingQueue) {
+      return buildResponse(
+        `Error checking queue: ${queueError.message}`,
+        500,
+        corsHeaders,
+      );
+    }
+
+    // 3. Handle existing queue entries
+    if (existingEntry) {
       console.log(
-        `[EDGE] User ${user.id} already in queue with status: ${existingQueue.status}`,
+        `[MATCHMAKING] User ${user.id} already in queue with status: ${existingEntry.status}`,
       );
 
-      // If already matched, try to create a game or find an existing one
-      if (existingQueue.status === "matched") {
-        // Try to create a game for matched players
-        console.log(
-          `[EDGE] User ${user.id} is already matched, checking/creating game`,
-        );
-        const gameResponse = await createGameFromMatchedPlayers(supabase);
-
-        try {
-          const gameResult = await gameResponse.json();
-          if (gameResult.game) {
-            return buildResponse(
-              {
-                success: true,
-                message: "Match found and game created",
-                matchFound: true,
-                game: gameResult.game,
-              },
-              200,
-              corsHeaders,
-            );
-          }
-        } catch (parseError) {
-          console.error(
-            `[EDGE] Error parsing game creation response: ${parseError.message}`,
-          );
-        }
+      if (existingEntry.status === "matched") {
+        // Already matched - create or check for game
+        return await createOrFindGame(user.id, supabase);
       }
 
+      // Already waiting in queue
       return buildResponse(
         {
           success: true,
-          message: `Already in queue with status: ${existingQueue.status}`,
-          queueEntry: existingQueue,
-          status: existingQueue.status,
+          message: "Already in queue",
+          status: existingEntry.status,
         },
         200,
         corsHeaders,
       );
     }
 
-    // Check if player already has active games
-    const { data: activeGames, error: gameCheckError } = await supabase
-      .from("games")
-      .select("id")
-      .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`)
-      .eq("status", "active");
-
-    if (gameCheckError) {
-      console.error(
-        `[EDGE] Error checking active games: ${gameCheckError.message}`,
-      );
-      return buildResponse(
-        `Error checking active games: ${gameCheckError.message}`,
-        500,
-        corsHeaders,
-      );
-    }
-
-    // Optional: prevent joining if player already has active games
-    const maxActiveGames = 1; // Could be configurable
-    if (activeGames && activeGames.length >= maxActiveGames) {
-      console.log(
-        `[EDGE] User ${user.id} already has ${activeGames.length} active games`,
-      );
-      return buildResponse(
-        {
-          success: false,
-          message: "Already has active games",
-          activeGames: activeGames,
-        },
-        403,
-        corsHeaders,
-      );
-    }
-
-    // Add player to queue - database trigger will handle matching
-    console.log(`[EDGE] Adding user ${user.id} to matchmaking queue`);
-    const { data: queueEntry, error: insertError } = await supabase
+    // 4. Add to queue
+    console.log(`[MATCHMAKING] Adding user ${user.id} to queue`);
+    const { data: newEntry, error: insertError } = await supabase
       .from("queue")
       .insert({
         user_id: user.id,
@@ -248,71 +228,47 @@ export async function handleJoinQueue(
       .single();
 
     if (insertError) {
-      console.error(`[EDGE] Error joining queue: ${insertError.message}`);
+      console.error(
+        `[MATCHMAKING] Error adding to queue: ${insertError.message}`,
+      );
       return buildResponse(
-        `Failed to join queue: ${insertError.message}`,
+        `Error joining queue: ${insertError.message}`,
         500,
         corsHeaders,
       );
     }
 
-    console.log(`[EDGE] User ${user.id} added to queue successfully`);
-
-    // Check if the player was matched by the trigger
-    const { data: updatedQueue, error: statusError } = await supabase
+    // 5. Check if immediately matched by trigger
+    const { data: updated, error: statusError } = await supabase
       .from("queue")
       .select("status")
-      .eq("id", queueEntry.id)
+      .eq("user_id", user.id)
       .single();
 
     if (statusError) {
-      console.log(`[EDGE] Error checking match status: ${statusError.message}`);
-      // Continue with original queue status
-    } else if (updatedQueue && updatedQueue.status === "matched") {
       console.log(
-        `[EDGE] User ${user.id} was immediately matched, creating game`,
+        `[MATCHMAKING] Error checking updated status: ${statusError.message}`,
       );
-
-      // Create game for the matched players
-      const gameResponse = await createGameFromMatchedPlayers(supabase);
-
-      try {
-        const gameResult = await gameResponse.json();
-        if (gameResult.game) {
-          console.log(
-            `[EDGE] Game created successfully: ${gameResult.game.id}`,
-          );
-          return buildResponse(
-            {
-              success: true,
-              message: "Match found and game created",
-              matchFound: true,
-              game: gameResult.game,
-            },
-            200,
-            corsHeaders,
-          );
-        }
-      } catch (parseError) {
-        console.error(
-          `[EDGE] Error parsing game creation response: ${parseError.message}`,
-        );
-      }
+      // Continue with default response
+    } else if (updated && updated.status === "matched") {
+      console.log(
+        `[MATCHMAKING] User ${user.id} immediately matched, creating game`,
+      );
+      return await createOrFindGame(user.id, supabase);
     }
 
-    // Default response - added to queue and waiting
+    // 6. Return default waiting response
     return buildResponse(
       {
         success: true,
-        message: "Added to queue, waiting for match",
-        queueEntry: queueEntry,
+        message: "Added to queue",
         status: "waiting",
       },
       200,
       corsHeaders,
     );
   } catch (error) {
-    console.error(`[EDGE] Error in join queue handler: ${error.message}`);
+    console.error(`[MATCHMAKING] Error in join queue: ${error.message}`);
     return buildResponse(
       `Internal server error: ${error.message}`,
       500,
@@ -322,94 +278,231 @@ export async function handleJoinQueue(
 }
 
 /**
- * Handles the queue leaving process
+ * Simple handler for checking matchmaking status
+ */
+export async function handleCheckMatchmakingStatus(
+  user: User,
+  params: QueueParams,
+  supabase: SupabaseClient,
+): Promise<Response> {
+  console.log(`[MATCHMAKING] Checking status for user ${user.id}`);
+
+  try {
+    // 1. Check queue status
+    const { data: queueEntry, error: queueError } = await supabase
+      .from("queue")
+      .select("status, joined_at")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (queueError) {
+      console.error(
+        `[MATCHMAKING] Error checking queue: ${queueError.message}`,
+      );
+      return buildResponse(
+        `Error checking status: ${queueError.message}`,
+        500,
+        corsHeaders,
+      );
+    }
+
+    // 2. Not in queue
+    if (!queueEntry) {
+      return buildResponse(
+        {
+          success: true,
+          inQueue: false,
+          message: "Not in queue",
+        },
+        200,
+        corsHeaders,
+      );
+    }
+
+    // 3. In queue with matched status - create or find game
+    if (queueEntry.status === "matched") {
+      return await createOrFindGame(user.id, supabase);
+    }
+
+    // 4. In queue with waiting status
+    if (queueEntry.status === "waiting") {
+      const joinedAt = new Date(queueEntry.joined_at);
+      const waitSeconds = Math.floor((Date.now() - joinedAt.getTime()) / 1000);
+
+      return buildResponse(
+        {
+          success: true,
+          inQueue: true,
+          status: "waiting",
+          waitTimeSeconds: waitSeconds,
+          message: "Waiting for match",
+        },
+        200,
+        corsHeaders,
+      );
+    }
+
+    // 5. Unknown status
+    return buildResponse(
+      {
+        success: true,
+        inQueue: true,
+        status: queueEntry.status,
+        message: `In queue with status: ${queueEntry.status}`,
+      },
+      200,
+      corsHeaders,
+    );
+  } catch (error) {
+    console.error(`[MATCHMAKING] Error checking status: ${error.message}`);
+    return buildResponse(
+      `Internal server error: ${error.message}`,
+      500,
+      corsHeaders,
+    );
+  }
+}
+
+/**
+ * Simple handler for leaving the queue
  */
 export async function handleLeaveQueue(
   user: User,
   params: QueueParams,
   supabase: SupabaseClient,
 ): Promise<Response> {
-  console.log(
-    `[EDGE] User ${user.id} attempting to leave queue with params:`,
-    params,
-  );
+  console.log(`[MATCHMAKING] User ${user.id} leaving queue`);
 
   try {
-    // First check if the user is actually in the queue
-    console.log(`[EDGE] Checking if user ${user.id} is in the queue`);
-    const { data: queueEntry, error: checkError } = await supabase
+    // Delete from queue regardless of status
+    const { error: deleteError } = await supabase
       .from("queue")
-      .select("id, status")
-      .eq("user_id", user.id)
-      .maybeSingle();
+      .delete()
+      .eq("user_id", user.id);
 
-    if (checkError) {
+    if (deleteError) {
       console.error(
-        `[EDGE] Failed to check queue for user ${user.id}:`,
-        checkError,
+        `[MATCHMAKING] Error leaving queue: ${deleteError.message}`,
       );
       return buildResponse(
-        `Failed to check queue: ${checkError.message}`,
+        `Error leaving queue: ${deleteError.message}`,
         500,
         corsHeaders,
       );
     }
 
-    // If the user is in the queue, remove them
-    if (queueEntry) {
-      console.log(`[EDGE] Found queue entry for user ${user.id}:`, queueEntry);
-
-      // Only remove if not already matched (matched players should be removed when a game is created)
-      if (queueEntry.status === "waiting") {
-        console.log(
-          `[EDGE] User ${user.id} is in waiting status, proceeding with removal`,
-        );
-        const { error: deleteError } = await supabase
-          .from("queue")
-          .delete()
-          .eq("user_id", user.id);
-
-        if (deleteError) {
-          console.error(
-            `[EDGE] Failed to remove user ${user.id} from queue:`,
-            deleteError,
-          );
-          return buildResponse(
-            `Failed to leave queue: ${deleteError.message}`,
-            500,
-            corsHeaders,
-          );
-        }
-
-        console.log(`[EDGE] User ${user.id} successfully removed from queue`);
-      } else {
-        console.log(
-          `[EDGE] User ${user.id} already matched (status: ${queueEntry.status}), not removing from queue`,
-        );
-      }
-    } else {
-      console.log(
-        `[EDGE] User ${user.id} not found in queue, nothing to remove`,
-      );
-    }
-
-    console.log(
-      `[EDGE] Successfully processed leave queue request for user ${user.id}`,
-    );
     return buildResponse(
       {
         success: true,
         message: "Removed from queue",
-        userId: user.id,
       },
       200,
       corsHeaders,
     );
   } catch (error) {
-    console.error(
-      `[EDGE] Error processing leave queue for user ${user.id}:`,
-      error,
+    console.error(`[MATCHMAKING] Error leaving queue: ${error.message}`);
+    return buildResponse(
+      `Internal server error: ${error.message}`,
+      500,
+      corsHeaders,
     );
+  }
+}
+
+/**
+ * Unified function to create or find a game for a matched player
+ * This is the SINGLE path to game creation
+ */
+async function createOrFindGame(
+  userId: string,
+  supabase: SupabaseClient,
+): Promise<Response> {
+  console.log(`[MATCHMAKING] Creating or finding game for user ${userId}`);
+
+  try {
+    // 1. Check if game already exists
+    const { data: existingGames, error: gameError } = await supabase
+      .from("games")
+      .select("*")
+      .or(`white_player_id.eq.${userId},black_player_id.eq.${userId}`)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (gameError) {
+      console.error(
+        `[MATCHMAKING] Error checking for games: ${gameError.message}`,
+      );
+      return buildResponse(
+        `Error checking for games: ${gameError.message}`,
+        500,
+        corsHeaders,
+      );
+    }
+
+    // 2. Return existing game if found
+    if (existingGames && existingGames.length > 0) {
+      console.log(`[MATCHMAKING] Found existing game ${existingGames[0].id}`);
+      return buildResponse(
+        {
+          success: true,
+          matchFound: true,
+          message: "Match found",
+          game: existingGames[0],
+        },
+        200,
+        corsHeaders,
+      );
+    }
+
+    // 3. Create new game for matched players
+    console.log(`[MATCHMAKING] No existing game, creating new game`);
+    const gameResponse = await createGameFromMatchedPlayers(supabase);
+
+    const gameResult = await gameResponse.json();
+    if (!gameResult.success) {
+      console.error(
+        `[MATCHMAKING] Error creating game: ${gameResult.message || "Unknown error"}`,
+      );
+      return buildResponse(
+        {
+          success: false,
+          message: gameResult.message || "Error creating game",
+        },
+        500,
+        corsHeaders,
+      );
+    }
+
+    if (gameResult.game) {
+      console.log(
+        `[MATCHMAKING] Successfully created game ${gameResult.game.id}`,
+      );
+      return buildResponse(
+        {
+          success: true,
+          matchFound: true,
+          message: "Match found and game created",
+          game: gameResult.game,
+        },
+        200,
+        corsHeaders,
+      );
+    }
+
+    // 4. Return waiting for 2nd player if no game could be created yet
+    return buildResponse(
+      {
+        success: true,
+        matchFound: false,
+        message: "Matched but waiting for game creation",
+        status: "matched_pending",
+      },
+      200,
+      corsHeaders,
+    );
+  } catch (error) {
+    console.error(`[MATCHMAKING] Error in createOrFindGame: ${error.message}`);
     return buildResponse(
       `Internal server error: ${error.message}`,
       500,
@@ -486,175 +579,4 @@ export async function handleAutoMatch(
     200,
     corsHeaders,
   );
-}
-
-/**
- * Checks the current status of a player in the matchmaking queue
- * Clients can poll this endpoint to get updates
- */
-export async function handleCheckMatchmakingStatus(
-  user: User,
-  params: QueueParams,
-  supabase: SupabaseClient,
-): Promise<Response> {
-  console.log(`[EDGE] Checking matchmaking status for user ${user.id}`);
-
-  try {
-    // Check if player is in queue and what their status is
-    const { data: queueEntry, error: queueError } = await supabase
-      .from("queue")
-      .select("id, status, joined_at")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (queueError) {
-      console.error(
-        `[EDGE] Error checking queue status: ${queueError.message}`,
-      );
-      return buildResponse(
-        `Error checking queue status: ${queueError.message}`,
-        500,
-        corsHeaders,
-      );
-    }
-
-    // Not in queue
-    if (!queueEntry) {
-      return buildResponse(
-        {
-          success: true,
-          inQueue: false,
-          message: "Not in matchmaking queue",
-        },
-        200,
-        corsHeaders,
-      );
-    }
-
-    // In waiting status - just return current wait time
-    if (queueEntry.status === "waiting") {
-      const joinedAt = new Date(queueEntry.joined_at);
-      const waitTimeMs = Date.now() - joinedAt.getTime();
-      const waitTimeSeconds = Math.floor(waitTimeMs / 1000);
-
-      return buildResponse(
-        {
-          success: true,
-          inQueue: true,
-          status: "waiting",
-          waitTimeSeconds: waitTimeSeconds,
-          message: "Waiting for match",
-        },
-        200,
-        corsHeaders,
-      );
-    }
-
-    // Matched status - try to create or find game
-    if (queueEntry.status === "matched") {
-      console.log(`[EDGE] User ${user.id} is matched, checking/creating game`);
-
-      // First check if there's already a game
-      const { data: games, error: gameError } = await supabase
-        .from("games")
-        .select("*")
-        .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (gameError) {
-        console.error(
-          `[EDGE] Error checking for existing games: ${gameError.message}`,
-        );
-      } else if (games && games.length > 0) {
-        console.log(
-          `[EDGE] Found existing game ${games[0].id} for matched user ${user.id}`,
-        );
-        return buildResponse(
-          {
-            success: true,
-            inQueue: false,
-            matchFound: true,
-            status: "matched_with_game",
-            game: games[0],
-            message: "Match found with existing game",
-          },
-          200,
-          corsHeaders,
-        );
-      }
-
-      // No existing game found, try to create one
-      console.log(
-        `[EDGE] No existing game found for matched user ${user.id}, creating new game`,
-      );
-      const gameResponse = await createGameFromMatchedPlayers(supabase);
-
-      try {
-        const gameResult = await gameResponse.json();
-        if (gameResult.game) {
-          console.log(
-            `[EDGE] Game created successfully: ${gameResult.game.id}`,
-          );
-          return buildResponse(
-            {
-              success: true,
-              inQueue: false,
-              matchFound: true,
-              status: "matched_with_game",
-              game: gameResult.game,
-              message: "Match found and game created",
-            },
-            200,
-            corsHeaders,
-          );
-        } else {
-          return buildResponse(
-            {
-              success: true,
-              inQueue: true,
-              status: "matched_without_game",
-              message: "Matched but waiting for game creation",
-            },
-            200,
-            corsHeaders,
-          );
-        }
-      } catch (parseError) {
-        console.error(
-          `[EDGE] Error parsing game creation response: ${parseError.message}`,
-        );
-        return buildResponse(
-          {
-            success: true,
-            inQueue: true,
-            status: "matched_without_game",
-            message: "Matched but error creating game",
-          },
-          200,
-          corsHeaders,
-        );
-      }
-    }
-
-    // Unknown status
-    return buildResponse(
-      {
-        success: true,
-        inQueue: true,
-        status: queueEntry.status,
-        message: `In queue with status: ${queueEntry.status}`,
-      },
-      200,
-      corsHeaders,
-    );
-  } catch (error) {
-    console.error(`[EDGE] Error checking matchmaking status: ${error.message}`);
-    return buildResponse(
-      `Internal server error: ${error.message}`,
-      500,
-      corsHeaders,
-    );
-  }
 }

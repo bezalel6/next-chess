@@ -19,6 +19,7 @@ CREATE EXTENSION IF NOT EXISTS "pgjwt" WITH SCHEMA "extensions";
 CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
 
+
 COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 -- Create custom types for better data integrity
@@ -58,6 +59,23 @@ BEGIN
 END;
 $$;
 
+-- Function to check if a user exists in auth.users table
+CREATE OR REPLACE FUNCTION "public"."get_user"("user_id" "uuid") RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET search_path = "public", "auth", "pg_temp"
+    AS $$
+DECLARE
+  user_exists boolean;
+BEGIN
+  -- Check if the user exists in auth.users
+  SELECT EXISTS (
+    SELECT 1 FROM auth.users WHERE id = user_id
+  ) INTO user_exists;
+  
+  RETURN user_exists;
+END;
+$$;
+
 -- Triggered when a new user signs up to create their profile
 CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -82,8 +100,7 @@ CREATE OR REPLACE FUNCTION "public"."match_players"() RETURNS "trigger"
     AS $$
 DECLARE
   waiting_count INTEGER;
-  matched_ids TEXT;
-  matched_user_ids TEXT;
+  matched_user_id UUID;
 BEGIN
   -- Log trigger invocation
   RAISE NOTICE '[MATCHMAKING] Trigger fired by % operation on queue table', TG_OP;
@@ -105,34 +122,29 @@ BEGIN
       LIMIT 2
       FOR UPDATE SKIP LOCKED -- Prevent race conditions when multiple players join simultaneously
     )
-    UPDATE queue
+    UPDATE queue q
     SET status = 'matched'
-    WHERE id IN (SELECT id FROM matched_players);
-    
-    -- Log successful match - fix queries to avoid GROUP BY issues
-    WITH matched_players AS (
-      SELECT id, user_id, joined_at
+    FROM (
+      SELECT user_id 
       FROM queue 
-      WHERE status = 'matched' 
+      WHERE status = 'waiting' 
       ORDER BY joined_at ASC 
       LIMIT 2
-    )
-    SELECT array_to_string(array_agg(id), ', ') INTO matched_ids 
-    FROM matched_players;
+      FOR UPDATE SKIP LOCKED
+    ) AS mp
+    WHERE q.user_id = mp.user_id;
     
-    WITH matched_players AS (
-      SELECT id, user_id, joined_at
-      FROM queue 
-      WHERE status = 'matched' 
-      ORDER BY joined_at ASC 
-      LIMIT 2
-    )
-    SELECT array_to_string(array_agg(user_id), ', ') INTO matched_user_ids 
-    FROM matched_players;
+    -- Log successful match - we'll query the matched players directly
+    RAISE NOTICE '[MATCHMAKING] Successfully matched players';
     
-    RAISE NOTICE '[MATCHMAKING] Successfully matched players. Queue IDs: %, User IDs: %', 
-      matched_ids, matched_user_ids;
-    RAISE NOTICE '[MATCHMAKING] Application code should now create a game for these players';
+    -- Now query the matched players for logging instead of using RETURNING
+    FOR matched_user_id IN 
+      SELECT user_id FROM queue WHERE status = 'matched' LIMIT 2
+    LOOP
+      RAISE NOTICE '[MATCHMAKING] Matched player: %', matched_user_id;
+    END LOOP;
+    
+    RAISE NOTICE '[MATCHMAKING] Edge function will create game for these players';
   ELSE
     RAISE NOTICE '[MATCHMAKING] Not enough players to make a match (need at least 2)';
   END IF;
@@ -345,6 +357,7 @@ GRANT ALL ON FUNCTION "public"."generate_short_id"("length" integer) TO "anon", 
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon", "authenticated", "service_role";
 GRANT ALL ON FUNCTION "public"."update_timestamp"() TO "anon", "authenticated", "service_role";
 GRANT ALL ON FUNCTION "public"."match_players"() TO "anon", "authenticated", "service_role";
+GRANT ALL ON FUNCTION "public"."get_user"("user_id" "uuid") TO "anon", "authenticated", "service_role";
 
 -- Grant table permissions
 GRANT ALL ON TABLE "public"."games" TO "anon", "authenticated", "service_role";

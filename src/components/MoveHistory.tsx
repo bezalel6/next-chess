@@ -66,7 +66,10 @@ const MoveHistory = () => {
             moveNumber++;
           }
         });
-
+        if (!formattedMoves.length) {
+          const m = { white: { banned: getBannedMove(refGame.getComment()) }, number: moveNumber, black: {} }
+          formattedMoves.push(m)
+        }
         setMoveHistory(formattedMoves);
       } catch (error) {
         console.error("Error parsing PGN:", error);
@@ -209,7 +212,7 @@ function MovesRow({
 }
 
 function PlyComponent({ ply }: { ply: Ply }) {
-  if (!ply.move) return null;
+  // if (!ply.move) return null;
 
   return (
     <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>

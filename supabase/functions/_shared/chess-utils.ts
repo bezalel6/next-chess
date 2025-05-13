@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
-import { Chess, type PartialMove } from "chess-ts";
-import type { SupabaseClient } from "supabase";
+import { Chess, type PartialMove } from "https://esm.sh/chess.ts@0.16.2";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export interface ChessMove {
   from: string;

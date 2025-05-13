@@ -1,5 +1,5 @@
 /// <reference lib="deno.ns" />
-import { createClient } from "supabase";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildResponse } from "./chess-utils.ts";
 
 // CORS headers for all edge functions

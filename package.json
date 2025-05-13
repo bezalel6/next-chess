@@ -6,6 +6,8 @@
   "scripts": {
     "build": "next build",
     "check": "next lint && tsc --noEmit",
+    "dev:local": "dotenv -e ./.env.local -- npx tsx src/server/server.ts",
+    "supabase:start": "dotenv -e ./.env.local -- npx supabase start --exclude vector",
     "dev": "dotenv -e ./.env -- npx tsx src/server/server.ts",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",

@@ -76,11 +76,11 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     }, [makeMove])
 
     const [fen, lastMove, check] = useMemo(() => {
-        const chess = new Chess()
+        const chess = new Chess(game.currentFen)
         chess.loadPgn(pgn);
         const history = chess.history({ verbose: true })
         return [chess.fen(), history[history.length - 1], chess.inCheck() ? clr(chess.turn()) : false]
-    }, [pgn])
+    }, [pgn, game.currentFen])
     // Create drawable shapes for banned move
     const drawableShapes = useMemo(() => {
         if (!bannedMove) return [];

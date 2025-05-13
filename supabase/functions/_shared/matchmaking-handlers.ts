@@ -142,7 +142,7 @@ export async function handleJoinQueue(
       params,
     );
 
-    // Check if player already has too many active games
+    // Check if player already has active games
     const { data: activeGames, error: countError } = await supabase
       .from("games")
       .select("id")
@@ -159,16 +159,10 @@ export async function handleJoinQueue(
     }
 
     // Optional: limit active games (configurable)
-    const maxActiveGames = 5; // Could be moved to a configuration
+    const maxActiveGames = 1; // Could be moved to a configuration
     if (activeGames.length >= maxActiveGames) {
-      console.log(
-        `User ${user.id} has too many active games: ${activeGames.length}`,
-      );
-      return buildResponse(
-        `Too many active games (max: ${maxActiveGames})`,
-        403,
-        corsHeaders,
-      );
+      console.log(`User ${user.id} already has active games`);
+      return buildResponse(`Has active games`, 403, corsHeaders);
     }
 
     // First, check if there's already a waiting player in the queue
@@ -276,7 +270,6 @@ export async function handleJoinQueue(
         corsHeaders,
       );
     }
-
     // No match found, add the player to the queue
     const { data: queueEntry, error: insertError } = await supabase
       .from("queue")

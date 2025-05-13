@@ -71,7 +71,7 @@ export async function handleAuthenticatedRequest(
   req: Request,
   handler: (
     user: User,
-    body: Record<string, unknown>,
+    body: any,
     supabase: SupabaseClient,
   ) => Promise<Response>,
 ): Promise<Response> {

@@ -153,6 +153,76 @@ BEGIN
 END;
 $$;
 
+-- Function to create a game and notifications in a single transaction
+CREATE OR REPLACE FUNCTION "public"."create_game_with_notifications"(
+  white_player UUID,
+  black_player UUID,
+  initial_fen TEXT
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  new_game_id TEXT;
+  new_game JSONB;
+BEGIN
+  -- Create the game
+  INSERT INTO public.games (
+    white_player_id,
+    black_player_id,
+    status,
+    current_fen,
+    pgn,
+    turn,
+    "banningPlayer"
+  ) VALUES (
+    white_player,
+    black_player,
+    'active',
+    initial_fen,
+    '',
+    'white',
+    'black'
+  ) RETURNING id INTO new_game_id;
+  
+  -- Create notification
+  INSERT INTO public.queue_notifications (
+    type,
+    game_id,
+    white_player_id,
+    black_player_id,
+    data
+  ) VALUES (
+    'match_found',
+    new_game_id,
+    white_player,
+    black_player,
+    jsonb_build_object(
+      'matchTime', now()
+    )
+  );
+  
+  -- Remove players from queue
+  DELETE FROM public.queue
+  WHERE user_id IN (white_player, black_player);
+  
+  -- Get the full game data to return
+  SELECT jsonb_build_object(
+    'id', g.id,
+    'white_player_id', g.white_player_id,
+    'black_player_id', g.black_player_id,
+    'status', g.status,
+    'current_fen', g.current_fen,
+    'turn', g.turn,
+    'created_at', g.created_at
+  ) INTO new_game
+  FROM public.games g
+  WHERE g.id = new_game_id;
+  
+  RETURN new_game;
+END;
+$$;
+
 -- Set table creation defaults
 SET default_tablespace = '';
 SET default_table_access_method = "heap";
@@ -358,6 +428,7 @@ GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon", "authenticated", "
 GRANT ALL ON FUNCTION "public"."update_timestamp"() TO "anon", "authenticated", "service_role";
 GRANT ALL ON FUNCTION "public"."match_players"() TO "anon", "authenticated", "service_role";
 GRANT ALL ON FUNCTION "public"."get_user"("user_id" "uuid") TO "anon", "authenticated", "service_role";
+GRANT ALL ON FUNCTION "public"."create_game_with_notifications"(UUID, UUID, TEXT) TO "anon", "authenticated", "service_role";
 
 -- Grant table permissions
 GRANT ALL ON TABLE "public"."games" TO "anon", "authenticated", "service_role";

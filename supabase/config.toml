@@ -3,9 +3,9 @@
 
 [functions]
 [functions.game-operations]
-verify_jwt = true
+verify_jwt = false
 import_map = "./import_map.json"
 
 [functions.matchmaking]
-verify_jwt = true
+verify_jwt = false
 import_map = "./import_map.json"

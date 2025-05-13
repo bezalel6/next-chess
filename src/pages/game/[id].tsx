@@ -5,7 +5,7 @@ import { useGame } from "@/contexts/GameContext";
 import { useRouter } from 'next/compat/router';
 
 import { useAuth } from "@/contexts/AuthContext";
-import { GameService } from "@/services/gameService";
+import { useServices } from "@/contexts/ServiceContext";
 import GameBoard from "@/components/GameBoard";
 import MoveHistory from "@/components/MoveHistory";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -16,6 +16,7 @@ export default function GamePage() {
     const { user } = useAuth();
     const router = useRouter();
     const { id } = router.query;
+    const { gameService } = useServices();
 
     // Verify the user has permission to view this game
     useEffect(() => {
@@ -27,7 +28,7 @@ export default function GamePage() {
             if (game) return;
 
             try {
-                const gameData = await GameService.getGame(id);
+                const gameData = await gameService.getGame(id);
 
                 if (!gameData) {
                     console.error('Game not found');
@@ -51,7 +52,7 @@ export default function GamePage() {
         }
 
         checkGameAccess();
-    }, [user, id, game, router]);
+    }, [user, id, game, router, gameService]);
 
     return (
         <Box sx={{

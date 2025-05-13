@@ -4,6 +4,7 @@ import type { QueueStatus, GameMatch } from "../types/realtime";
 import { GameProvider } from "./GameContext";
 import type { Session, RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "./AuthContext";
+import { useServices } from '@/contexts/ServiceContext';
 
 interface QueueState {
     inQueue: boolean;
@@ -44,6 +45,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         activeGames: 0,
         log: []
     });
+    const { matchmakingService, gameService } = useServices();
 
     const addLogEntry = (message: string) => {
         setStats(prev => ({
@@ -146,6 +148,14 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
         setQueueChannel(channel);
 
+        // Subscribe to the channel immediately
+        channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                setQueueSubscribed(true);
+                addLogEntry("Queue channel subscribed successfully");
+            }
+        });
+
         return () => {
             // Clean up - unsubscribe and untrack
             if (channel) {
@@ -166,27 +176,6 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session]);
 
-    // Subscribe to queue channel when needed
-    useEffect(() => {
-        if (!queueChannel || queueSubscribed) return;
-
-        const subscribeToQueueChannel = async () => {
-            try {
-                queueChannel.subscribe(async (status) => {
-                    if (status === 'SUBSCRIBED') {
-                        setQueueSubscribed(true);
-                        addLogEntry("Queue channel subscribed successfully");
-                    }
-                });
-            } catch (error) {
-                console.error("Error subscribing to queue channel:", error);
-                addLogEntry(`Error subscribing to queue channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-        };
-
-        subscribeToQueueChannel();
-    }, [queueChannel, queueSubscribed]);
-
     const handleQueueToggle = async () => {
         if (!session?.user || !queueChannel) return;
 
@@ -194,6 +183,12 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
             if (queue.inQueue) {
                 // Leave queue
                 await queueChannel.untrack();
+
+                // Notify the server via edge function
+                if (queueSubscribed) {
+                    await matchmakingService.leaveQueue(session.user.id, queueChannel);
+                }
+
                 setQueue({ inQueue: false, position: 0, size: 0 });
                 addLogEntry("Manually left queue");
             } else {
@@ -205,8 +200,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
                 // Check for active games before joining queue
                 try {
-                    const { GameService } = await import('../services/gameService');
-                    const activeGames = await GameService.getUserActiveGames(session.user.id);
+                    const activeGames = await gameService.getUserActiveGames(session.user.id);
 
                     if (activeGames.length > 0) {
                         addLogEntry("Cannot join queue: You have unfinished games");
@@ -218,12 +212,15 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     return;
                 }
 
-                await queueChannel.track({
-                    user_id: session.user.id,
-                    joined_at: new Date().toISOString()
-                });
-                setQueue(prev => ({ ...prev, inQueue: true }));
-                addLogEntry("Joined matchmaking queue");
+                // Join the queue using matchmakingService with the existing channel
+                try {
+                    await matchmakingService.joinQueue(session.user.id, queueChannel);
+                    setQueue(prev => ({ ...prev, inQueue: true }));
+                    addLogEntry("Joined matchmaking queue");
+                } catch (error) {
+                    console.error('Error joining queue:', error);
+                    addLogEntry(`Error joining queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
             }
         } catch (error) {
             console.error('Error toggling queue:', error);

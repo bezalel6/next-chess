@@ -4,7 +4,7 @@ import { SecureGameService } from "./secureGameService";
 import type { Game } from "@/types/game";
 
 export class SecureMatchmakingService {
-  static async joinQueue(userId: string) {
+  static async joinQueue(userId: string, existingChannel?: RealtimeChannel) {
     // First, invoke the edge function to securely validate and process the request
     const { data, error } = await supabase.functions.invoke("matchmaking", {
       body: {
@@ -19,20 +19,41 @@ export class SecureMatchmakingService {
       throw error;
     }
 
-    // Then set up the client-side channel for real-time updates
-    const channel = supabase.channel("queue-system", {
-      config: {
-        broadcast: { self: true },
-        presence: { key: userId },
-      },
-    });
+    // Use the existing channel if provided, otherwise create a new one
+    if (existingChannel) {
+      await existingChannel.track({
+        user_id: userId,
+        joined_at: new Date().toISOString(),
+      });
+      return existingChannel;
+    } else {
+      // Create a new channel if none was provided
+      const channel = supabase.channel("queue-system", {
+        config: {
+          broadcast: { self: true },
+          presence: { key: userId },
+        },
+      });
 
-    await channel.track({
-      user_id: userId,
-      joined_at: new Date().toISOString(),
-    });
+      // Subscribe to the channel before tracking presence
+      await new Promise<void>((resolve, reject) => {
+        channel.subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            resolve();
+          } else if (status === "CHANNEL_ERROR") {
+            reject(new Error(`Failed to subscribe to channel: ${status}`));
+          }
+        });
+      });
 
-    return channel;
+      // Now that we're subscribed, we can track presence
+      await channel.track({
+        user_id: userId,
+        joined_at: new Date().toISOString(),
+      });
+
+      return channel;
+    }
   }
 
   static async leaveQueue(userId: string, channel: RealtimeChannel) {

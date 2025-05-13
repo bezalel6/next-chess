@@ -5,7 +5,7 @@ import { useRouter } from 'next/compat/router';
 import type { Game, GameContextType, PromoteablePieces } from '@/types/game';
 import type { GameMatch } from '@/types/realtime';
 import { useChessSounds } from '@/hooks/useChessSounds';
-import { useServices } from '@/contexts/ServiceContext';
+import { gameService } from '@/utils/serviceTransition';
 import { useAuth } from './AuthContext';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Square } from 'chess.ts/dist/types';
@@ -33,7 +33,6 @@ export function GameProvider({ children }: GameProviderProps) {
     const { playGameStart, playGameEnd } = useChessSounds();
     const router = useRouter();
     const { user } = useAuth();
-    const { gameService } = useServices();
     const { id: gameId } = router.query;
     const currentGameId = useRef<string | null>(null);
 

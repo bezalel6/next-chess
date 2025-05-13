@@ -10,14 +10,41 @@ import {
   type PlayerColor,
   type Game,
 } from "./chess-utils.ts";
+import type {
+  SupabaseClient,
+  User,
+} from "https://esm.sh/@supabase/supabase-js@2";
+
+interface MakeMoveParams {
+  gameId: string;
+  move: ChessMove;
+}
+
+interface BanMoveParams {
+  gameId: string;
+  move: ChessMove;
+}
+
+interface GameOfferParams {
+  gameId: string;
+  playerColor?: PlayerColor;
+}
+
+interface ResignationParams {
+  gameId: string;
+}
+
+interface MushroomGrowthParams {
+  gameId: string;
+}
 
 /**
  * Handles making a move in a chess game
  */
 export async function handleMakeMove(
-  user: any,
-  params: any,
-  supabase: any,
+  user: User,
+  params: MakeMoveParams,
+  supabase: SupabaseClient,
 ): Promise<Response> {
   const { gameId, move } = params;
 
@@ -92,9 +119,9 @@ export async function handleMakeMove(
  * Handles banning a move in a chess game
  */
 export async function handleBanMove(
-  user: any,
-  params: any,
-  supabase: any,
+  user: User,
+  params: BanMoveParams,
+  supabase: SupabaseClient,
 ): Promise<Response> {
   const { gameId, move } = params;
 
@@ -169,9 +196,9 @@ export async function handleBanMove(
  * Handles game offers (draw/rematch)
  */
 export async function handleGameOffer(
-  user: any,
-  params: any,
-  supabase: any,
+  user: User,
+  params: GameOfferParams,
+  supabase: SupabaseClient,
   offerType: "draw" | "rematch",
   action: "offer" | "accept" | "decline",
 ): Promise<Response> {
@@ -308,9 +335,9 @@ export async function handleGameOffer(
  * Handles game resignation
  */
 export async function handleResignation(
-  user: any,
-  params: any,
-  supabase: any,
+  user: User,
+  params: ResignationParams,
+  supabase: SupabaseClient,
 ): Promise<Response> {
   const { gameId } = params;
 
@@ -358,9 +385,9 @@ export async function handleResignation(
  * Special mushroom growth transformation handler
  */
 export async function handleMushroomGrowth(
-  user: any,
-  params: any,
-  supabase: any,
+  user: User,
+  params: MushroomGrowthParams,
+  supabase: SupabaseClient,
 ): Promise<Response> {
   const { gameId } = params;
 

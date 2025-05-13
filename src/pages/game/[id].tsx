@@ -5,7 +5,7 @@ import { useGame } from "@/contexts/GameContext";
 import { useRouter } from 'next/compat/router';
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useServices } from "@/contexts/ServiceContext";
+import { gameService } from "@/utils/serviceTransition";
 import GameBoard from "@/components/GameBoard";
 import MoveHistory from "@/components/MoveHistory";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -16,7 +16,6 @@ export default function GamePage() {
     const { user } = useAuth();
     const router = useRouter();
     const { id } = router.query;
-    const { gameService } = useServices();
 
     // Verify the user has permission to view this game
     useEffect(() => {
@@ -52,7 +51,7 @@ export default function GamePage() {
         }
 
         checkGameAccess();
-    }, [user, id, game, router, gameService]);
+    }, [user, id, game, router]);
 
     return (
         <Box sx={{

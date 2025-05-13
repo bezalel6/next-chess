@@ -11,16 +11,17 @@ export class GameService {
     const chess = new Chess();
     const { data: game, error } = await supabase
       .from("games")
-      .insert({
+      .insert<Partial<DBGame>>({
         white_player_id: whitePlayerId,
         black_player_id: blackPlayerId,
         status: "active",
         current_fen: chess.fen(),
         pgn: chess.pgn(),
         turn: "white",
+        banningPlayer: "black",
       })
       .select()
-      .single();
+      .single<DBGame>();
 
     if (error) throw error;
 

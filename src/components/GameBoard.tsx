@@ -108,6 +108,7 @@ const GameBoard = () => {
       <Typography sx={{ color: 'white' }}>
         Status: {game.status} • Current Turn: {currentTurnName} ({game.turn})
       </Typography>
+      <Typography>Current PGN:<br />{game.pgn}</Typography>
     </>
   }
 

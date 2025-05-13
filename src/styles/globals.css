@@ -41,6 +41,11 @@ a {
   color: hsl(280, 100%, 70%);
 }
 
+piece.disabled {
+  pointer-events: none;
+  filter: grayscale(100%) opacity(0.5);
+}
+
 /* Chess container */
 .chess-container {
   display: flex;

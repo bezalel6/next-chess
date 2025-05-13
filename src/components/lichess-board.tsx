@@ -63,7 +63,6 @@ const LichessBoard = ({ }: LichessBoardProps) => {
 
         document.querySelectorAll(`piece.disabled`).forEach(e => e.classList.remove("disabled"))
         if (game.banningPlayer === myColor) {
-            console.log(game.banningPlayer)
             document.querySelectorAll(`piece.${myColor}`).forEach(e => e.classList.add("disabled"))
         }
 

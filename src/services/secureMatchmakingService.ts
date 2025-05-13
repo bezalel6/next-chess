@@ -1,16 +1,15 @@
-import { supabase } from "../utils/supabase";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import { supabase, invokeWithAuth } from "../utils/supabase";
+import type { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { SecureGameService } from "./secureGameService";
 import type { Game } from "@/types/game";
 
 export class SecureMatchmakingService {
-  static async joinQueue(userId: string, existingChannel?: RealtimeChannel) {
+  static async joinQueue(session: Session, existingChannel?: RealtimeChannel) {
     try {
       // First, invoke the edge function to securely validate and process the request
-      const { data, error } = await supabase.functions.invoke("matchmaking", {
+      const { data, error } = await invokeWithAuth("matchmaking", {
         body: {
           operation: "joinQueue",
-          userId: userId, // Explicitly include userId in request
         },
       });
 
@@ -21,7 +20,7 @@ export class SecureMatchmakingService {
         );
         throw error;
       }
-
+      const userId = session.user.id;
       // Use the existing channel if provided, otherwise create a new one
       if (existingChannel) {
         await existingChannel.track({
@@ -66,16 +65,16 @@ export class SecureMatchmakingService {
     }
   }
 
-  static async leaveQueue(userId: string, channel: RealtimeChannel) {
+  static async leaveQueue(session: Session, channel: RealtimeChannel) {
     try {
+      const userId = session.user.id;
       await channel.untrack({ user_id: userId });
       await channel.unsubscribe();
 
-      // Optionally notify the server via edge function
-      const { data, error } = await supabase.functions.invoke("matchmaking", {
+      // Properly notify the server via edge function with auth
+      const { data, error } = await invokeWithAuth("matchmaking", {
         body: {
           operation: "leaveQueue",
-          userId: userId, // Explicitly include userId in request
         },
       });
 
@@ -92,19 +91,15 @@ export class SecureMatchmakingService {
     }
   }
 
-  static async createMatch(
-    player1Id: string,
-    player2Id: string,
-  ): Promise<Game> {
+  static async createMatch(player2Id: string): Promise<Game> {
     try {
-      if (!player1Id || !player2Id) {
-        throw new Error("Both player IDs are required to create a match");
+      if (!player2Id) {
+        throw new Error("Player 2 ID is required to create a match");
       }
 
-      const { data, error } = await supabase.functions.invoke("matchmaking", {
+      const { data, error } = await invokeWithAuth("matchmaking", {
         body: {
           operation: "createMatch",
-          player1Id,
           player2Id,
         },
       });
@@ -141,7 +136,8 @@ export class SecureMatchmakingService {
     });
   }
 
-  static async getQueuePosition(userId: string): Promise<number> {
+  static async getQueuePosition(session: Session): Promise<number> {
+    const userId = session.user.id;
     const { data: presenceState } = await supabase
       .channel("queue-system")
       .presenceState();
@@ -159,5 +155,45 @@ export class SecureMatchmakingService {
     );
 
     return queue.findIndex((user) => user.user_id === userId) + 1;
+  }
+
+  static async createMatchServerSide(
+    player1Id: string,
+    player2Id: string,
+  ): Promise<Game> {
+    try {
+      if (!player1Id || !player2Id) {
+        throw new Error("Both player IDs are required to create a match");
+      }
+
+      // For server-side usage with service role key
+      const { data, error } = await supabase.functions.invoke("matchmaking", {
+        body: {
+          operation: "createMatch",
+          player1Id,
+          player2Id,
+        },
+      });
+
+      if (error) {
+        console.error(
+          `[SecureMatchmakingService] Error creating match (server-side): ${error.message}`,
+          error,
+        );
+        throw error;
+      }
+
+      if (!data?.data) {
+        throw new Error("Invalid response from server when creating match");
+      }
+
+      return SecureGameService.mapGameFromDB(data.data);
+    } catch (err) {
+      console.error(
+        "[SecureMatchmakingService] Fatal error creating match (server-side):",
+        err,
+      );
+      throw err;
+    }
   }
 }

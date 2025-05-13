@@ -1,4 +1,4 @@
-import { supabase } from "../utils/supabase";
+import { supabase, invokeWithAuth } from "../utils/supabase";
 import type { Game, ChessMove, PlayerColor } from "@/types/game";
 import { Chess } from "chess.ts";
 
@@ -8,7 +8,7 @@ export class SecureGameService {
       `[SecureGameService] Making move ${JSON.stringify(move)} for game ${gameId}`,
     );
 
-    const { data, error } = await supabase.functions.invoke("game-operations", {
+    const { data, error } = await invokeWithAuth("game-operations", {
       body: {
         operation: "makeMove",
         gameId,
@@ -25,7 +25,7 @@ export class SecureGameService {
   }
 
   static async banMove(gameId: string, move: Omit<ChessMove, "promotion">) {
-    const { data, error } = await supabase.functions.invoke("game-operations", {
+    const { data, error } = await invokeWithAuth("game-operations", {
       body: {
         operation: "banMove",
         gameId,
@@ -119,7 +119,7 @@ export class SecureGameService {
     playerColor: PlayerColor,
     action: "offer" | "accept" | "decline",
   ): Promise<Game> {
-    const { data, error } = await supabase.functions.invoke("game-operations", {
+    const { data, error } = await invokeWithAuth("game-operations", {
       body: {
         operation: `${action}${offerType.charAt(0).toUpperCase() + offerType.slice(1)}`,
         gameId,
@@ -170,7 +170,7 @@ export class SecureGameService {
   }
 
   static async resign(gameId: string, playerColor: PlayerColor): Promise<Game> {
-    const { data, error } = await supabase.functions.invoke("game-operations", {
+    const { data, error } = await invokeWithAuth("game-operations", {
       body: {
         operation: "resign",
         gameId,

@@ -32,7 +32,7 @@ export function GameProvider({ children }: GameProviderProps) {
     });
     const { playGameStart, playGameEnd } = useChessSounds();
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, session } = useAuth();
     const { id: gameId } = router.query;
     const currentGameId = useRef<string | null>(null);
 
@@ -131,7 +131,7 @@ export function GameProvider({ children }: GameProviderProps) {
     }, [game?.id, playGameEnd, subscription, gameService]);
 
     const makeMove = useCallback(async (from: string, to: string, promotion?: PromoteablePieces) => {
-        if (!game || game.status !== 'active' || game.turn !== myColor || !user) return;
+        if (!game || game.status !== 'active' || game.turn !== myColor || !user || !session) return;
 
         try {
             const move = { from: from as Square, to: to as Square, promotion };
@@ -156,10 +156,10 @@ export function GameProvider({ children }: GameProviderProps) {
         } catch (error) {
             console.error('Invalid move:', error);
         }
-    }, [game, pgn, myColor, user, gameService]);
+    }, [game, pgn, myColor, user, session, gameService]);
 
     const banMove = useCallback(async (from: string, to: string) => {
-        if (!game || game.status !== 'active' || !user) return;
+        if (!game || game.status !== 'active' || !user || !session) return;
 
         try {
             const move = { from: from as Square, to: to as Square };
@@ -171,7 +171,7 @@ export function GameProvider({ children }: GameProviderProps) {
         } catch (error) {
             console.error('Error banning move:', error);
         }
-    }, [game, user, gameService]);
+    }, [game, user, session, gameService]);
 
     const resetGame = useCallback(async () => {
         // Make sure to clean up subscription before resetting game state
@@ -230,7 +230,7 @@ export function GameProvider({ children }: GameProviderProps) {
 
     // New function to offer a draw
     const offerDraw = useCallback(async () => {
-        if (!game || game.status !== 'active' || !myColor || !user) return;
+        if (!game || game.status !== 'active' || !myColor || !user || !session) return;
 
         try {
             const updatedGame = await gameService.offerDraw(game.id, myColor);
@@ -238,11 +238,11 @@ export function GameProvider({ children }: GameProviderProps) {
         } catch (error) {
             console.error('Error offering draw:', error);
         }
-    }, [game, myColor, user, gameService]);
+    }, [game, myColor, user, session, gameService]);
 
     // New function to accept a draw
     const acceptDraw = useCallback(async () => {
-        if (!game || game.status !== 'active' || !user) return;
+        if (!game || game.status !== 'active' || !user || !session) return;
 
         try {
             const updatedGame = await gameService.acceptDraw(game.id);
@@ -252,11 +252,11 @@ export function GameProvider({ children }: GameProviderProps) {
         } catch (error) {
             console.error('Error accepting draw:', error);
         }
-    }, [game, user, playGameEnd, gameService]);
+    }, [game, user, session, playGameEnd, gameService]);
 
     // New function to decline a draw
     const declineDraw = useCallback(async () => {
-        if (!game || game.status !== 'active' || !user) return;
+        if (!game || game.status !== 'active' || !user || !session) return;
 
         try {
             const updatedGame = await gameService.declineDraw(game.id);
@@ -264,11 +264,11 @@ export function GameProvider({ children }: GameProviderProps) {
         } catch (error) {
             console.error('Error declining draw:', error);
         }
-    }, [game, user, gameService]);
+    }, [game, user, session, gameService]);
 
     // New function to resign
     const resign = useCallback(async () => {
-        if (!game || game.status !== 'active' || !myColor || !user) return;
+        if (!game || game.status !== 'active' || !myColor || !user || !session) return;
 
         if (window.confirm('Are you sure you want to resign?')) {
             try {
@@ -280,11 +280,11 @@ export function GameProvider({ children }: GameProviderProps) {
                 console.error('Error resigning:', error);
             }
         }
-    }, [game, myColor, user, playGameEnd, gameService]);
+    }, [game, myColor, user, session, playGameEnd, gameService]);
 
     // New function to offer a rematch
     const offerRematch = useCallback(async () => {
-        if (!game || game.status !== 'finished' || !myColor || !user) return;
+        if (!game || game.status !== 'finished' || !myColor || !user || !session) return;
 
         try {
             const updatedGame = await gameService.offerRematch(game.id, myColor);
@@ -292,11 +292,11 @@ export function GameProvider({ children }: GameProviderProps) {
         } catch (error) {
             console.error('Error offering rematch:', error);
         }
-    }, [game, myColor, user, gameService]);
+    }, [game, myColor, user, session, gameService]);
 
     // New function to accept a rematch
     const acceptRematch = useCallback(async () => {
-        if (!game || game.status !== 'finished' || !user) return;
+        if (!game || game.status !== 'finished' || !user || !session) return;
 
         try {
             // First clear the rematch offer from the current game
@@ -330,11 +330,11 @@ export function GameProvider({ children }: GameProviderProps) {
         } catch (error) {
             console.error('Error accepting rematch:', error);
         }
-    }, [game, user, router, gameService]);
+    }, [game, user, session, router, gameService]);
 
     // New function to decline a rematch
     const declineRematch = useCallback(async () => {
-        if (!game || game.status !== 'finished' || !user) return;
+        if (!game || game.status !== 'finished' || !user || !session) return;
 
         try {
             const updatedGame = await gameService.declineRematch(game.id);
@@ -342,7 +342,7 @@ export function GameProvider({ children }: GameProviderProps) {
         } catch (error) {
             console.error('Error declining rematch:', error);
         }
-    }, [game, user, gameService]);
+    }, [game, user, session, gameService]);
 
     // Listen for rematch broadcasts to redirect both players
     useEffect(() => {

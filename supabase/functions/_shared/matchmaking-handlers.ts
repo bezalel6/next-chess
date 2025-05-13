@@ -15,6 +15,7 @@ interface CreateMatchParams {
 
 interface QueueParams {
   // Add any queue-specific parameters if needed
+  preferences?: Record<string, any>;
 }
 
 /**
@@ -170,13 +171,157 @@ export async function handleJoinQueue(
       );
     }
 
-    console.log(`User ${user.id} approved to join queue`);
+    // First, check if there's already a waiting player in the queue
+    const { data: waitingPlayers, error: queueError } = await supabase
+      .from("queue")
+      .select("user_id")
+      .eq("status", "waiting")
+      .neq("user_id", user.id) // Don't match with self
+      .order("joined_at", { ascending: true })
+      .limit(1);
+
+    if (queueError) {
+      console.error(`Failed to check queue: ${queueError.message}`, queueError);
+      return buildResponse(
+        `Failed to check queue: ${queueError.message}`,
+        500,
+        corsHeaders,
+      );
+    }
+
+    // If there's a waiting player, create a match immediately
+    if (waitingPlayers && waitingPlayers.length > 0) {
+      const opponentId = waitingPlayers[0].user_id;
+      console.log(
+        `Found waiting player ${opponentId}, creating match with ${user.id}`,
+      );
+
+      // Determine who plays white and who plays black (random)
+      const isUserWhite = Math.random() >= 0.5;
+      const whiteId = isUserWhite ? user.id : opponentId;
+      const blackId = isUserWhite ? opponentId : user.id;
+
+      // Create the new game
+      const { data: game, error: createError } = await supabase
+        .from("games")
+        .insert({
+          white_player_id: whiteId,
+          black_player_id: blackId,
+          status: "active",
+          current_fen: INITIAL_FEN,
+          pgn: "",
+          turn: "white",
+          banningPlayer: "black",
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error(
+          `Error creating game: ${createError.message}`,
+          createError,
+        );
+        return buildResponse(
+          `Failed to create game: ${createError.message}`,
+          500,
+          corsHeaders,
+        );
+      }
+
+      // Remove the opponent from the queue
+      const { error: removeError } = await supabase
+        .from("queue")
+        .delete()
+        .eq("user_id", opponentId);
+
+      if (removeError) {
+        console.error(
+          `Failed to remove opponent from queue: ${removeError.message}`,
+        );
+        // Continue anyway, as the match was created
+      }
+
+      // Create notification for the match
+      const { error: notificationError } = await supabase
+        .from("queue_notifications")
+        .insert({
+          type: "match_created",
+          game_id: game.id,
+          white_player_id: whiteId,
+          black_player_id: blackId,
+          data: {
+            matchType: "auto",
+            initiatedBy: user.id,
+          },
+        });
+
+      if (notificationError) {
+        console.error(
+          `Failed to create notification: ${notificationError.message}`,
+        );
+        // Continue anyway, as the match was created
+      }
+
+      console.log(
+        `Successfully created game ${game.id} between ${whiteId} and ${blackId}`,
+      );
+      return buildResponse(
+        {
+          success: true,
+          message: "Match created",
+          matchFound: true,
+          game,
+        },
+        200,
+        corsHeaders,
+      );
+    }
+
+    // No match found, add the player to the queue
+    const { data: queueEntry, error: insertError } = await supabase
+      .from("queue")
+      .insert({
+        user_id: user.id,
+        status: "waiting",
+        preferences: params.preferences || {},
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      // Handle case where user is already in queue
+      if (insertError.code === "23505") {
+        // Unique violation
+        console.log(`User ${user.id} is already in the queue`);
+        return buildResponse(
+          {
+            success: true,
+            message: "Already in queue",
+            userId: user.id,
+            timestamp: new Date().toISOString(),
+          },
+          200,
+          corsHeaders,
+        );
+      }
+
+      console.error(`Failed to add user to queue: ${insertError.message}`);
+      return buildResponse(
+        `Failed to join queue: ${insertError.message}`,
+        500,
+        corsHeaders,
+      );
+    }
+
+    console.log(`User ${user.id} added to queue`);
     return buildResponse(
       {
         success: true,
-        message: "Approved to join queue",
+        message: "Added to queue",
         userId: user.id,
         timestamp: new Date().toISOString(),
+        matchFound: false,
+        queueEntry,
       },
       200,
       corsHeaders,

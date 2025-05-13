@@ -185,7 +185,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
                 // Notify the server via edge function
                 if (queueSubscribed) {
-                    await matchmakingService.leaveQueue(session.user.id, queueChannel);
+                    await matchmakingService.leaveQueue(session, queueChannel);
                 }
 
                 setQueue({ inQueue: false, position: 0, size: 0 });
@@ -214,7 +214,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 // Join the queue using matchmakingService with the existing channel
                 try {
                     console.log("session:", session)
-                    await matchmakingService.joinQueue(session.user.id, queueChannel);
+                    await matchmakingService.joinQueue(session, queueChannel);
 
                     setQueue(prev => ({ ...prev, inQueue: true }));
                     addLogEntry("Joined matchmaking queue");

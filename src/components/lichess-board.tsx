@@ -21,6 +21,7 @@ interface PromotionState {
     to: string;
     color: 'white' | 'black';
 }
+type Config = ComponentProps<typeof Chessground>['config']
 
 const LichessBoard = ({ }: LichessBoardProps) => {
     const { game, makeMove, banMove, isMyTurn, myColor, pgn } = useGame();
@@ -59,6 +60,12 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         } else {
             setOverlay(null);
         }
+
+        document.querySelectorAll(`piece.disabled`).forEach(e => e.classList.remove("disabled"))
+        if (game.banningPlayer === myColor) {
+            document.querySelectorAll(`piece.${myColor}`).forEach(e => e.classList.add("disabled"))
+        }
+
     }, [game?.banningPlayer, myColor]);
 
     const handlePromotion = useCallback((piece: PromoteablePieces, promotionState: PromotionState) => {
@@ -74,7 +81,6 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         const history = chess.history({ verbose: true })
         return [chess.fen(), history[history.length - 1], chess.inCheck() ? clr(chess.turn()) : false]
     }, [pgn])
-
     // Create drawable shapes for banned move
     const drawableShapes = useMemo(() => {
         if (!bannedMove) return [];
@@ -100,8 +106,8 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 dest: to as Square,
                 brush: 'red',
                 modifiers: { lineWidth: 8 }
-            }
-        ];
+            },
+        ] satisfies Config['drawable']['shapes'];
     }, [bannedMove]);
 
     // Add state to track if we're in banning mode
@@ -166,7 +172,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 }
             },
         },
-    } satisfies ComponentProps<typeof Chessground>['config']), [game.chess, myColor, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove]);
+    } satisfies Config), [game.chess, myColor, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove]);
 
     return (
         <>

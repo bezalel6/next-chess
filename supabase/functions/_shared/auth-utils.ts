@@ -83,16 +83,44 @@ export async function handleAuthenticatedRequest(
     // Initialize Supabase with admin privileges
     const supabase = initSupabaseAdmin();
 
-    // Authenticate the user
-    const user = await authenticateUser(req, supabase);
-
-    // Parse request body
+    // Parse request body first to check for special cases
     let body;
     try {
       body = await req.json();
     } catch (parseError) {
       console.error(`Error parsing request body: ${parseError.message}`);
       return buildResponse("Invalid JSON in request body", 400, corsHeaders);
+    }
+
+    // Special case for database triggers
+    let user: User;
+    if (
+      body.source === "db_trigger" &&
+      body.operation === "create-game-from-matched"
+    ) {
+      console.log(
+        "[AUTH] Request from database trigger, using service role authentication",
+      );
+      // For database trigger calls, we use a special system user
+      user = {
+        id: "00000000-0000-0000-0000-000000000000",
+        app_metadata: { role: "service_role" },
+        user_metadata: {},
+        aud: "authenticated",
+        created_at: new Date().toISOString(),
+      } as User;
+    } else {
+      // Regular user authentication
+      try {
+        user = await authenticateUser(req, supabase);
+      } catch (authError) {
+        console.error(`Authentication error: ${authError.message}`);
+        return buildResponse(
+          `Authentication failed: ${authError.message}`,
+          401,
+          corsHeaders,
+        );
+      }
     }
 
     // Handle the authenticated request

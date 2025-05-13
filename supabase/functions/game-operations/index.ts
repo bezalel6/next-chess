@@ -75,13 +75,20 @@ serve(async (req) => {
         return await processMatchmakingQueue(supabase);
 
       case "create-game-from-matched":
-        // For admin-triggered game creation
-        if (user.app_metadata?.role !== "admin") {
+        // Allow calls from both admin users and database triggers
+        if (
+          user.app_metadata?.role !== "admin" &&
+          params.source !== "db_trigger"
+        ) {
           return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 403,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+        console.log(
+          "[EDGE] Creating game from matched players, source:",
+          params.source,
+        );
         return await createGameFromMatchedPlayers(supabase);
 
       case "makeMove":

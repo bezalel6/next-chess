@@ -9,6 +9,7 @@ import {
   handleCreateMatch,
   handleJoinQueue,
   handleLeaveQueue,
+  handleCheckMatchmakingStatus,
 } from "../_shared/matchmaking-handlers.ts";
 
 // Main serve function
@@ -25,6 +26,9 @@ serve(async (req) => {
 
       case "leaveQueue":
         return await handleLeaveQueue(user, params, supabase);
+
+      case "checkStatus":
+        return await handleCheckMatchmakingStatus(user, params, supabase);
 
       default:
         return new Response(JSON.stringify({ error: "Unknown operation" }), {

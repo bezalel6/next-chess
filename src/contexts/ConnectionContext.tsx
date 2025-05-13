@@ -213,7 +213,6 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
                 // Join the queue using matchmakingService with the existing channel
                 try {
-                    console.log("session:", session)
                     await matchmakingService.joinQueue(session, queueChannel);
 
                     setQueue(prev => ({ ...prev, inQueue: true }));

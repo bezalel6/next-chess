@@ -18,7 +18,7 @@ serve(async (req) => {
 
     switch (operation) {
       case "createMatch":
-        return await handleCreateMatch(user, params as any, supabase);
+        return await handleCreateMatch(user, params, supabase);
 
       case "joinQueue":
         return await handleJoinQueue(user, params, supabase);

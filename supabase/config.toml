@@ -1,0 +1,11 @@
+ # This configuration is for local development of supabase edge functions
+# For more information: https://supabase.com/docs/guides/functions/local-development
+
+[functions]
+[functions.game-operations]
+verify_jwt = true
+import_map = "./import_map.json"
+
+[functions.matchmaking]
+verify_jwt = true
+import_map = "./import_map.json"

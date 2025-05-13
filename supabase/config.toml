@@ -1,4 +1,4 @@
- # This configuration is for local development of supabase edge functions
+# This configuration is for local development of supabase edge functions
 # For more information: https://supabase.com/docs/guides/functions/local-development
 
 [functions]
@@ -9,3 +9,11 @@ import_map = "./import_map.json"
 [functions.matchmaking]
 verify_jwt = false
 import_map = "./import_map.json"
+
+[auth]
+enable_anonymous_sign_ins = true
+
+# Realtime configuration
+[realtime]
+enabled = true
+    

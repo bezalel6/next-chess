@@ -80,9 +80,22 @@ $$;
 CREATE OR REPLACE FUNCTION "public"."match_players"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
+DECLARE
+  waiting_count INTEGER;
+  matched_ids TEXT;
+  matched_user_ids TEXT;
 BEGIN
+  -- Log trigger invocation
+  RAISE NOTICE '[MATCHMAKING] Trigger fired by % operation on queue table', TG_OP;
+  
+  -- Check how many players are waiting
+  SELECT COUNT(*) INTO waiting_count FROM queue WHERE status = 'waiting';
+  RAISE NOTICE '[MATCHMAKING] Found % players waiting in queue', waiting_count;
+  
   -- Check if we have at least 2 players in the queue
-  IF (SELECT COUNT(*) FROM queue WHERE status = 'waiting') >= 2 THEN
+  IF waiting_count >= 2 THEN
+    RAISE NOTICE '[MATCHMAKING] Attempting to match players...';
+    
     -- Get the two oldest players in the queue with row locking to prevent race conditions
     WITH matched_players AS (
       SELECT id, user_id 
@@ -95,8 +108,35 @@ BEGIN
     UPDATE queue
     SET status = 'matched'
     WHERE id IN (SELECT id FROM matched_players);
-    -- After this trigger, application code should create a game with these players
+    
+    -- Log successful match - fix queries to avoid GROUP BY issues
+    WITH matched_players AS (
+      SELECT id, user_id, joined_at
+      FROM queue 
+      WHERE status = 'matched' 
+      ORDER BY joined_at ASC 
+      LIMIT 2
+    )
+    SELECT array_to_string(array_agg(id), ', ') INTO matched_ids 
+    FROM matched_players;
+    
+    WITH matched_players AS (
+      SELECT id, user_id, joined_at
+      FROM queue 
+      WHERE status = 'matched' 
+      ORDER BY joined_at ASC 
+      LIMIT 2
+    )
+    SELECT array_to_string(array_agg(user_id), ', ') INTO matched_user_ids 
+    FROM matched_players;
+    
+    RAISE NOTICE '[MATCHMAKING] Successfully matched players. Queue IDs: %, User IDs: %', 
+      matched_ids, matched_user_ids;
+    RAISE NOTICE '[MATCHMAKING] Application code should now create a game for these players';
+  ELSE
+    RAISE NOTICE '[MATCHMAKING] Not enough players to make a match (need at least 2)';
   END IF;
+  
   RETURN NEW;
 END;
 $$;
@@ -291,6 +331,12 @@ CREATE POLICY "queue_notif_service_insert" ON "public"."queue_notifications" FOR
 
 -- Grant appropriate permissions
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+-- Add tables to realtime publication
+ALTER PUBLICATION "supabase_realtime" ADD TABLE "public"."queue_notifications";
+ALTER PUBLICATION "supabase_realtime" ADD TABLE "public"."queue";
+ALTER PUBLICATION "supabase_realtime" ADD TABLE "public"."games";
+ALTER PUBLICATION "supabase_realtime" ADD TABLE "public"."moves";
 
 GRANT USAGE ON SCHEMA "public" TO "postgres", "anon", "authenticated", "service_role";
 

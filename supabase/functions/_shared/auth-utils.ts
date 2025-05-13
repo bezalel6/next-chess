@@ -1,5 +1,9 @@
 /// <reference lib="deno.ns" />
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  createClient,
+  type SupabaseClient,
+  type User,
+} from "https://esm.sh/@supabase/supabase-js@2";
 import { buildResponse } from "./chess-utils.ts";
 
 // CORS headers for all edge functions
@@ -13,7 +17,7 @@ export const corsHeaders = {
 /**
  * Initializes a Supabase client with admin privileges
  */
-export function initSupabaseAdmin() {
+export function initSupabaseAdmin(): SupabaseClient {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -38,7 +42,10 @@ export function handleCors(req: Request): Response | null {
  * Authenticates a user from request headers
  * Returns the authenticated user or throws an error
  */
-export async function authenticateUser(req: Request, supabase: any) {
+export async function authenticateUser(
+  req: Request,
+  supabase: SupabaseClient,
+): Promise<User> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
     throw new Error("No authorization header");
@@ -62,7 +69,11 @@ export async function authenticateUser(req: Request, supabase: any) {
  */
 export async function handleAuthenticatedRequest(
   req: Request,
-  handler: (user: any, body: any, supabase: any) => Promise<Response>,
+  handler: (
+    user: User,
+    body: Record<string, unknown>,
+    supabase: SupabaseClient,
+  ) => Promise<Response>,
 ): Promise<Response> {
   // Handle CORS
   const corsResponse = handleCors(req);
@@ -76,7 +87,13 @@ export async function handleAuthenticatedRequest(
     const user = await authenticateUser(req, supabase);
 
     // Parse request body
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error(`Error parsing request body: ${parseError.message}`);
+      return buildResponse("Invalid JSON in request body", 400, corsHeaders);
+    }
 
     // Handle the authenticated request
     return await handler(user, body, supabase);

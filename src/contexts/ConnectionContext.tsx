@@ -4,7 +4,7 @@ import type { QueueStatus, GameMatch } from "../types/realtime";
 import { GameProvider } from "./GameContext";
 import type { Session, RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "./AuthContext";
-import { useServices } from '@/contexts/ServiceContext';
+import { gameService, matchmakingService } from '@/utils/serviceTransition';
 
 interface QueueState {
     inQueue: boolean;
@@ -45,7 +45,6 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         activeGames: 0,
         log: []
     });
-    const { matchmakingService, gameService } = useServices();
 
     const addLogEntry = (message: string) => {
         setStats(prev => ({
@@ -214,7 +213,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
                 // Join the queue using matchmakingService with the existing channel
                 try {
+                    console.log("session:", session)
                     await matchmakingService.joinQueue(session.user.id, queueChannel);
+
                     setQueue(prev => ({ ...prev, inQueue: true }));
                     addLogEntry("Joined matchmaking queue");
                 } catch (error) {

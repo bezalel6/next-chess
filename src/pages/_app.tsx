@@ -10,7 +10,6 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '@/theme';
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ServiceProvider } from "@/contexts/ServiceContext";
 import Head from "next/head";
 import Layout from "@/components/Layout";
 
@@ -43,13 +42,11 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
 
       </Head>
       <AuthProvider>
-        <ServiceProvider defaultSecure={true}>
-          <ConnectionProvider>
-            <Layout>
-              <Component {...pageProps} />
-            </Layout>
-          </ConnectionProvider>
-        </ServiceProvider>
+        <ConnectionProvider>
+          <Layout>
+            <Component {...pageProps} />
+          </Layout>
+        </ConnectionProvider>
       </AuthProvider>
     </ThemeProvider>
   );

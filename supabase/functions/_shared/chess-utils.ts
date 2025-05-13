@@ -157,7 +157,7 @@ export function isGameOver(fen: string): {
  * Common response builder for edge functions
  */
 export function buildResponse(
-  data: any,
+  data: unknown,
   status = 200,
   corsHeaders: HeadersInit = {},
 ): Response {

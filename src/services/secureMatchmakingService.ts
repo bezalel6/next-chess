@@ -5,89 +5,130 @@ import type { Game } from "@/types/game";
 
 export class SecureMatchmakingService {
   static async joinQueue(userId: string, existingChannel?: RealtimeChannel) {
-    // First, invoke the edge function to securely validate and process the request
-    const { data, error } = await supabase.functions.invoke("matchmaking", {
-      body: {
-        operation: "joinQueue",
-      },
-    });
-
-    if (error) {
-      console.error(
-        `[SecureMatchmakingService] Error joining queue: ${error.message}`,
-      );
-      throw error;
-    }
-
-    // Use the existing channel if provided, otherwise create a new one
-    if (existingChannel) {
-      await existingChannel.track({
-        user_id: userId,
-        joined_at: new Date().toISOString(),
-      });
-      return existingChannel;
-    } else {
-      // Create a new channel if none was provided
-      const channel = supabase.channel("queue-system", {
-        config: {
-          broadcast: { self: true },
-          presence: { key: userId },
+    try {
+      // First, invoke the edge function to securely validate and process the request
+      const { data, error } = await supabase.functions.invoke("matchmaking", {
+        body: {
+          operation: "joinQueue",
+          userId: userId, // Explicitly include userId in request
         },
       });
 
-      // Subscribe to the channel before tracking presence
-      await new Promise<void>((resolve, reject) => {
-        channel.subscribe((status) => {
-          if (status === "SUBSCRIBED") {
-            resolve();
-          } else if (status === "CHANNEL_ERROR") {
-            reject(new Error(`Failed to subscribe to channel: ${status}`));
-          }
+      if (error) {
+        console.error(
+          `[SecureMatchmakingService] Error joining queue: ${error.message}`,
+          error,
+        );
+        throw error;
+      }
+
+      // Use the existing channel if provided, otherwise create a new one
+      if (existingChannel) {
+        await existingChannel.track({
+          user_id: userId,
+          joined_at: new Date().toISOString(),
         });
-      });
+        return existingChannel;
+      } else {
+        // Create a new channel if none was provided
+        const channel = supabase.channel("queue-system", {
+          config: {
+            broadcast: { self: true },
+            presence: { key: userId },
+          },
+        });
 
-      // Now that we're subscribed, we can track presence
-      await channel.track({
-        user_id: userId,
-        joined_at: new Date().toISOString(),
-      });
+        // Subscribe to the channel before tracking presence
+        await new Promise<void>((resolve, reject) => {
+          channel.subscribe((status) => {
+            if (status === "SUBSCRIBED") {
+              resolve();
+            } else if (status === "CHANNEL_ERROR") {
+              reject(new Error(`Failed to subscribe to channel: ${status}`));
+            }
+          });
+        });
 
-      return channel;
+        // Now that we're subscribed, we can track presence
+        await channel.track({
+          user_id: userId,
+          joined_at: new Date().toISOString(),
+        });
+
+        return channel;
+      }
+    } catch (err) {
+      console.error(
+        "[SecureMatchmakingService] Fatal error joining queue:",
+        err,
+      );
+      throw err;
     }
   }
 
   static async leaveQueue(userId: string, channel: RealtimeChannel) {
-    await channel.untrack({ user_id: userId });
-    await channel.unsubscribe();
+    try {
+      await channel.untrack({ user_id: userId });
+      await channel.unsubscribe();
 
-    // Optionally notify the server via edge function
-    await supabase.functions.invoke("matchmaking", {
-      body: {
-        operation: "leaveQueue",
-      },
-    });
+      // Optionally notify the server via edge function
+      const { data, error } = await supabase.functions.invoke("matchmaking", {
+        body: {
+          operation: "leaveQueue",
+          userId: userId, // Explicitly include userId in request
+        },
+      });
+
+      if (error) {
+        console.error(
+          `[SecureMatchmakingService] Error leaving queue: ${error.message}`,
+          error,
+        );
+        // We don't throw here since we already untracked and unsubscribed
+      }
+    } catch (err) {
+      console.error("[SecureMatchmakingService] Error leaving queue:", err);
+      // We don't rethrow since the channel operations might have succeeded partially
+    }
   }
 
   static async createMatch(
     player1Id: string,
     player2Id: string,
   ): Promise<Game> {
-    const { data, error } = await supabase.functions.invoke("matchmaking", {
-      body: {
-        operation: "createMatch",
-        player1Id,
-        player2Id,
-      },
-    });
+    try {
+      if (!player1Id || !player2Id) {
+        throw new Error("Both player IDs are required to create a match");
+      }
 
-    if (error) {
+      const { data, error } = await supabase.functions.invoke("matchmaking", {
+        body: {
+          operation: "createMatch",
+          player1Id,
+          player2Id,
+        },
+      });
+
+      if (error) {
+        console.error(
+          `[SecureMatchmakingService] Error creating match: ${error.message}`,
+          error,
+        );
+        throw error;
+      }
+
+      if (!data?.data) {
+        throw new Error("Invalid response from server when creating match");
+      }
+
+      return SecureGameService.mapGameFromDB(data.data);
+    } catch (err) {
       console.error(
-        `[SecureMatchmakingService] Error creating match: ${error.message}`,
+        "[SecureMatchmakingService] Fatal error creating match:",
+        err,
       );
-      throw error;
+      throw err;
     }
-
-    return SecureGameService.mapGameFromDB(data.data);
   }
 
   static setupMatchListener(

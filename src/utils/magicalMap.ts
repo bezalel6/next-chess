@@ -1,6 +1,7 @@
+// Define the interface for our magical map
 type MagicalMap<T> = {
   [key: string]: T;
-};
+} & { toArr(): T[] };
 
 /**
  * Creates a magical map that initializes values on first access
@@ -9,13 +10,23 @@ type MagicalMap<T> = {
 export function createMagicalMap<T>(initializer: () => T): MagicalMap<T> {
   const store: Record<string, T> = {};
 
-  return new Proxy(store, {
+  const magicalMap = {
+    toArr(): T[] {
+      return Object.values(store);
+    },
+  } as MagicalMap<T>;
+
+  return new Proxy(magicalMap, {
     get(target, prop: string) {
-      // If property doesn't exist yet, initialize it
-      if (!(prop in target)) {
-        target[prop] = initializer();
+      if (prop === "toArr") {
+        return target.toArr;
       }
-      return target[prop];
+
+      // If property doesn't exist yet, initialize it
+      if (!(prop in store)) {
+        store[prop] = initializer();
+      }
+      return store[prop];
     },
   });
 }
@@ -30,3 +41,4 @@ export function createMagicalMap<T>(initializer: () => T): MagicalMap<T> {
 // console.log(magicalArrayMap["users"]); // [1]
 // console.log(magicalArrayMap["items"]); // [42]
 // console.log(magicalArrayMap["unknown"]); // [] (new empty array created on access)
+// console.log(magicalArrayMap.toArr()); // [[2, 1], [42], []]

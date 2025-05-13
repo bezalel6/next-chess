@@ -1,2 +1,0 @@
--- This migration was previously empty and may have caused issues
--- Kept as placeholder to maintain migration sequence

@@ -105,6 +105,7 @@ export function GameProvider({ children }: GameProviderProps) {
                         // Only update if this is the current game we're viewing
                         if (currentGameId.current === updatedGame.id) {
                             setGame(updatedGame);
+
                             setPgn(updatedGame.pgn || '');
                             if (updatedGame.status === 'finished') {
                                 playGameEnd();

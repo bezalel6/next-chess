@@ -1,7 +1,7 @@
 // hooks/useKeySequence.ts
 import { useEffect, useRef } from "react";
 
-type KeySequenceCallback = () => void;
+type KeySequenceCallback = (sequence: string) => void;
 
 interface KeySequence {
   sequence: string;
@@ -19,7 +19,7 @@ export function useKeys(...sequences: KeySequence[]) {
 
       for (const { sequence, callback } of sequences) {
         if (bufferRef.current.endsWith(sequence)) {
-          callback();
+          callback(sequence);
           bufferRef.current = ""; // reset after match
           return;
         }

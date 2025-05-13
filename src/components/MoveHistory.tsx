@@ -2,24 +2,31 @@ import { Box, Typography, Tooltip, IconButton } from "@mui/material";
 import { useEffect, useState, useRef } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { Chess } from "chess.ts";
-import { getBannedMove } from './../utils/gameUtils';
+import { getAllBannedMoves, getBannedMove, getMoveNumber } from './../utils/gameUtils';
 import BlockIcon from '@mui/icons-material/Block';
+import { createMagicalMap } from "@/utils/magicalMap";
 
 type Ply = {
   move?: string;
   banned?: string;
   fen?: string;
 }
+type Move = [Ply, Ply?];
+function pliesToMoves(plies: Ply[]): Move[] {
+  const moves: [Ply, Ply?][] = [];
 
-interface FormattedMove {
-  number: number;
-  white: Ply;
-  black: Ply;
+  for (let i = 0; i < plies.length; i += 2) {
+    const whitePly = plies[i];
+    const blackPly = i + 1 < plies.length ? plies[i + 1] : undefined;
+    moves.push([whitePly, blackPly]);
+  }
+
+  return moves;
 }
-
+const plyRecord = createMagicalMap<Ply>(() => ({}))
 const MoveHistory = () => {
   const { game } = useGame();
-  const [moveHistory, setMoveHistory] = useState<FormattedMove[]>([]);
+  const [moveHistory, setMoveHistory] = useState<Move[]>([]);
   const [selectedPly, setSelectedPly] = useState<string | null>(null);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
 
@@ -32,51 +39,27 @@ const MoveHistory = () => {
       try {
         // Load the game from PGN
         refGame.loadPgn(game.pgn);
-
+        getAllBannedMoves(game.pgn).forEach((m, i) => {
+          plyRecord[i].banned = m;
+        })
         const moveHistory = refGame.history({ verbose: true });
-        const formattedMoves: FormattedMove[] = [];
+
         const runningGame = new Chess()
-        let moveNumber = 1;
-        let currentPair: FormattedMove = { white: {}, black: {}, number: moveNumber };
         moveHistory.forEach((move, index) => {
+
           runningGame.move(move)
           const fen = runningGame.fen()
-          const currentPly = {
-            fen,
-            banned: getBannedMove(refGame.getComment(fen)) || '',
-            move: move.san || ""
-          }
 
-          if (index % 2 === 0) {
-            // White's move
-            currentPair = { white: currentPly, black: {}, number: moveNumber };
-
-            // If this is the last move and it's white's, add it now
-            if (index === moveHistory.length - 1) {
-              formattedMoves.push(currentPair);
-            }
-          } else {
-            // Black's move - complete the pair and add to formatted moves
-            currentPair.black = currentPly;
-            formattedMoves.push({
-              number: moveNumber,
-              white: currentPair.white,
-              black: currentPair.black
-            });
-            moveNumber++;
-          }
+          plyRecord[index].move = move.san;
+          plyRecord[index].fen = fen;
         });
-        if (!formattedMoves.length) {
-          const m = { white: { banned: getBannedMove(refGame.getComment()) }, number: moveNumber, black: {} }
-          formattedMoves.push(m)
-        }
-        setMoveHistory(formattedMoves);
+        setMoveHistory(pliesToMoves(plyRecord.toArr()));
       } catch (error) {
         console.error("Error parsing PGN:", error);
         setMoveHistory([]);
       }
     };
-
+    console.log('move record:', plyRecord.toArr())
     formatMovesFromPgn();
   }, [game.pgn]);
 
@@ -140,10 +123,11 @@ const MoveHistory = () => {
         </Box>
 
         {/* Game moves */}
-        {moveHistory.map((move) => (
+        {moveHistory.map((move, plyIndex) => (
           <MovesRow
             move={move}
-            key={move.number}
+            key={plyIndex}
+            moveNumber={getMoveNumber(plyIndex)}
             selectedPly={selectedPly}
             onPlyClick={handlePlyClick}
           />
@@ -154,12 +138,14 @@ const MoveHistory = () => {
 };
 
 function MovesRow({
-  move,
+  move: [whiteMove, blackMove],
   selectedPly,
+  moveNumber,
   onPlyClick
 }: {
-  move: FormattedMove;
+  move: Move;
   selectedPly: string | null;
+  moveNumber: number;
   onPlyClick: (fen: string | undefined) => void;
 }) {
   return (
@@ -177,7 +163,7 @@ function MovesRow({
         fontSize: '0.75rem',
         textAlign: 'center'
       }}>
-        {move.number}
+        {moveNumber}
       </Box>
       <Box sx={{
         display: 'table-cell',
@@ -186,12 +172,12 @@ function MovesRow({
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         fontSize: '0.8rem',
         textAlign: 'center',
-        bgcolor: selectedPly === move.white.fen ? 'rgba(255,255,255,0.15)' : 'transparent',
-        cursor: move.white.fen ? 'pointer' : 'default'
+        bgcolor: selectedPly === whiteMove.fen ? 'rgba(255,255,255,0.15)' : 'transparent',
+        cursor: whiteMove.fen ? 'pointer' : 'default'
       }}
-        onClick={() => onPlyClick(move.white.fen)}
+        onClick={() => onPlyClick(whiteMove.fen)}
       >
-        <PlyComponent ply={move.white} />
+        <PlyComponent ply={whiteMove} />
       </Box>
       <Box sx={{
         display: 'table-cell',
@@ -200,19 +186,18 @@ function MovesRow({
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         fontSize: '0.8rem',
         textAlign: 'center',
-        bgcolor: selectedPly === move.black.fen ? 'rgba(255,255,255,0.15)' : 'transparent',
-        cursor: move.black.fen ? 'pointer' : 'default'
+        bgcolor: selectedPly === blackMove?.fen ? 'rgba(255,255,255,0.15)' : 'transparent',
+        cursor: blackMove?.fen ? 'pointer' : 'default'
       }}
-        onClick={() => onPlyClick(move.black.fen)}
+        onClick={() => onPlyClick(blackMove?.fen)}
       >
-        <PlyComponent ply={move.black} />
+        <PlyComponent ply={blackMove} />
       </Box>
-    </Box>
+    </Box >
   );
 }
 
 function PlyComponent({ ply }: { ply: Ply }) {
-  // if (!ply.move) return null;
 
   return (
     <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -220,13 +205,13 @@ function PlyComponent({ ply }: { ply: Ply }) {
         component="span"
         sx={{
           display: 'inline-block',
-          fontWeight: ply.banned ? 'normal' : 'medium'
+          fontWeight: ply?.banned ? 'normal' : 'medium'
         }}
       >
-        {ply.move}
+        {ply?.move}
       </Typography>
 
-      {ply.banned && (
+      {ply?.banned && (
         <Tooltip title={`Banned move: ${ply.banned}`} arrow>
           <Box component="span" sx={{
             display: 'inline-flex',

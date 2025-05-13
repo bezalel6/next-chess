@@ -7,7 +7,23 @@ export function getBannedMove(pgn: string): string | null {
   const bannedMoveMatch = pgn.match(/\{?banning: ([a-zA-Z0-9]{4})\}?$/);
   return bannedMoveMatch ? bannedMoveMatch[1] : null;
 }
+export function getMoveNumber(plyIndex: number) {
+  return Math.floor(plyIndex / 2) + 1;
+}
 
+export function getAllBannedMoves(pgn: string): string[] {
+  if (!pgn) return [];
+
+  const bannedMoveRegex = /\{?banning: ([a-zA-Z0-9]{4})\}?/g;
+  const bannedMoves: string[] = [];
+  let match;
+
+  while ((match = bannedMoveRegex.exec(pgn)) !== null) {
+    bannedMoves.push(match[1]);
+  }
+
+  return bannedMoves;
+}
 function normalizeFuzz(fuzzy: FuzzyMove) {
   if (!fuzzy) return null;
   return typeof fuzzy === "string" ? fuzzy : `${fuzzy.from}${fuzzy.to}`;

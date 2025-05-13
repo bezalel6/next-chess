@@ -60,6 +60,13 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         } else {
             setOverlay(null);
         }
+
+        document.querySelectorAll(`piece.disabled`).forEach(e => e.classList.remove("disabled"))
+        if (game.banningPlayer === myColor) {
+            console.log(game.banningPlayer)
+            document.querySelectorAll(`piece.${myColor}`).forEach(e => e.classList.add("disabled"))
+        }
+
     }, [game?.banningPlayer, myColor]);
 
     const handlePromotion = useCallback((piece: PromoteablePieces, promotionState: PromotionState) => {
@@ -117,7 +124,6 @@ const LichessBoard = ({ }: LichessBoardProps) => {
             check: true,
             lastMove: true
         },
-        viewOnly: true,
         check,
         lastMove: lastMove ? [lastMove.from as Square, lastMove.to as Square] : undefined,
         movable: {

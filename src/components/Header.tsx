@@ -1,8 +1,7 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Link } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGame } from "@/contexts/GameContext";
 import Image from "next/image";
-import Link from "next/link";
 
 const Header = () => {
     const { profile } = useAuth();

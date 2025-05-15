@@ -2,15 +2,31 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleDbError } from "./response-utils.ts";
 import { createLogger } from "./logger.ts";
+import type {
+  Database,
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+} from "./database-types.ts";
 
 const logger = createLogger("DB");
 
-type QueryFilter = Record<string, any>;
+type TableNames = keyof Database["public"]["Tables"];
 type OrderOptions = { column: string; ascending?: boolean };
 
-interface QueryOptions<T> {
+// More specific type for match conditions
+type MatchFilter<T extends Record<string, any>> =
+  | {
+      [K in keyof T]?: T[K];
+    }
+  | {
+      _in?: Record<string, any[]>[];
+      _or?: Record<string, any>[];
+    };
+
+interface QueryOptions<T extends Record<string, any>> {
   select?: string;
-  match?: QueryFilter;
+  match?: MatchFilter<T>;
   data?: Partial<T>;
   limit?: number;
   order?: OrderOptions;
@@ -21,12 +37,59 @@ interface QueryOptions<T> {
 /**
  * Simplified database query with error handling
  */
-export async function dbQuery<T extends Record<string, any>>(
-  supabase: SupabaseClient,
-  tableName: string,
+export async function dbQuery<
+  TableName extends TableNames,
+  ResultType = Tables<TableName>,
+>(
+  supabase: SupabaseClient<Database>,
+  tableName: TableName,
+  operation: "select",
+  options: Omit<QueryOptions<Tables<TableName>>, "data">,
+): Promise<{ data?: ResultType | ResultType[]; error?: Error }>;
+
+export async function dbQuery<
+  TableName extends TableNames,
+  ResultType = Tables<TableName>,
+>(
+  supabase: SupabaseClient<Database>,
+  tableName: TableName,
+  operation: "insert",
+  options: QueryOptions<TablesInsert<TableName>> & {
+    data: TablesInsert<TableName> | TablesInsert<TableName>[];
+  },
+): Promise<{ data?: ResultType | ResultType[]; error?: Error }>;
+
+export async function dbQuery<
+  TableName extends TableNames,
+  ResultType = Tables<TableName>,
+>(
+  supabase: SupabaseClient<Database>,
+  tableName: TableName,
+  operation: "update" | "upsert",
+  options: QueryOptions<TablesUpdate<TableName>> & {
+    data: TablesUpdate<TableName> | TablesUpdate<TableName>[];
+  },
+): Promise<{ data?: ResultType | ResultType[]; error?: Error }>;
+
+export async function dbQuery<
+  TableName extends TableNames,
+  ResultType = Tables<TableName>,
+>(
+  supabase: SupabaseClient<Database>,
+  tableName: TableName,
+  operation: "delete",
+  options: Omit<QueryOptions<Tables<TableName>>, "data">,
+): Promise<{ data?: ResultType | ResultType[]; error?: Error }>;
+
+export async function dbQuery<
+  TableName extends TableNames,
+  ResultType = Tables<TableName>,
+>(
+  supabase: SupabaseClient<Database>,
+  tableName: TableName,
   operation: "select" | "insert" | "update" | "delete" | "upsert",
-  options: QueryOptions<T> = {},
-): Promise<{ data?: T | T[]; error?: Error }> {
+  options: QueryOptions<any> = {},
+): Promise<{ data?: ResultType | ResultType[]; error?: Error }> {
   const {
     select,
     match,
@@ -49,10 +112,12 @@ export async function dbQuery<T extends Record<string, any>>(
         query = supabase.from(tableName).select(select || "*");
         break;
       case "insert":
+        // Type assertion needed to satisfy TypeScript
         query = supabase.from(tableName).insert(data as any);
         if (select) query = query.select(select);
         break;
       case "update":
+        // Type assertion needed to satisfy TypeScript
         query = supabase.from(tableName).update(data as any);
         if (select) query = query.select(select);
         break;
@@ -61,6 +126,7 @@ export async function dbQuery<T extends Record<string, any>>(
         if (select) query = query.select(select);
         break;
       case "upsert":
+        // Type assertion needed to satisfy TypeScript
         query = supabase.from(tableName).upsert(data as any);
         if (select) query = query.select(select);
         break;
@@ -118,47 +184,63 @@ export async function dbQuery<T extends Record<string, any>>(
       logger.debug(`${operationName} completed successfully`);
     }
 
-    return result as { data?: T | T[]; error?: Error };
+    return result as { data?: ResultType | ResultType[]; error?: Error };
   } catch (error) {
     logger.error(`${operationName} failed with exception:`, error);
-    return { error };
+    return { error: error as Error };
   }
 }
 
 /**
  * Get a specific record by ID with error handling
  */
-export async function getRecordById<T extends Record<string, any>>(
-  supabase: SupabaseClient,
-  tableName: string,
+export async function getRecordById<TableName extends TableNames>(
+  supabase: SupabaseClient<Database>,
+  tableName: TableName,
   id: string,
   select?: string,
-): Promise<{ data?: T; error?: Error }> {
+): Promise<{ data?: Tables<TableName>; error?: Error }> {
   logger.debug(`Getting ${tableName} record by ID: ${id}`);
-  return (await dbQuery<T>(supabase, tableName, "select", {
-    select,
-    match: { id },
-    single: true,
-    operation: `get ${tableName} by ID`,
-  })) as Promise<{ data?: T; error?: Error }>;
+  const result = await dbQuery<TableName, Tables<TableName>>(
+    supabase,
+    tableName,
+    "select",
+    {
+      select,
+      match: { id } as MatchFilter<Tables<TableName>>,
+      single: true,
+      operation: `get ${tableName} by ID`,
+    },
+  );
+
+  // Convert array result to single item if needed
+  return {
+    data: Array.isArray(result.data) ? result.data[0] : result.data,
+    error: result.error,
+  };
 }
 
 /**
  * Check if a record exists without returning its contents
  */
-export async function recordExists(
-  supabase: SupabaseClient,
-  tableName: string,
-  match: QueryFilter,
+export async function recordExists<TableName extends TableNames>(
+  supabase: SupabaseClient<Database>,
+  tableName: TableName,
+  match: MatchFilter<Tables<TableName>>,
 ): Promise<boolean> {
   logger.debug(`Checking existence in ${tableName} with criteria:`, match);
 
-  const { data, error } = await dbQuery(supabase, tableName, "select", {
-    select: "id",
-    match,
-    limit: 1,
-    operation: `check ${tableName} exists`,
-  });
+  const { data, error } = await dbQuery<TableName>(
+    supabase,
+    tableName,
+    "select",
+    {
+      select: "id",
+      match,
+      limit: 1,
+      operation: `check ${tableName} exists`,
+    },
+  );
 
   if (error) {
     logger.error(`Error checking ${tableName} existence:`, error);

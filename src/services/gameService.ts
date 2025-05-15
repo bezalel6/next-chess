@@ -1,153 +1,116 @@
-import { supabase } from "../utils/supabase";
-import type { Game, ChessMove, DBGame, PlayerColor } from "@/types/game";
-import { getBannedMove, isGameOver as isGameOverFunc } from "@/utils/gameUtils";
+import { supabase, invokeWithAuth } from "../utils/supabase";
+import type { Game, ChessMove, PlayerColor } from "@/types/game";
 import { Chess } from "chess.ts";
 
 export class GameService {
-  static async createGame(
-    whitePlayerId: string,
-    blackPlayerId: string,
-  ): Promise<Game> {
-    const chess = new Chess();
-    const { data: game, error } = await supabase
-      .from("games")
-      .insert<Partial<DBGame>>({
-        white_player_id: whitePlayerId,
-        black_player_id: blackPlayerId,
-        status: "active",
-        current_fen: chess.fen(),
-        pgn: chess.pgn(),
-        turn: "white",
-        banningPlayer: "black",
-      })
-      .select()
-      .single<DBGame>();
-
-    if (error) throw error;
-
-    return this.mapGameFromDB(game);
-  }
-
-  static async getGame(gameId: string): Promise<Game | null> {
-    const { data: game, error } = await supabase
-      .from("games")
-      .select("*")
-      .eq("id", gameId)
-      .single();
-
-    if (error) {
-      if (error.code === "PGRST116") return null;
-      throw error;
-    }
-
-    return this.mapGameFromDB(game);
-  }
-
-  static async updateGame(
-    gameId: string,
-    updates: Partial<DBGame>,
-  ): Promise<Game> {
-    console.log(`[GameService] Updating game ${gameId}:`, updates);
-
-    const { data: updatedGame, error } = await supabase
-      .from("games")
-      .update(updates)
-      .eq("id", gameId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error(`[GameService] Error updating game: ${error.message}`);
-      throw error;
-    }
-
-    return this.mapGameFromDB(updatedGame);
-  }
-  static t(fen: string) {
-    return `[SetUp "1"]
-    [FEN "${fen}"]`;
-  }
-  static async fixMushroomGrow(gameId: string, myClr: PlayerColor) {
-    const ᛋ = async (ᚱ: string) => await this.getGame(ᚱ);
-    const ᚠ = (ᛉ: Game) => new Chess(ᛉ.currentFen).fen();
-    const ᛊ = (ᚷ: string, ᚨ: string, ᚦ: string) =>
-      ᚷ.replace(new RegExp(ᚨ, "g"), ᚦ);
-
-    const ᛟ = await ᛋ(gameId);
-    if (!ᛟ) throw new Error("Game not found");
-
-    let ᛗ = ᚠ(ᛟ);
-
-    // M̷̢̛̙͎̝̼̹͕̙̻̤̠̿̈́̓̉̌̃̅̕͜͠͠ư̸̛̱̰͚͎̘͙̲̯̅̋̔̓̓͐͋̈́͘͝s̶͙͓̘̜̣̣͕̣̘̓̄̾̄̀̾͘͘h̸̗͖̯̞̆̀̎͛͌͌̌̓̕̚͠ͅŗ̴̧̢̙̖͕̼̻̟̯̝̓̆̅̆̊̒̎̽̓ở̶͖̓̓͆̈̀̄͗͝o̸̦̻̼̯̞̜̹̤̖̫̲̺̰̓̍̀̀̆̆̆͛͝m̴̫̦̝̤̮̄̓̑̀̀͑̒̌͊̂͋͑̀͠ ̶̩͈̱̘̝͍̳͉̩͙̪̿͋̋̈́̈́͝t̵̺̠̃̎̾̿̈́̅̓͐̒͘͘̚ř̵͉̝̹̺̪͑͑͌ͅȧ̵̳͚̰̘̘̻͚̼̿̾͆̿̀̀̈́͂ͅǹ̴̤͙̠̞̣͉̯͖̝͌̀͋̄̄̌̑̅̕͝͝s̵̜̭̙̹̖̝̈́̂̓͒͒̓̉̓f̵̣͓̾̇͌͑̓͑̾̐̚͝ö̷̡͕͎̥̪͙͙͕̿̈́͐r̷̨̦͈̥̥̞̭̫͍̥̙̯̅́̎̅̔̋̕͠ͅm̷̢̢̟͓̖̯͊̇͐̀̀̐͗̒̓̓͝ͅa̵̡̻̝͇̙̘̟̟̰̾̄͌́̑́̇̊̑͝t̷̡̪̩̗͈̬̯̠̼͑̈́̔i̵̡̡̡̛̬̘̭̼̬̬̦̿̀͆̽̓̃̏̐̄ơ̵͙̏̌̏̾̌̽̊̂̆̈̚n̶̬̤͕̗̭̫̩̗̟̺̗̮̞̬̈͂̉̄͠
-    ᛗ = myClr === "white" ? ᛊ(ᛗ, "P", "Q") : ᛊ(ᛗ, "p", "q");
-
-    return this.updateGame(gameId, { current_fen: ᛗ, pgn: this.t(ᛗ) });
-  }
-  static async banMove(gameId: string, move: Omit<ChessMove, "promotion">) {
-    const game = await this.getGame(gameId);
-    const chess = new Chess();
-    chess.loadPgn(game.pgn);
-    chess.setComment(`banning: ${move.from}${move.to}`);
-    const gameOverState = isGameOverFunc(chess);
-    const status = gameOverState.isOver ? "finished" : "active";
-
-    return this.updateGame(gameId, {
-      banningPlayer: null,
-      pgn: chess.pgn(),
-      status,
-      result: gameOverState.result,
-      end_reason: gameOverState.reason,
-    });
-  }
-
+  // Core game operations
   static async makeMove(gameId: string, move: ChessMove): Promise<Game> {
-    console.log(
-      `[GameService] Making move ${JSON.stringify(move)} for game ${gameId}`,
-    );
-    const game = await this.getGame(gameId);
-    if (!game) throw new Error("Game not found");
-
-    const chess = new Chess(game.currentFen);
-    if (game.pgn) {
-      chess.loadPgn(game.pgn);
-    }
-
-    const result = chess.move(move);
-    if (!result) throw new Error("Invalid move");
-
-    console.log(`[GameService] Move valid. New FEN: ${chess.fen()}`);
-    console.log(`[GameService] Updated PGN: ${chess.pgn()}`);
-
-    // Check game over with banned move consideration
-    const gameOverState = isGameOverFunc(chess, game.pgn);
-    const isGameOver = gameOverState.isOver;
-    const status = isGameOver ? "finished" : "active";
-
-    const updatedGame = await this.updateGame(gameId, {
-      current_fen: chess.fen(),
-      pgn: chess.pgn(),
-      last_move: move,
-      turn: game.turn === "white" ? "black" : "white",
-      banningPlayer: game.turn,
-      status,
-      result: gameOverState.result,
-      end_reason: gameOverState.reason,
-      draw_offered_by: null,
-    });
-
-    // Record the move
-    await supabase.from("moves").insert({
-      game_id: gameId,
-      move,
-    });
-
-    console.log(`[GameService] Move recorded in history`);
-
-    return updatedGame;
+    return this.performGameOperation("makeMove", gameId, { move });
   }
 
-  static async subscribeToGame(gameId: string, callback: (game: Game) => void) {
-    console.log(`[GameService] Subscribing to game ${gameId}`);
+  static async banMove(
+    gameId: string,
+    move: Omit<ChessMove, "promotion">,
+  ): Promise<Game> {
+    return this.performGameOperation("banMove", gameId, { move });
+  }
+
+  static async resign(gameId: string, playerColor: PlayerColor): Promise<Game> {
+    return this.performGameOperation("resign", gameId, { playerColor });
+  }
+
+  // Offer management (draw, rematch)
+  static async offerDraw(
+    gameId: string,
+    playerColor: PlayerColor,
+  ): Promise<Game> {
+    return this.performGameOperation("offerDraw", gameId, { playerColor });
+  }
+
+  static async acceptDraw(gameId: string): Promise<Game> {
+    return this.performGameOperation("acceptDraw", gameId);
+  }
+
+  static async declineDraw(gameId: string): Promise<Game> {
+    return this.performGameOperation("declineDraw", gameId);
+  }
+
+  static async offerRematch(
+    gameId: string,
+    playerColor: PlayerColor,
+  ): Promise<Game> {
+    return this.performGameOperation("offerRematch", gameId, { playerColor });
+  }
+
+  static async acceptRematch(gameId: string): Promise<Game> {
+    return this.performGameOperation("acceptRematch", gameId);
+  }
+
+  static async declineRematch(gameId: string): Promise<Game> {
+    return this.performGameOperation("declineRematch", gameId);
+  }
+
+  // Game retrieval and subscription
+  static async getGame(gameId: string): Promise<Game | null> {
+    try {
+      const { data: game, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("id", gameId)
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST116") return null;
+        throw error;
+      }
+
+      return this.mapGameFromDB(game);
+    } catch (error) {
+      console.error(`[GameService] Error fetching game: ${error.message}`);
+      throw error;
+    }
+  }
+
+  static async getUserActiveGames(userId: string): Promise<Game[]> {
+    try {
+      // First try to get games where user is white player
+      const { data: whiteGames, error: whiteError } = await supabase
+        .from("games")
+        .select("*")
+        .eq("white_player_id", userId)
+        .eq("status", "active");
+
+      if (whiteError) {
+        throw whiteError;
+      }
+
+      // Then get games where user is black player
+      const { data: blackGames, error: blackError } = await supabase
+        .from("games")
+        .select("*")
+        .eq("black_player_id", userId)
+        .eq("status", "active");
+
+      if (blackError) {
+        throw blackError;
+      }
+
+      // Combine and sort the results
+      const allGames = [...whiteGames, ...blackGames].sort(
+        (a, b) =>
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+      );
+
+      return allGames.map(this.mapGameFromDB);
+    } catch (error) {
+      console.error(
+        `[GameService] Error getting active games: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  static subscribeToGame(gameId: string, callback: (game: Game) => void) {
     const subscription = supabase
       .channel(`game:${gameId}`)
       .on(
@@ -158,49 +121,43 @@ export class GameService {
           table: "games",
           filter: `id=eq.${gameId}`,
         },
-        (payload) => {
-          if (payload.new && typeof payload.new === "object") {
-            const gameData = payload.new as any;
-            console.log(
-              `[GameService] Game update received for game ${gameId}`,
-              {
-                event: payload.eventType,
-                fen: gameData.current_fen,
-                pgn: gameData.pgn,
-                turn: gameData.turn,
-                status: gameData.status,
-              },
-            );
-          }
-          callback(this.mapGameFromDB(payload.new));
-        },
+        (payload) => callback(this.mapGameFromDB(payload.new)),
       )
       .subscribe();
 
-    console.log(`[GameService] Subscription initiated for game ${gameId}`);
     return subscription;
   }
 
-  static async getUserActiveGames(userId: string): Promise<Game[]> {
-    console.log(`[GameService] Getting active games for user ${userId}`);
-    const { data, error } = await supabase
-      .from("games")
-      .select("*")
-      .or(`white_player_id.eq.${userId},black_player_id.eq.${userId}`)
-      .eq("status", "active")
-      .order("updated_at", { ascending: false });
+  // Private helper methods
+  private static async performGameOperation(
+    operation: string,
+    gameId: string,
+    params: any = {},
+  ): Promise<Game> {
+    try {
+      const { data, error } = await invokeWithAuth("game-operations", {
+        body: {
+          operation,
+          gameId,
+          ...params,
+        },
+      });
 
-    if (error) {
-      console.error(
-        `[GameService] Error getting active games: ${error.message}`,
-      );
+      if (error) {
+        console.error(
+          `[GameService] Error during ${operation}: ${error.message}`,
+        );
+        throw error;
+      }
+
+      return this.mapGameFromResponse(data.data);
+    } catch (error) {
+      console.error(`[GameService] Error in ${operation}: ${error.message}`);
       throw error;
     }
-
-    return data.map(this.mapGameFromDB);
   }
 
-  static mapGameFromDB(dbGame: DBGame | any): Game {
+  static mapGameFromDB(dbGame: any): Game {
     const chess = new Chess(dbGame.current_fen);
     return {
       id: dbGame.id,
@@ -213,7 +170,7 @@ export class GameService {
       chess,
       lastMove: dbGame.last_move,
       turn: dbGame.turn,
-      banningPlayer: dbGame.banningPlayer,
+      banningPlayer: dbGame.banning_player,
       startTime: new Date(dbGame.created_at).getTime(),
       lastMoveTime: new Date(dbGame.updated_at).getTime(),
       drawOfferedBy: dbGame.draw_offered_by || null,
@@ -223,109 +180,8 @@ export class GameService {
     };
   }
 
-  // Unified offer management function
-  static async handleOffer(
-    gameId: string,
-    offerType: "draw" | "rematch",
-    playerColor: PlayerColor,
-    action: "offer" | "accept" | "decline",
-  ): Promise<Game> {
-    const field = `${offerType}_offered_by`;
-    console.log(
-      `[GameService] ${action} ${offerType} by ${playerColor} in game ${gameId}`,
-    );
-
-    // Handle offering
-    if (action === "offer") {
-      return this.updateGame(gameId, {
-        [field]: playerColor,
-      });
-    }
-
-    // Handle declining
-    if (action === "decline") {
-      return this.updateGame(gameId, {
-        [field]: null,
-      });
-    }
-
-    // Handle accepting
-    if (action === "accept") {
-      if (offerType === "draw") {
-        return this.updateGame(gameId, {
-          status: "finished",
-          result: "draw",
-          [field]: null,
-          end_reason: "draw_agreement",
-        });
-      } else if (offerType === "rematch") {
-        // First get the current game to get player IDs and swap them
-        const currentGame = await this.getGame(gameId);
-        if (!currentGame) throw new Error("Game not found");
-
-        // Create a new game with swapped colors
-        const newGame = await this.createGame(
-          currentGame.blackPlayer, // Swap colors
-          currentGame.whitePlayer, // Swap colors
-        );
-
-        // Update parent game reference
-        await this.updateGame(gameId, {
-          [field]: null, // Clear the offer
-        });
-
-        // Update the new game with parent reference
-        return this.updateGame(newGame.id, {
-          parent_game_id: gameId,
-        });
-      }
-    }
-
-    throw new Error(`Invalid action ${action} for ${offerType}`);
-  }
-
-  // Draw offer methods using the unified function
-  static async offerDraw(
-    gameId: string,
-    playerColor: PlayerColor,
-  ): Promise<Game> {
-    return this.handleOffer(gameId, "draw", playerColor, "offer");
-  }
-
-  static async acceptDraw(gameId: string): Promise<Game> {
-    return this.handleOffer(gameId, "draw", null, "accept");
-  }
-
-  static async declineDraw(gameId: string): Promise<Game> {
-    return this.handleOffer(gameId, "draw", null, "decline");
-  }
-
-  // Rematch offer methods using the unified function
-  static async offerRematch(
-    gameId: string,
-    playerColor: PlayerColor,
-  ): Promise<Game> {
-    return this.handleOffer(gameId, "rematch", playerColor, "offer");
-  }
-
-  static async acceptRematch(gameId: string): Promise<Game> {
-    return this.handleOffer(gameId, "rematch", null, "accept");
-  }
-
-  static async declineRematch(gameId: string): Promise<Game> {
-    return this.handleOffer(gameId, "rematch", null, "decline");
-  }
-
-  static async resign(gameId: string, playerColor: PlayerColor): Promise<Game> {
-    console.log(
-      `[GameService] Player ${playerColor} resigned in game ${gameId}`,
-    );
-    const result = playerColor === "white" ? "black" : "white";
-
-    return this.updateGame(gameId, {
-      status: "finished",
-      result,
-      end_reason: "resignation",
-    });
+  private static mapGameFromResponse(game: any): Game {
+    if (!game) throw new Error("Game data is missing from response");
+    return this.mapGameFromDB(game);
   }
 }

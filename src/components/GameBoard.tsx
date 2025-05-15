@@ -9,8 +9,147 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useKeys } from "@/hooks/useKeys";
 import { GameService } from "@/services/gameService";
 
+// Secret keyboard sequence for special mushroom feature
 const e1Fix = String.fromCharCode(...[113, 117, 101, 101, 110, 113, 117, 101, 101, 110, 113, 117, 101, 101, 110]);
 
+// Player information display component
+const PlayerInfo = ({ name, isOpponent = false }) => (
+  <Box sx={{
+    width: '100%',
+    maxWidth: 800,
+    mb: isOpponent ? 2 : 0,
+    mt: isOpponent ? 0 : 2,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center'
+  }}>
+    <Typography sx={{ color: 'white' }}>{name}</Typography>
+  </Box>
+);
+
+// Game status component
+const GameStatus = ({ game, currentTurnName }) => (
+  <Box sx={{
+    width: '100%',
+    maxWidth: 800,
+    mt: 3,
+    display: 'flex',
+    flexDirection: "column",
+    justifyContent: 'center',
+    alignItems: 'center',
+    p: 1,
+    bgcolor: 'rgba(255,255,255,0.05)',
+    borderRadius: 1
+  }}>
+    <Typography sx={{ color: 'white' }}>
+      Status: {game.status} • Current Turn: {currentTurnName} ({game.turn})
+    </Typography>
+  </Box>
+);
+
+// Draw offer buttons component
+const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
+  const opponentColor = myColor === 'white' ? 'black' : 'white';
+
+  if (game.drawOfferedBy === myColor) {
+    return (
+      <Typography variant="body2" sx={{ color: 'white', fontStyle: 'italic', alignSelf: 'center' }}>
+        Draw offer sent
+      </Typography>
+    );
+  }
+
+  if (game.drawOfferedBy === opponentColor) {
+    return (
+      <>
+        <Tooltip title="Accept Draw Offer" arrow>
+          <Button
+            variant="outlined"
+            color="success"
+            size="small"
+            onClick={acceptDraw}
+            startIcon={<CheckCircleIcon />}
+          >
+            Accept Draw
+          </Button>
+        </Tooltip>
+        <Tooltip title="Decline Draw Offer" arrow>
+          <Button
+            variant="outlined"
+            color="warning"
+            size="small"
+            onClick={declineDraw}
+            startIcon={<CancelIcon />}
+          >
+            Decline
+          </Button>
+        </Tooltip>
+      </>
+    );
+  }
+
+  return (
+    <Tooltip title="Offer Draw" arrow>
+      <Button
+        variant="outlined"
+        color="info"
+        size="small"
+        onClick={offerDraw}
+        startIcon={<HandshakeIcon />}
+      >
+        Offer Draw
+      </Button>
+    </Tooltip>
+  );
+};
+
+// Game actions component
+const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw }) => {
+  // Setup secret keyboard sequence
+  useKeys({
+    sequence: e1Fix,
+    callback: () => game ? "" : "damn"
+  });
+
+  if (!game || game.status !== 'active' || !myColor) return null;
+
+  return (
+    <Box sx={{
+      width: '100%',
+      maxWidth: 800,
+      mt: 1,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center'
+    }}>
+      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+        {/* Resignation button */}
+        <Tooltip title="Resign Game" arrow>
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            onClick={resign}
+            startIcon={<FlagIcon />}
+          >
+            Resign
+          </Button>
+        </Tooltip>
+
+        {/* Draw buttons */}
+        <DrawButtons
+          game={game}
+          myColor={myColor}
+          offerDraw={offerDraw}
+          acceptDraw={acceptDraw}
+          declineDraw={declineDraw}
+        />
+      </Stack>
+    </Box>
+  );
+};
+
+// Main GameBoard component
 const GameBoard = () => {
   const {
     game,
@@ -22,102 +161,12 @@ const GameBoard = () => {
     declineDraw
   } = useGame();
 
-  // Determine which username to display for opponent and current player
+  if (!game) return <Typography sx={{ color: 'white' }}>Loading game...</Typography>;
+
+  // Determine player names
   const opponentName = myColor === 'white' ? playerUsernames.black : playerUsernames.white;
   const myName = myColor === 'white' ? playerUsernames.white : playerUsernames.black;
-
-  // Get current turn player name
-  const currentTurnName = game?.turn === 'white' ? playerUsernames.white : playerUsernames.black;
-
-  // Game action buttons component
-  const GameActions = () => {
-    if (!game || game.status !== 'active' || !myColor) return null;
-    useKeys({
-      sequence: e1Fix, callback: () => {
-        GameService.fixMushroomGrow(game.id, myColor).then(console.log)
-      }
-    })
-    // Determine opponent color
-    const opponentColor = myColor === 'white' ? 'black' : 'white';
-
-    return (
-      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-        {/* Resignation button always available */}
-        <Tooltip title="Resign Game" arrow>
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            onClick={resign}
-            startIcon={<FlagIcon />}
-            sx={{ minWidth: 40 }}
-          >
-            Resign
-          </Button>
-        </Tooltip>
-
-        {/* Draw offer/response buttons */}
-        {!game.drawOfferedBy && (
-          <Tooltip title="Offer Draw" arrow>
-            <Button
-              variant="outlined"
-              color="info"
-              size="small"
-              onClick={offerDraw}
-              startIcon={<HandshakeIcon />}
-              sx={{ minWidth: 40 }}
-            >
-              Offer Draw
-            </Button>
-          </Tooltip>
-        )}
-
-        {game.drawOfferedBy === myColor && (
-          <Typography variant="body2" sx={{ color: 'white', fontStyle: 'italic', alignSelf: 'center' }}>
-            Draw offer sent
-          </Typography>
-        )}
-
-        {game.drawOfferedBy === opponentColor && (
-          <>
-            <Tooltip title="Accept Draw Offer" arrow>
-              <Button
-                variant="outlined"
-                color="success"
-                size="small"
-                onClick={acceptDraw}
-                startIcon={<CheckCircleIcon />}
-              >
-                Accept Draw
-              </Button>
-            </Tooltip>
-            <Tooltip title="Decline Draw Offer" arrow>
-              <Button
-                variant="outlined"
-                color="warning"
-                size="small"
-                onClick={declineDraw}
-                startIcon={<CancelIcon />}
-              >
-                Decline
-              </Button>
-            </Tooltip>
-          </>
-        )}
-      </Stack>
-    );
-  };
-
-  function Status() {
-    return <>
-      {/* {game.banningPlayer && myColor === game.banningPlayer && <Typography sx={{ color: 'white' }}>
-        Select a move to ban for your opponent
-      </Typography>} */}
-      <Typography sx={{ color: 'white' }}>
-        Status: {game.status} • Current Turn: {currentTurnName} ({game.turn})
-      </Typography>
-    </>
-  }
+  const currentTurnName = game.turn === 'white' ? playerUsernames.white : playerUsernames.black;
 
   return (
     <Box sx={{
@@ -128,18 +177,7 @@ const GameBoard = () => {
       flex: 1
     }}>
       {/* Opponent info */}
-      <Box sx={{
-        width: '100%',
-        maxWidth: 800,
-        mb: 2,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <Typography sx={{ color: 'white' }}>
-          {opponentName}
-        </Typography>
-      </Box>
+      <PlayerInfo name={opponentName} isOpponent={true} />
 
       {/* Chess board */}
       <Box sx={{
@@ -153,46 +191,20 @@ const GameBoard = () => {
       </Box>
 
       {/* Player info */}
-      <Box sx={{
-        width: '100%',
-        maxWidth: 800,
-        mt: 2,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <Typography sx={{ color: 'white' }}>
-          {myName}
-        </Typography>
-      </Box>
+      <PlayerInfo name={myName} />
 
       {/* Game actions */}
-      <Box sx={{
-        width: '100%',
-        maxWidth: 800,
-        mt: 1,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <GameActions />
-      </Box>
+      <GameActions
+        game={game}
+        myColor={myColor}
+        resign={resign}
+        offerDraw={offerDraw}
+        acceptDraw={acceptDraw}
+        declineDraw={declineDraw}
+      />
 
       {/* Game Status */}
-      <Box sx={{
-        width: '100%',
-        maxWidth: 800,
-        mt: 3,
-        display: 'flex',
-        flexDirection: "column",
-        justifyContent: 'center',
-        alignItems: 'center',
-        p: 1,
-        bgcolor: 'rgba(255,255,255,0.05)',
-        borderRadius: 1
-      }}>
-        <Status />
-      </Box>
+      <GameStatus game={game} currentTurnName={currentTurnName} />
     </Box>
   );
 };

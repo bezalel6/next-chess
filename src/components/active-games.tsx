@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { Box, Button, Typography, CircularProgress, Alert, Divider } from '@mui/material';
 import { SportsEsports } from '@mui/icons-material';
 import { useAuth } from '@/contexts/AuthContext';
-import { GameService } from '@/services/gameService';
 import { UserService } from '@/services/userService';
 import type { Game } from '@/types/game';
 import { useRouter } from 'next/compat/router';
+import { GameService } from '@/services/gameService';
 
 interface ActiveGamesProps {
   fullHeight?: boolean;

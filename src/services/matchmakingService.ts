@@ -1,111 +1,193 @@
-import { supabase } from "../utils/supabase";
-import { GameService } from "./gameService";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { createClient } from "@supabase/supabase-js";
-import { env } from "../env";
-import { Chess } from "chess.ts";
-import type { DBGame } from "@/types/game";
-
-interface QueueUser {
-  user_id: string;
-  joined_at: string;
-}
+import { supabase, invokeWithAuth } from "../utils/supabase";
+import type { RealtimeChannel, Session } from "@supabase/supabase-js";
+import type { NextRouter } from "next/router";
 
 export class MatchmakingService {
-  static async joinQueue(userId: string) {
-    const channel = supabase.channel("queue-system", {
+  /**
+   * Join matchmaking queue and setup notification channel
+   */
+  static async joinQueue(
+    session: Session,
+    existingChannel?: RealtimeChannel,
+  ): Promise<RealtimeChannel> {
+    const userId = session.user.id;
+    console.log(`[Matchmaking] User ${userId} joining queue`);
+
+    // Join queue via Edge function
+    const { data, error } = await invokeWithAuth("matchmaking", {
+      body: { operation: "joinQueue" },
+    });
+
+    if (error) {
+      console.error(`[Matchmaking] Error joining queue: ${error.message}`);
+      throw error;
+    }
+
+    // Setup notification channel if not provided
+    const channel = existingChannel || this.setupNotificationChannel(userId);
+
+    // Handle immediate match if exists
+    if (data?.matchFound && data?.game) {
+      console.log(`[Matchmaking] Already matched with game: ${data.game.id}`);
+      setTimeout(() => {
+        channel.send({
+          type: "broadcast",
+          event: "game-matched",
+          payload: { gameId: data.game.id },
+        });
+      }, 500);
+    }
+
+    return channel;
+  }
+
+  /**
+   * Leave the matchmaking queue
+   */
+  static async leaveQueue(
+    session: Session,
+    channel?: RealtimeChannel,
+  ): Promise<void> {
+    console.log(`[Matchmaking] User ${session.user.id} leaving queue`);
+
+    // Call edge function to leave queue
+    const { error } = await invokeWithAuth("matchmaking", {
+      body: { operation: "leaveQueue" },
+    });
+
+    if (error) {
+      console.error(`[Matchmaking] Error leaving queue: ${error.message}`);
+    }
+
+    // Cleanup channel if provided
+    if (channel) {
+      try {
+        await channel.untrack();
+      } catch (untrackError) {
+        console.warn(
+          `[Matchmaking] Error untracking channel: ${untrackError.message}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Setup match listener with navigation
+   */
+  static setupMatchListener(
+    channel: RealtimeChannel,
+    router: NextRouter,
+    callback?: (gameId: string, isWhite?: boolean) => void,
+  ): void {
+    channel.on("broadcast", { event: "game-matched" }, (payload) => {
+      if (payload.payload?.gameId) {
+        const gameId = payload.payload.gameId;
+        console.log(`[Matchmaking] Match found! Game ID: ${gameId}`);
+
+        // Navigate to game and execute callback if provided
+        if (callback) {
+          callback(gameId);
+        }
+        router.push(`/game/${gameId}`);
+      }
+    });
+  }
+
+  /**
+   * Check for active matches for a user
+   */
+  static async checkActiveMatch(userId: string): Promise<string | null> {
+    try {
+      // Check for active games as white player
+      const { data: whiteGames, error: whiteError } = await supabase
+        .from("games")
+        .select("id, created_at")
+        .eq("white_player_id", userId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (whiteError) {
+        throw whiteError;
+      }
+
+      // Check for active games as black player
+      const { data: blackGames, error: blackError } = await supabase
+        .from("games")
+        .select("id, created_at")
+        .eq("black_player_id", userId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (blackError) {
+        throw blackError;
+      }
+
+      // Combine results
+      const activeGames = [...whiteGames, ...blackGames];
+      if (activeGames.length > 0) {
+        // Sort by created_at if there are games from both queries
+        activeGames.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+        return activeGames[0].id;
+      }
+
+      // Then check matchmaking for matched status
+      const { data: matchmakingEntry } = await supabase
+        .from("matchmaking")
+        .select("game_id")
+        .eq("player_id", userId)
+        .eq("status", "matched")
+        .maybeSingle();
+
+      return matchmakingEntry?.game_id || null;
+    } catch (error) {
+      console.error(
+        `[Matchmaking] Error checking active match: ${error.message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Private helper to setup notification channel
+   */
+  private static setupNotificationChannel(userId: string): RealtimeChannel {
+    const channel = supabase.channel(`matchmaking:${userId}`, {
       config: {
         broadcast: { self: true },
         presence: { key: userId },
       },
     });
 
-    await channel.track({
-      user_id: userId,
-      joined_at: new Date().toISOString(),
-    });
-    return channel;
-  }
+    // Listen for matchmaking status changes
+    channel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "matchmaking",
+        filter: `player_id=eq.${userId}`,
+      },
+      (payload) => {
+        const newStatus = payload.new?.status;
+        const gameId = payload.new?.game_id;
 
-  static async matchPlayers(
-    player1Id: string,
-    player2Id: string,
-    channel: RealtimeChannel,
-  ) {
-    try {
-      console.log(`Attempting to match players ${player1Id} and ${player2Id}`);
-
-      // Initialize server-side Supabase client with service role key
-      // This bypasses RLS policies for admin operations
-      const serverSupabase = createClient(
-        env.NEXT_PUBLIC_SUPABASE_URL,
-        env.SUPABASE_SERVICE_ROLE_KEY,
-      );
-
-      // Create a new chess game
-      const chess = new Chess();
-      const { data: game, error } = await serverSupabase
-        .from("games")
-        .insert({
-          white_player_id: player1Id,
-          black_player_id: player2Id,
-          status: "active",
-          current_fen: chess.fen(),
-          pgn: chess.pgn(),
-          turn: "white",
-          banningPlayer: "black",
-        } satisfies DBGame)
-        .select()
-        .single<DBGame>();
-
-      if (error) {
-        console.error("Error creating game:", error);
-        throw error;
-      }
-
-      const mappedGame = GameService.mapGameFromDB(game);
-
-      // Notify both players
-      await channel.send({
-        type: "broadcast",
-        event: "game-matched",
-        payload: {
-          gameId: mappedGame.id,
-        },
-      });
-
-      // Remove matched players from queue
-      await channel.untrack({ user_id: player1Id });
-      await channel.untrack({ user_id: player2Id });
-
-      console.log(
-        `Matched players ${player1Id} and ${player2Id} in game ${mappedGame.id}`,
-      );
-      return mappedGame;
-    } catch (error) {
-      console.error("Error matching players:", error);
-      throw error;
-    }
-  }
-
-  static async leaveQueue(userId: string, channel: any) {
-    await channel.untrack({ user_id: userId });
-    await channel.unsubscribe();
-  }
-
-  static async getQueuePosition(userId: string): Promise<number> {
-    const { data: presenceState } = await supabase
-      .channel("queue-system")
-      .presenceState();
-
-    if (!presenceState) return 0;
-
-    const queue = Object.values(presenceState).flat() as unknown as QueueUser[];
-    queue.sort(
-      (a, b) =>
-        new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime(),
+        if (newStatus === "matched" && gameId) {
+          console.log(`[Matchmaking] Player matched with game ${gameId}`);
+          channel.send({
+            type: "broadcast",
+            event: "game-matched",
+            payload: { gameId },
+          });
+        }
+      },
     );
 
-    return queue.findIndex((user) => user.user_id === userId) + 1;
+    channel.subscribe();
+    return channel;
   }
 }

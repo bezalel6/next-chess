@@ -24,7 +24,7 @@ export interface Game {
   pgn: string;
   last_move?: ChessMove;
   turn: "white" | "black";
-  banningPlayer: "white" | "black" | null;
+  banning_player: "white" | "black" | null;
   created_at: string;
   updated_at: string;
   draw_offered_by?: string | null;

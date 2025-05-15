@@ -83,7 +83,7 @@ async function handleJoinQueue(user: User, supabase: SupabaseClient) {
       select: "id",
       match: {
         status: "active",
-        or: `white_player_id.eq.${user.id},black_player_id.eq.${user.id}`,
+        _or: [{ white_player_id: user.id }, { black_player_id: user.id }],
       },
       limit: 1,
       operation: "check active game",
@@ -368,7 +368,11 @@ async function processMatchmakingQueue(supabase: SupabaseClient) {
             status: "matched",
             game_id: gameId,
           },
-          match: { _or: [{ player_id: player1 }, { player_id: player2 }] },
+          match: {
+            player_id: {
+              _in: [player1, player2],
+            },
+          },
           operation: "update matchmaking entries",
         },
       );

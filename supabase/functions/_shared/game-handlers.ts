@@ -155,7 +155,7 @@ async function handleMakeMove(
           pgn: moveResult.newPgn,
           last_move: move,
           turn: playerColor === "white" ? "black" : "white",
-          banningPlayer: playerColor,
+          banning_player: playerColor,
           status,
           result: gameOverState.result,
           end_reason: gameOverState.reason,
@@ -247,9 +247,9 @@ async function handleBanMove(
 
   // Check if this player is allowed to ban
   const userColor = game.white_player_id === user.id ? "white" : "black";
-  if (game.banningPlayer !== userColor) {
+  if (game.banning_player !== userColor) {
     return errorResponse(
-      `Player ${user.id} (${userColor}) attempted to ban a move but only ${game.banningPlayer} player can ban moves at this time`,
+      `Player ${user.id} (${userColor}) attempted to ban a move but only ${game.banning_player} player can ban moves at this time\n${JSON.stringify(game, null, 2)}`,
       403,
     );
   }
@@ -268,7 +268,7 @@ async function handleBanMove(
     "update",
     {
       data: {
-        banningPlayer: null,
+        banning_player: null,
         pgn: chess.pgn(),
       },
       match: { id: gameId },
@@ -448,7 +448,7 @@ async function handleGameOffer(
               "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             pgn: "",
             turn: "white",
-            banningPlayer: "black",
+            banning_player: "black",
             parent_game_id: gameId,
           },
           select: "*",

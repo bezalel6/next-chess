@@ -96,6 +96,7 @@ export async function dbQuery<T = any>(
     }
 
     // Execute the query
+
     const result = await query;
 
     if (result.error) {

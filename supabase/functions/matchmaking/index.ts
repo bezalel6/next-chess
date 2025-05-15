@@ -108,25 +108,6 @@ async function handleJoinQueue(user: User, supabase: SupabaseClient) {
 
     // If already in queue, return current state
     if (existingEntry) {
-      if (existingEntry.status === "matched" && existingEntry.game_id) {
-        // Get matched game info
-        const { data: game } = await dbQuery(supabase, "games", "select", {
-          select: "*",
-          match: {
-            id: existingEntry.game_id,
-          },
-          single: true,
-          operation: "get matched game",
-        });
-
-        if (game) {
-          return successResponse({
-            matchFound: true,
-            game,
-          });
-        }
-      }
-
       return successResponse({
         status: existingEntry.status,
         joinedAt: existingEntry.joined_at,
@@ -166,7 +147,7 @@ async function handleJoinQueue(user: User, supabase: SupabaseClient) {
     // Try to find a match immediately
     await processMatchmakingQueue(supabase);
 
-    // Check if the player was matched
+    // Check if the player was matched (they would no longer be in the queue if matched)
     const { data: updatedEntry } = await dbQuery(
       supabase,
       "matchmaking",
@@ -179,15 +160,16 @@ async function handleJoinQueue(user: User, supabase: SupabaseClient) {
       },
     );
 
-    if (updatedEntry?.status === "matched" && updatedEntry?.game_id) {
-      // Get matched game info
+    // If player is no longer in queue, check if they're in a game
+    if (!updatedEntry) {
       const { data: game } = await dbQuery(supabase, "games", "select", {
         select: "*",
         match: {
-          id: updatedEntry.game_id,
+          status: "active",
+          _or: [{ white_player_id: user.id }, { black_player_id: user.id }],
         },
         single: true,
-        operation: "get matched game",
+        operation: "get active game",
       });
 
       if (game) {
@@ -262,24 +244,26 @@ async function checkQueueStatus(user: User, supabase: SupabaseClient) {
     });
 
     if (!entry) {
-      return successResponse({ inQueue: false });
-    }
-
-    if (entry.status === "matched" && entry.game_id) {
-      // Get matched game
-      const { data: game } = await dbQuery(supabase, "games", "select", {
+      // Check if user is in an active game
+      const { data: activeGame } = await dbQuery(supabase, "games", "select", {
         select: "*",
-        match: { id: entry.game_id },
+        match: {
+          status: "active",
+          _or: [{ white_player_id: user.id }, { black_player_id: user.id }],
+        },
         single: true,
-        operation: "get matched game",
+        operation: "check active game",
       });
 
-      return successResponse({
-        inQueue: true,
-        status: "matched",
-        matchFound: true,
-        game,
-      });
+      if (activeGame) {
+        return successResponse({
+          inQueue: false,
+          activeGame: true,
+          game: activeGame,
+        });
+      }
+
+      return successResponse({ inQueue: false });
     }
 
     return successResponse({
@@ -358,28 +342,42 @@ async function processMatchmakingQueue(supabase: SupabaseClient) {
         );
       }
 
-      // Update both players' matchmaking entries
-      const { error: updateError } = await dbQuery(
+      // Remove first player from the matchmaking queue
+      const { error: deleteError } = await dbQuery(
         supabase,
         "matchmaking",
-        "update",
+        "delete",
         {
-          data: {
-            status: "matched",
-            game_id: gameId,
-          },
           match: {
-            player_id: {
-              _in: [player1, player2],
-            },
+            player_id: player1,
           },
-          operation: "update matchmaking entries",
+          operation: "remove first player from queue",
         },
       );
 
-      if (updateError) {
+      if (deleteError) {
         return errorResponse(
-          `Failed to update matchmaking entries: ${updateError.message}`,
+          `Failed to remove first player from matchmaking queue: ${deleteError.message}`,
+          500,
+        );
+      }
+
+      // Remove second player from the matchmaking queue
+      const { error: deleteError2 } = await dbQuery(
+        supabase,
+        "matchmaking",
+        "delete",
+        {
+          match: {
+            player_id: player2,
+          },
+          operation: "remove second player from queue",
+        },
+      );
+
+      if (deleteError2) {
+        return errorResponse(
+          `Failed to remove second player from matchmaking queue: ${deleteError2.message}`,
           500,
         );
       }

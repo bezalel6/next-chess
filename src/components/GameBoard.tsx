@@ -51,6 +51,7 @@ const GameStatus = ({ game, currentTurnName }) => (
 const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
   const opponentColor = myColor === 'white' ? 'black' : 'white';
   console.log(game);
+
   if (game.drawOfferedBy === myColor) {
     return (
       <Typography variant="body2" sx={{ color: 'white', fontStyle: 'italic', alignSelf: 'center' }}>

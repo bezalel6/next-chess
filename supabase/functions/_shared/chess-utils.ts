@@ -4,6 +4,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "./logger.ts";
 import { dbQuery } from "./db-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { uuidSchema } from "./validation-utils.ts";
 
 const logger = createLogger("CHESS");
 
@@ -43,8 +44,8 @@ export const ChessSchemas = {
   }),
 
   GameAccess: z.object({
-    gameId: z.string().uuid(),
-    userId: z.string().uuid(),
+    gameId: uuidSchema,
+    userId: uuidSchema,
     requiresTurn: z.boolean().optional().default(false),
   }),
 

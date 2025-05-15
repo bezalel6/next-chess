@@ -1,7 +1,8 @@
 /// <reference lib="deno.ns" />
 import { errorResponse } from "./response-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-const uuid = z.string();
+
+export const uuidSchema = z.string();
 /**
  * Validator result type
  */
@@ -36,7 +37,7 @@ export function validateRequired(
  */
 export const Schemas = {
   // Core schemas for common types
-  UUID: uuid,
+  UUID: uuidSchema,
   ChessMove: z.object({
     from: z.string().min(2).max(2),
     to: z.string().min(2).max(2),
@@ -46,11 +47,11 @@ export const Schemas = {
 
   // Parameter schemas for game operations
   GameParams: z.object({
-    gameId: uuid,
+    gameId: uuidSchema,
   }),
 
   MoveParams: z.object({
-    gameId: uuid,
+    gameId: uuidSchema,
     move: z.object({
       from: z.string().min(2).max(2),
       to: z.string().min(2).max(2),
@@ -59,7 +60,7 @@ export const Schemas = {
   }),
 
   PlayerParams: z.object({
-    gameId: uuid,
+    gameId: uuidSchema,
     playerColor: z.enum(["white", "black"]).optional(),
   }),
 };
@@ -187,13 +188,4 @@ export function validateRequestParams(
   }
 
   return null;
-}
-
-/**
- * UUID validation helper
- */
-export function isValidUUID(value: string): boolean {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(value);
 }

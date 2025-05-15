@@ -4,6 +4,7 @@ import { createLogger } from "./logger.ts";
 import { dbQuery } from "./db-utils.ts";
 import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { uuidSchema } from "./validation-utils.ts";
 import type {
   SupabaseClient,
   User,
@@ -25,8 +26,8 @@ interface QueueParams {
 // Define Zod schemas for matchmaking
 const MatchmakingSchemas = {
   CreateMatchParams: z.object({
-    player1Id: z.string().uuid(),
-    player2Id: z.string().uuid(),
+    player1Id: uuidSchema,
+    player2Id: uuidSchema,
   }),
 
   QueueParams: z.object({

@@ -1,10 +1,9 @@
 /// <reference lib="deno.ns" />
-import type {
-  SupabaseClient,
-  User,
-} from "https://esm.sh/@supabase/supabase-js@2";
+import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "./logger.ts";
-import { dbQuery } from "./db-utils.ts";
+import { getTable, logOperation } from "./db-utils.ts";
+import type { TypedSupabaseClient } from "./db-utils.ts";
+import type { Json } from "./database-types.ts";
 
 const logger = createLogger("EVENTS");
 
@@ -27,7 +26,7 @@ export enum EventType {
  * Records a system event with standardized format
  */
 export async function recordEvent(
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
   type: EventType,
   data: Record<string, any>,
   userId?: string,
@@ -36,86 +35,20 @@ export async function recordEvent(
   try {
     logger.debug(`Recording event: ${type}`, { userId, ...data });
 
-    const eventData = {
-      type,
+    const { error } = await getTable(supabase, "event_log").insert({
+      event_type: type,
+      entity_type: data.game_id ? "game" : "system",
+      entity_id: data.game_id || crypto.randomUUID(),
       user_id: userId || null,
-      data,
-      metadata: {
-        ...metadata,
-        timestamp: new Date().toISOString(),
-      },
-    };
+      data: {
+        ...data,
+        metadata: { ...metadata, timestamp: new Date().toISOString() },
+      } as Json,
+    });
 
-    // await dbQuery(supabase, "events", "insert", {
-    //   data: eventData,
-    //   operation: `record ${type} event`,
-    // });
+    logOperation(`record ${type} event`, error);
   } catch (error) {
     // Just log the error but don't fail the operation
     logger.error(`Failed to record event ${type}:`, error);
-  }
-}
-
-/**
- * Sends a notification to a user
- */
-export async function notifyUser(
-  supabase: SupabaseClient,
-  userId: string,
-  title: string,
-  message: string,
-  data: Record<string, any> = {},
-): Promise<boolean> {
-  try {
-    logger.debug(`Sending notification to user ${userId}: ${title}`);
-
-    const notificationData = {
-      user_id: userId,
-      title,
-      message,
-      data,
-      read: false,
-      created_at: new Date().toISOString(),
-    };
-
-    await dbQuery(supabase, "notifications", "insert", {
-      data: notificationData,
-      operation: "send notification",
-    });
-
-    return true;
-  } catch (error) {
-    logger.error(`Failed to notify user ${userId}:`, error);
-    return false;
-  }
-}
-
-/**
- * Create a standard activity log entry
- */
-export async function logActivity(
-  supabase: SupabaseClient,
-  user: User,
-  action: string,
-  resourceType: string,
-  resourceId: string,
-  details: Record<string, any> = {},
-): Promise<void> {
-  try {
-    const activityData = {
-      user_id: user.id,
-      action,
-      resource_type: resourceType,
-      resource_id: resourceId,
-      details,
-      timestamp: new Date().toISOString(),
-    };
-
-    await dbQuery(supabase, "activity_logs", "insert", {
-      data: activityData,
-      operation: `log ${action}`,
-    });
-  } catch (error) {
-    logger.error(`Failed to log activity for user ${user.id}:`, error);
   }
 }

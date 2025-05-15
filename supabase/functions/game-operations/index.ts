@@ -13,11 +13,12 @@ import {
 import { createRouter, defineRoute } from "../_shared/router-utils.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";
-import { dbQuery } from "../_shared/db-utils.ts";
 import { validateWithZod } from "../_shared/validation-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 import { uuidSchema } from "./../_shared/validation-utils.ts";
+import { ensureSingle, logOperation, getTable } from "../_shared/db-utils.ts";
+import type { TypedSupabaseClient } from "../_shared/db-utils.ts";
 
 // Create a logger for this module
 const logger = createLogger("GAME-OPS");
@@ -223,7 +224,7 @@ async function generateGameId() {
 /**
  * Handles game update notifications
  */
-async function notifyGameUpdate(params: any, supabase: SupabaseClient) {
+async function notifyGameUpdate(params: any, supabase: TypedSupabaseClient) {
   try {
     // Validate parameters using Zod
     const validation = validateWithZod(
@@ -249,15 +250,15 @@ async function notifyGameUpdate(params: any, supabase: SupabaseClient) {
  * Notify game changes via Supabase realtime
  * This replaces the database notify function
  */
-async function notifyGameChange(supabase: SupabaseClient, gameId: string) {
+async function notifyGameChange(supabase: TypedSupabaseClient, gameId: string) {
   try {
     // Fetch the game data
-    const { data: game } = await dbQuery(supabase, "games", "select", {
-      select: "*",
-      match: { id: gameId },
-      single: true,
-      operation: "get game for notification",
-    });
+    const { data: game, error: gameError } = await getTable(supabase, "games")
+      .select("*")
+      .eq("id", gameId)
+      .maybeSingle();
+
+    logOperation("get game for notification", gameError);
 
     if (!game) {
       logger.warn(`Game not found for notification: ${gameId}`);
@@ -298,7 +299,7 @@ async function notifyGameChange(supabase: SupabaseClient, gameId: string) {
  * Helper function to log events
  */
 async function logEvent(
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
   {
     eventType,
     entityType,
@@ -314,16 +315,15 @@ async function logEvent(
   },
 ) {
   try {
-    await dbQuery(supabase, "event_log", "insert", {
-      data: {
-        event_type: eventType,
-        entity_type: entityType,
-        entity_id: entityId,
-        user_id: userId,
-        data: data || {},
-      },
-      operation: "log event",
+    await getTable(supabase, "event_log").insert({
+      event_type: eventType,
+      entity_type: entityType,
+      entity_id: entityId,
+      user_id: userId,
+      data: data || {},
     });
+
+    logOperation("log event");
   } catch (error) {
     logger.warn(`Failed to log event ${eventType}:`, error);
   }

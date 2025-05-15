@@ -9,15 +9,14 @@ import {
   type GameResult,
   type GameEndReason,
 } from "./chess-utils.ts";
-import type {
-  SupabaseClient,
-  User,
-} from "https://esm.sh/@supabase/supabase-js@2";
+import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "./logger.ts";
 import { successResponse, errorResponse } from "./response-utils.ts";
-import { dbQuery } from "./db-utils.ts";
+import { getTable, logOperation, ensureSingle } from "./db-utils.ts";
+import type { TypedSupabaseClient } from "./db-utils.ts";
 import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { EventType, recordEvent } from "./event-utils.ts";
+import type { Json } from "./database-types.ts";
 
 const logger = createLogger("GAME");
 
@@ -57,7 +56,7 @@ function generateShortId(length = 8): string {
 export async function handleGameOperation(
   user: User,
   params: any,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
   operation: string,
 ): Promise<Response> {
   try {
@@ -130,7 +129,7 @@ export async function handleGameOperation(
 async function handleMakeMove(
   user: User,
   params: MoveParams,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ): Promise<Response> {
   try {
     // Validate required params using Zod
@@ -164,28 +163,26 @@ async function handleMakeMove(
     const status = gameOverState.isOver ? "finished" : "active";
 
     // Update the game with the new state
-    const { data: updatedGame, error: updateError } = await dbQuery(
+    const { data: updatedGame, error: updateError } = await getTable(
       supabase,
       "games",
-      "update",
-      {
-        data: {
-          current_fen: moveResult.newFen,
-          pgn: moveResult.newPgn,
-          last_move: move,
-          turn: playerColor === "white" ? "black" : "white",
-          banning_player: playerColor,
-          status,
-          result: gameOverState.result,
-          end_reason: gameOverState.reason,
-          draw_offered_by: null, // Clear any pending draw offers
-        },
-        match: { id: gameId },
-        select: "*",
-        single: true,
-        operation: "update game state",
-      },
-    );
+    )
+      .update({
+        current_fen: moveResult.newFen,
+        pgn: moveResult.newPgn,
+        last_move: move as unknown as Json, // Type cast for database storage
+        turn: playerColor === "white" ? "black" : "white",
+        banning_player: playerColor,
+        status,
+        result: gameOverState.result,
+        end_reason: gameOverState.reason,
+        draw_offered_by: null, // Clear any pending draw offers
+      })
+      .eq("id", gameId)
+      .select("*")
+      .maybeSingle();
+
+    logOperation("update game state", updateError);
 
     if (updateError) {
       return errorResponse(
@@ -194,16 +191,15 @@ async function handleMakeMove(
       );
     }
 
-    // Record the move in move history
-    await dbQuery(supabase, "moves", "insert", {
-      data: {
-        game_id: gameId,
-        move,
-        created_by: user.id,
-        position_fen: moveResult.newFen,
-      },
-      operation: "record move",
+    // Record the move in move history - using direct untyped call since moves table isn't defined in typed schemas
+    const { error: moveError } = await (supabase as any).from("moves").insert({
+      game_id: gameId,
+      move: move,
+      created_by: user.id,
+      position_fen: moveResult.newFen,
     });
+
+    logOperation("record move", moveError);
 
     // Record event
     await recordEvent(
@@ -243,7 +239,7 @@ async function handleMakeMove(
 async function handleBanMove(
   user: User,
   params: MoveParams,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ): Promise<Response> {
   // Validate required params using Zod
   const validation = validateWithZod(params, Schemas.MoveParams);
@@ -296,18 +292,16 @@ async function handleBanMove(
   }
 
   // Update the game
-  const { data: updatedGame, error: updateError } = await dbQuery(
+  const { data: updatedGame, error: updateError } = await getTable(
     supabase,
     "games",
-    "update",
-    {
-      data: updateData,
-      match: { id: gameId },
-      select: "*",
-      single: true,
-      operation: "update game ban move",
-    },
-  );
+  )
+    .update(updateData)
+    .eq("id", gameId)
+    .select("*")
+    .maybeSingle();
+
+  logOperation("update game ban move", updateError);
 
   if (updateError) {
     return errorResponse(`Failed to update game: ${updateError.message}`, 500);
@@ -348,7 +342,7 @@ async function handleBanMove(
 async function handleGameOffer(
   user: User,
   params: PlayerParams,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
   offerType: "draw" | "rematch",
   action: "offer" | "accept" | "decline",
 ): Promise<Response> {
@@ -376,18 +370,16 @@ async function handleGameOffer(
 
   if (action === "offer") {
     // Handle offering
-    const { data: updatedGame, error: updateError } = await dbQuery(
+    const { data: updatedGame, error: updateError } = await getTable(
       supabase,
       "games",
-      "update",
-      {
-        data: { [field]: userColor },
-        match: { id: gameId },
-        select: "*",
-        single: true,
-        operation: `offer ${offerType}`,
-      },
-    );
+    )
+      .update({ [field]: userColor })
+      .eq("id", gameId)
+      .select("*")
+      .maybeSingle();
+
+    logOperation(`offer ${offerType}`, updateError);
 
     if (updateError) {
       return errorResponse(
@@ -406,18 +398,16 @@ async function handleGameOffer(
     return successResponse(updatedGame);
   } else if (action === "decline") {
     // Handle declining
-    const { data: updatedGame, error: updateError } = await dbQuery(
+    const { data: updatedGame, error: updateError } = await getTable(
       supabase,
       "games",
-      "update",
-      {
-        data: { [field]: null },
-        match: { id: gameId },
-        select: "*",
-        single: true,
-        operation: `decline ${offerType}`,
-      },
-    );
+    )
+      .update({ [field]: null })
+      .eq("id", gameId)
+      .select("*")
+      .maybeSingle();
+
+    logOperation(`decline ${offerType}`, updateError);
 
     if (updateError) {
       return errorResponse(
@@ -437,23 +427,21 @@ async function handleGameOffer(
   } else if (action === "accept") {
     // Handle accepting
     if (offerType === "draw") {
-      const { data: updatedGame, error: updateError } = await dbQuery(
+      const { data: updatedGame, error: updateError } = await getTable(
         supabase,
         "games",
-        "update",
-        {
-          data: {
-            status: "finished",
-            result: "draw",
-            [field]: null,
-            end_reason: "draw_agreement",
-          },
-          match: { id: gameId },
-          select: "*",
-          single: true,
-          operation: "accept draw",
-        },
-      );
+      )
+        .update({
+          status: "finished",
+          result: "draw",
+          [field]: null,
+          end_reason: "draw_agreement",
+        })
+        .eq("id", gameId)
+        .select("*")
+        .maybeSingle();
+
+      logOperation("accept draw", updateError);
 
       if (updateError) {
         return errorResponse(
@@ -483,28 +471,26 @@ async function handleGameOffer(
       const newGameId = generateShortId();
 
       // Create a new game with swapped colors
-      const { data: newGame, error: createError } = await dbQuery(
+      const { data: newGame, error: createError } = await getTable(
         supabase,
         "games",
-        "insert",
-        {
-          data: {
-            id: newGameId,
-            white_player_id: game.black_player_id,
-            black_player_id: game.white_player_id,
-            status: "active",
-            current_fen:
-              "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            pgn: "",
-            turn: "white",
-            banning_player: "black",
-            parent_game_id: gameId,
-          },
-          select: "*",
-          single: true,
-          operation: "create rematch game",
-        },
-      );
+      )
+        .insert({
+          id: newGameId,
+          white_player_id: game.black_player_id,
+          black_player_id: game.white_player_id,
+          status: "active",
+          current_fen:
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          pgn: "",
+          turn: "white",
+          banning_player: "black",
+          parent_game_id: gameId,
+        })
+        .select("*")
+        .maybeSingle();
+
+      logOperation("create rematch game", createError);
 
       if (createError) {
         return errorResponse(
@@ -514,11 +500,11 @@ async function handleGameOffer(
       }
 
       // Clear the rematch offer from the original game
-      await dbQuery(supabase, "games", "update", {
-        data: { [field]: null },
-        match: { id: gameId },
-        operation: "clear rematch offer",
-      });
+      await getTable(supabase, "games")
+        .update({ [field]: null })
+        .eq("id", gameId);
+
+      logOperation("clear rematch offer");
 
       // Record events
       await recordEvent(
@@ -555,7 +541,7 @@ async function handleGameOffer(
 async function handleResignation(
   user: User,
   params: PlayerParams,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ): Promise<Response> {
   // Validate required params using Zod
   const validation = validateWithZod(params, Schemas.PlayerParams);
@@ -580,22 +566,20 @@ async function handleResignation(
   // When a player resigns, the opponent wins
   const result = playerColor === "white" ? "black" : "white";
 
-  const { data: updatedGame, error: updateError } = await dbQuery(
+  const { data: updatedGame, error: updateError } = await getTable(
     supabase,
     "games",
-    "update",
-    {
-      data: {
-        status: "finished",
-        result,
-        end_reason: "resignation",
-      },
-      match: { id: gameId },
-      select: "*",
-      single: true,
-      operation: "resign game",
-    },
-  );
+  )
+    .update({
+      status: "finished",
+      result,
+      end_reason: "resignation",
+    })
+    .eq("id", gameId)
+    .select("*")
+    .maybeSingle();
+
+  logOperation("resign game", updateError);
 
   if (updateError) {
     return errorResponse(`Failed to resign game: ${updateError.message}`, 500);
@@ -622,7 +606,7 @@ async function handleResignation(
 async function handleMushroomGrowth(
   user: User,
   params: GameParams,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ): Promise<Response> {
   // Validate required params using Zod
   const validation = validateWithZod(params, Schemas.GameParams);
@@ -686,18 +670,16 @@ async function handleMushroomGrowth(
   }
 
   // Update the game with the mushroom transformation
-  const { data: updatedGame, error: updateError } = await dbQuery(
+  const { data: updatedGame, error: updateError } = await getTable(
     supabase,
     "games",
-    "update",
-    {
-      data: updateData,
-      match: { id: gameId },
-      select: "*",
-      single: true,
-      operation: "apply mushroom transformation",
-    },
-  );
+  )
+    .update(updateData)
+    .eq("id", gameId)
+    .select("*")
+    .maybeSingle();
+
+  logOperation("apply mushroom transformation", updateError);
 
   if (updateError) {
     return errorResponse(

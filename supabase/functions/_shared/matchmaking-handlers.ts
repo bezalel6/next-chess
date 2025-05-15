@@ -1,14 +1,12 @@
 /// <reference lib="deno.ns" />
 import { successResponse, errorResponse } from "./response-utils.ts";
 import { createLogger } from "./logger.ts";
-import { dbQuery } from "./db-utils.ts";
 import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { uuidSchema } from "./validation-utils.ts";
-import type {
-  SupabaseClient,
-  User,
-} from "https://esm.sh/@supabase/supabase-js@2";
+import type { User } from "https://esm.sh/@supabase/supabase-js@2";
+import { getTable, logOperation, ensureSingle } from "./db-utils.ts";
+import type { TypedSupabaseClient } from "./db-utils.ts";
 
 const logger = createLogger("MATCHMAKING");
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -36,12 +34,29 @@ const MatchmakingSchemas = {
 };
 
 /**
+ * Generate a random short ID for games
+ */
+function generateShortId(length = 8): string {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  const randomValues = new Uint8Array(length);
+  crypto.getRandomValues(randomValues);
+
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(randomValues[i] % chars.length);
+  }
+
+  return result;
+}
+
+/**
  * Handles creating a new match
  */
 export async function handleCreateMatch(
   user: User,
   params: CreateMatchParams,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ): Promise<Response> {
   try {
     logger.info(
@@ -62,17 +77,14 @@ export async function handleCreateMatch(
     const { player1Id, player2Id } = params;
 
     // Verify players exist
-    const { data: players, error: playerError } = await dbQuery(
+    const { data: players, error: playerError } = await getTable(
       supabase,
       "profiles",
-      "select",
-      {
-        select: "id",
-        match: { _in: [{ id: [player1Id, player2Id] }] },
-        operation: "verify players",
-      },
-    );
+    )
+      .select("id")
+      .in("id", [player1Id, player2Id]);
 
+    logOperation("verify players", playerError);
     if (playerError) {
       logger.error(`Error verifying players:`, playerError);
       return errorResponse(`Invalid players: ${playerError.message}`, 400);
@@ -105,26 +117,21 @@ export async function handleCreateMatch(
     }
 
     // Create the new game
-    const { data: game, error: createError } = await dbQuery(
-      supabase,
-      "games",
-      "insert",
-      {
-        data: {
-          white_player_id: player1Id,
-          black_player_id: player2Id,
-          status: "active",
-          current_fen: INITIAL_FEN,
-          pgn: "",
-          turn: "white",
-          banning_player: "black",
-        },
-        select: "*",
-        single: true,
-        operation: "create game",
-      },
-    );
+    const { data: game, error: createError } = await getTable(supabase, "games")
+      .insert({
+        id: generateShortId(),
+        white_player_id: player1Id,
+        black_player_id: player2Id,
+        status: "active",
+        current_fen: INITIAL_FEN,
+        pgn: "",
+        turn: "white",
+        banning_player: "black",
+      })
+      .select("*")
+      .single();
 
+    logOperation("create game", createError);
     if (createError) {
       logger.error(`Error creating game:`, createError);
       return errorResponse(
@@ -134,7 +141,7 @@ export async function handleCreateMatch(
     }
 
     logger.info(
-      `Successfully created game ${game.id} between ${player1Id} and ${player2Id}`,
+      `Successfully created game ${game?.id} between ${player1Id} and ${player2Id}`,
     );
     return successResponse(game);
   } catch (error) {
@@ -149,7 +156,7 @@ export async function handleCreateMatch(
 export async function handleJoinQueue(
   user: User,
   params: QueueParams,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ): Promise<Response> {
   logger.info(`User ${user.id} joining queue`);
 
@@ -189,18 +196,15 @@ export async function handleJoinQueue(
     // }
 
     // 2. Check if already in queue
-    const { data: existingEntry, error: queueError } = await dbQuery(
+    const { data: existingEntry, error: queueError } = await getTable(
       supabase,
-      "queue",
-      "select",
-      {
-        select: "id, status",
-        match: { user_id: user.id },
-        single: true,
-        operation: "check queue entry",
-      },
-    );
+      "matchmaking",
+    )
+      .select("id, status")
+      .eq("player_id", user.id)
+      .maybeSingle();
 
+    logOperation("check queue entry", queueError);
     if (queueError) {
       logger.error(`Error checking queue:`, queueError);
       return errorResponse(`Error checking queue: ${queueError.message}`, 500);
@@ -227,40 +231,34 @@ export async function handleJoinQueue(
 
     // 4. Add to queue
     logger.info(`Adding user ${user.id} to queue`);
-    const { data: newEntry, error: insertError } = await dbQuery(
+    const { data: newEntry, error: insertError } = await getTable(
       supabase,
-      "queue",
-      "insert",
-      {
-        data: {
-          user_id: user.id,
-          status: "waiting",
-          preferences: params.preferences || {},
-        },
-        select: "*",
-        single: true,
-        operation: "add to queue",
-      },
-    );
+      "matchmaking",
+    )
+      .insert({
+        player_id: user.id,
+        status: "waiting",
+        preferences: params.preferences || {},
+      })
+      .select("*")
+      .single();
 
+    logOperation("add to queue", insertError);
     if (insertError) {
       logger.error(`Error adding to queue:`, insertError);
       return errorResponse(`Error joining queue: ${insertError.message}`, 500);
     }
 
     // 5. Check if immediately matched by trigger
-    const { data: updated, error: statusError } = await dbQuery(
+    const { data: updated, error: statusError } = await getTable(
       supabase,
-      "queue",
-      "select",
-      {
-        select: "status",
-        match: { user_id: user.id },
-        single: true,
-        operation: "check updated status",
-      },
-    );
+      "matchmaking",
+    )
+      .select("status")
+      .eq("player_id", user.id)
+      .maybeSingle();
 
+    logOperation("check updated status", statusError);
     if (statusError) {
       logger.warn(`Error checking updated status:`, statusError);
       // Continue with default response
@@ -287,24 +285,21 @@ export async function handleJoinQueue(
 export async function handleCheckMatchmakingStatus(
   user: User,
   params: QueueParams,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ): Promise<Response> {
   logger.info(`Checking status for user ${user.id}`);
 
   try {
     // 1. Check queue status
-    const { data: queueEntry, error: queueError } = await dbQuery(
+    const { data: queueEntry, error: queueError } = await getTable(
       supabase,
-      "queue",
-      "select",
-      {
-        select: "status, joined_at",
-        match: { user_id: user.id },
-        single: true,
-        operation: "check queue status",
-      },
-    );
+      "matchmaking",
+    )
+      .select("status, joined_at")
+      .eq("player_id", user.id)
+      .maybeSingle();
 
+    logOperation("check queue status", queueError);
     if (queueError) {
       logger.error(`Error checking queue:`, queueError);
       return errorResponse(`Error checking status: ${queueError.message}`, 500);
@@ -357,17 +352,17 @@ export async function handleCheckMatchmakingStatus(
 export async function handleLeaveQueue(
   user: User,
   params: QueueParams,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ): Promise<Response> {
   logger.info(`User ${user.id} leaving queue`);
 
   try {
     // Delete from queue regardless of status
-    const { error: deleteError } = await dbQuery(supabase, "queue", "delete", {
-      match: { user_id: user.id },
-      operation: "remove from queue",
-    });
+    const { error: deleteError } = await getTable(supabase, "matchmaking")
+      .delete()
+      .eq("player_id", user.id);
 
+    logOperation("remove from queue", deleteError);
     if (deleteError) {
       logger.error(`Error leaving queue:`, deleteError);
       return errorResponse(`Error leaving queue: ${deleteError.message}`, 500);
@@ -389,55 +384,45 @@ export async function handleLeaveQueue(
  */
 async function createOrFindGame(
   userId: string,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ): Promise<Response> {
   logger.info(`Creating or finding game for user ${userId}`);
 
   try {
-    // 1. Check if we already have a game created for this user
-    // Need to look for notifications since the player might be a participant
-    // in multiple games
-    const { data: notification, error: notifError } = await dbQuery(
+    // 1. Check if we already have a game created for this user by looking at matchmaking
+    const { data: matchedEntry, error: matchError } = await getTable(
       supabase,
-      "queue_notifications",
-      "select",
-      {
-        select: "game_id, white_player_id, black_player_id",
-        match: {
-          _or: [`white_player_id.eq.${userId}`, `black_player_id.eq.${userId}`],
-          type: "match_found",
-        },
-        order: { column: "created_at", ascending: false },
-        limit: 1,
-        single: true,
-        operation: "fetch notifications",
-      },
-    );
+      "matchmaking",
+    )
+      .select("game_id")
+      .eq("player_id", userId)
+      .eq("status", "matched")
+      .maybeSingle();
 
-    if (notifError && !notifError.message.includes("No rows found")) {
-      logger.error(`Error fetching notifications:`, notifError);
-      return errorResponse(`Database error: ${notifError.message}`, 500);
+    logOperation("fetch matched player", matchError);
+
+    if (matchError && !matchError.message.includes("No rows found")) {
+      logger.error(`Error fetching match info:`, matchError);
+      return errorResponse(`Database error: ${matchError.message}`, 500);
     }
 
-    if (notification?.game_id) {
+    if (matchedEntry?.game_id) {
       logger.info(
-        `Found existing game ${notification.game_id} for user ${userId}`,
+        `Found existing game ${matchedEntry.game_id} for user ${userId}`,
       );
 
       // Check the game details to return to client
-      const { data: gameData, error: gameError } = await dbQuery(
+      const { data: gameData, error: gameError } = await getTable(
         supabase,
         "games",
-        "select",
-        {
-          select:
-            "id, white_player_id, black_player_id, status, created_at, current_fen, turn",
-          match: { id: notification.game_id },
-          single: true,
-          operation: "fetch game details",
-        },
-      );
+      )
+        .select(
+          "id, white_player_id, black_player_id, status, created_at, current_fen, turn",
+        )
+        .eq("id", matchedEntry.game_id)
+        .single();
 
+      logOperation("fetch game details", gameError);
       if (gameError) {
         logger.error(`Error fetching game details:`, gameError);
         return errorResponse(`Database error: ${gameError.message}`, 500);
@@ -510,22 +495,20 @@ async function createOrFindGame(
  * Handles automatic matchmaking (can be triggered by a cron job)
  */
 export async function handleAutoMatch(
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ): Promise<Response> {
   logger.info("Running automatic matchmaking");
 
   // Query for users currently in the queue
-  // This is a simplified example assuming we have a queue table
-  const { data: queuedPlayers, error: queueError } = await dbQuery(
+  const { data: queuedPlayers, error: queueError } = await getTable(
     supabase,
-    "queue",
-    "select",
-    {
-      select: "user_id, joined_at",
-      order: { column: "joined_at", ascending: true },
-      operation: "fetch queued players",
-    },
-  );
+    "matchmaking",
+  )
+    .select("player_id, joined_at")
+    .eq("status", "waiting")
+    .order("joined_at", { ascending: true });
+
+  logOperation("fetch queued players", queueError);
 
   if (queueError) {
     logger.error(`Failed to fetch queue:`, queueError);
@@ -540,44 +523,42 @@ export async function handleAutoMatch(
     const player1 = queuedPlayers[i];
     const player2 = queuedPlayers[i + 1];
 
-    logger.info(`Matching ${player1.user_id} with ${player2.user_id}`);
+    logger.info(`Matching ${player1.player_id} with ${player2.player_id}`);
 
     // Create a new game
-    const { data: game, error: createError } = await dbQuery(
-      supabase,
-      "games",
-      "insert",
-      {
-        data: {
-          white_player_id: player1.user_id,
-          black_player_id: player2.user_id,
-          status: "active",
-          current_fen: INITIAL_FEN,
-          pgn: "",
-          turn: "white",
-          banning_player: "black",
-        },
-        select: "*",
-        single: true,
-        operation: "create match",
-      },
-    );
+    const { data: game, error: createError } = await getTable(supabase, "games")
+      .insert({
+        id: generateShortId(),
+        white_player_id: player1.player_id,
+        black_player_id: player2.player_id,
+        status: "active",
+        current_fen: INITIAL_FEN,
+        pgn: "",
+        turn: "white",
+        banning_player: "black",
+      })
+      .select("*")
+      .single();
 
+    logOperation("create match", createError);
     if (createError) {
       logger.error(
-        `Failed to create match for ${player1.user_id} vs ${player2.user_id}:`,
+        `Failed to create match for ${player1.player_id} vs ${player2.player_id}:`,
         createError,
       );
       continue;
     }
 
-    matches.push(game);
+    if (game) {
+      matches.push(game);
+    }
 
     // Remove these players from the queue
-    await dbQuery(supabase, "queue", "delete", {
-      match: { _in: [{ user_id: [player1.user_id, player2.user_id] }] },
-      operation: "remove matched players",
-    });
+    await getTable(supabase, "matchmaking")
+      .delete()
+      .in("player_id", [player1.player_id, player2.player_id]);
+
+    logOperation("remove matched players", null);
   }
 
   return successResponse({

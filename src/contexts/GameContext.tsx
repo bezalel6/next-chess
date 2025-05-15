@@ -61,7 +61,7 @@ export function GameProvider({ children }: GameProviderProps) {
         };
 
         loadGame();
-    }, [gameId, user, router, gameService]);
+    }, [gameId, user, router]);
 
     // Clean up subscription when component unmounts or when game changes
     const cleanupSubscription = useCallback(() => {

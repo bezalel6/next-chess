@@ -9,7 +9,6 @@ import { useGame } from "@/contexts/GameContext";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
-import { GameService } from "@/services/gameService";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -27,12 +26,12 @@ export default function Home() {
         return;
       }
 
-      try {
-        const games = await GameService.getUserActiveGames(user.id);
-        setHasActiveGames(games.length > 0);
-      } catch (error) {
-        console.error('Error checking for active games:', error);
-      }
+      // try {
+      //   const games = await GameService.getUserActiveGames(user.id);
+      //   setHasActiveGames(games.length > 0);
+      // } catch (error) {
+      //   console.error('Error checking for active games:', error);
+      // }
     }
 
     checkForActiveGames();

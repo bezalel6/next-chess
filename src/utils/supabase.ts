@@ -17,8 +17,26 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     detectSessionInUrl: true,
   },
   global: {
-    fetch: (url: RequestInfo | URL, options?: RequestInit) =>
-      fetch(url, options),
+    fetch: async (url: RequestInfo | URL, options?: RequestInit) => {
+      try {
+        return await fetch(url, options);
+      } catch (error) {
+        console.error(`Supabase fetch error:`, {
+          url,
+          method: options?.method || "GET",
+          headers: options?.headers,
+          error:
+            error instanceof Error
+              ? {
+                  message: error.message,
+                  stack: error.stack,
+                  name: error.name,
+                }
+              : error,
+        });
+        throw error;
+      }
+    },
     headers: {
       "X-Client-Info": "next-chess",
     },

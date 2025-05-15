@@ -92,7 +92,23 @@ export class SecureGameService {
     );
     return subscription;
   }
+  static async fixMushroomMove(gameId: string) {
+    const { data, error } = await invokeWithAuth("game-operations", {
+      body: {
+        operation: "mushroomGrowth",
+        gameId,
+      },
+    });
 
+    if (error) {
+      console.error(
+        `[SecureGameService] Error mushroom growing: ${error.message}`,
+      );
+      throw error;
+    }
+
+    return this.mapGameFromResponse(data.data);
+  }
   static async getUserActiveGames(userId: string): Promise<Game[]> {
     console.log(`[SecureGameService] Getting active games for user ${userId}`);
     const { data, error } = await supabase

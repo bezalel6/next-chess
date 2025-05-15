@@ -4,6 +4,9 @@ import type { QueueStatus, GameMatch } from "../types/realtime";
 import { GameProvider } from "./GameContext";
 import type { Session, RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "./AuthContext";
+import { MatchmakingService } from '@/services/matchmakingService';
+import { GameService } from '@/services/gameService';
+import { useRouter } from "next/router";
 
 interface QueueState {
     inQueue: boolean;
@@ -44,6 +47,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         activeGames: 0,
         log: []
     });
+    const router = useRouter();
 
     const addLogEntry = (message: string) => {
         setStats(prev => ({
@@ -101,6 +105,21 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         };
     }, [session, isConnected]);
 
+    // Check for active matches that need redirection
+    const checkActiveMatch = async () => {
+        if (!session?.user) return;
+
+        try {
+            const activeGameId = await MatchmakingService.checkActiveMatch(session.user.id);
+            if (activeGameId) {
+                addLogEntry(`Found active match: ${activeGameId}, redirecting...`);
+                router.push(`/game/${activeGameId}`);
+            }
+        } catch (error) {
+            console.error("Error checking active match:", error);
+        }
+    };
+
     // Setup queue channel
     useEffect(() => {
         if (!session?.user) {
@@ -133,18 +152,59 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                         addLogEntry("Left queue");
                     }
                 }
-            })
-            .on('broadcast', { event: 'game-matched' }, ({ payload }) => {
-                const data = payload as GameMatch;
-                setMatchDetails(data);
-                setQueue({ inQueue: false, position: 0, size: 0 });
-                addLogEntry(`Game matched! Game ID: ${data.gameId}`);
-
-                // Redirect to the game page
-                window.location.href = `/game/${data.gameId}`;
             });
 
+        // Set up match listener using the matchmaking service
+        MatchmakingService.setupMatchListener(channel, router, (gameId) => {
+            setMatchDetails({ gameId });
+            setQueue({ inQueue: false, position: 0, size: 0 });
+            addLogEntry(`Game matched! Game ID: ${gameId}`);
+
+            // In case the router navigation in setupMatchListener fails
+            setTimeout(() => {
+                const currentPath = router.pathname;
+                if (!currentPath.includes(`/game/${gameId}`)) {
+                    addLogEntry(`Ensuring redirection to game ${gameId}`);
+                    router.push(`/game/${gameId}`);
+                }
+            }, 2000);
+        });
+
         setQueueChannel(channel);
+
+        // Subscribe to the channel immediately
+        channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                setQueueSubscribed(true);
+                addLogEntry("Queue channel subscribed successfully");
+            }
+        });
+
+        // Check matchmaking status right after connecting
+        const checkMatchmakingStatus = async () => {
+            try {
+                // Check if we're already in the matchmaking system
+                const { data } = await supabase
+                    .from('matchmaking')
+                    .select('status, game_id')
+                    .eq('player_id', session.user.id)
+                    .maybeSingle();
+
+                if (data) {
+                    if (data.status === 'waiting') {
+                        setQueue(prev => ({ ...prev, inQueue: true }));
+                        addLogEntry("Detected existing queue entry");
+                    } else if (data.status === 'matched' && data.game_id) {
+                        addLogEntry(`Detected matched game: ${data.game_id}`);
+                        router.push(`/game/${data.game_id}`);
+                    }
+                }
+            } catch (error) {
+                console.error("Error checking matchmaking status:", error);
+            }
+        };
+
+        checkMatchmakingStatus();
 
         return () => {
             // Clean up - unsubscribe and untrack
@@ -164,36 +224,15 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         };
         // needs to stay without the queue deps
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session]);
-
-    // Subscribe to queue channel when needed
-    useEffect(() => {
-        if (!queueChannel || queueSubscribed) return;
-
-        const subscribeToQueueChannel = async () => {
-            try {
-                queueChannel.subscribe(async (status) => {
-                    if (status === 'SUBSCRIBED') {
-                        setQueueSubscribed(true);
-                        addLogEntry("Queue channel subscribed successfully");
-                    }
-                });
-            } catch (error) {
-                console.error("Error subscribing to queue channel:", error);
-                addLogEntry(`Error subscribing to queue channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-        };
-
-        subscribeToQueueChannel();
-    }, [queueChannel, queueSubscribed]);
+    }, [session, router]);
 
     const handleQueueToggle = async () => {
         if (!session?.user || !queueChannel) return;
 
         try {
             if (queue.inQueue) {
-                // Leave queue
-                await queueChannel.untrack();
+                // Leave queue using the matchmaking service
+                await MatchmakingService.leaveQueue(session, queueChannel);
                 setQueue({ inQueue: false, position: 0, size: 0 });
                 addLogEntry("Manually left queue");
             } else {
@@ -203,9 +242,21 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     return;
                 }
 
+                // First check for active matches
+                try {
+                    const activeGameId = await MatchmakingService.checkActiveMatch(session.user.id);
+                    if (activeGameId) {
+                        addLogEntry(`Found active match: ${activeGameId}, redirecting...`);
+                        router.push(`/game/${activeGameId}`);
+                        return;
+                    }
+                } catch (error) {
+                    console.error("Error checking active match:", error);
+                    addLogEntry(`Error checking active matches: ${error.message || "Unknown error"}`);
+                }
+
                 // Check for active games before joining queue
                 try {
-                    const { GameService } = await import('../services/gameService');
                     const activeGames = await GameService.getUserActiveGames(session.user.id);
 
                     if (activeGames.length > 0) {
@@ -218,12 +269,15 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     return;
                 }
 
-                await queueChannel.track({
-                    user_id: session.user.id,
-                    joined_at: new Date().toISOString()
-                });
-                setQueue(prev => ({ ...prev, inQueue: true }));
-                addLogEntry("Joined matchmaking queue");
+                // Join the queue using the matchmaking service with the existing channel
+                try {
+                    await MatchmakingService.joinQueue(session, queueChannel);
+                    setQueue(prev => ({ ...prev, inQueue: true }));
+                    addLogEntry("Joined matchmaking queue");
+                } catch (error) {
+                    console.error('Error joining queue:', error);
+                    addLogEntry(`Error joining queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
             }
         } catch (error) {
             console.error('Error toggling queue:', error);

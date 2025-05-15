@@ -4,13 +4,18 @@ import { PlayArrow, Stop } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { GameService } from "@/services/gameService";
+import { MatchmakingService } from "@/services/matchmakingService";
+import { useRouter } from "next/router";
 
 function FindMatch() {
-    const { isConnected, queue, handleQueueToggle } = useConnection();
-    const { user } = useAuth();
+    const { isConnected, queue, matchDetails, handleQueueToggle } = useConnection();
+    const { user, session } = useAuth();
     const [hasActiveGames, setHasActiveGames] = useState(false);
     const [checking, setChecking] = useState(false);
+    const [checkingMatch, setCheckingMatch] = useState(false);
+    const router = useRouter();
 
+    // Check for active games that would prevent joining matchmaking
     useEffect(() => {
         async function checkActiveGames() {
             if (!user) {
@@ -33,11 +38,47 @@ function FindMatch() {
         checkActiveGames();
     }, [user]);
 
+    // Handle match detection and game redirection
+    useEffect(() => {
+        if (matchDetails?.gameId) {
+            setCheckingMatch(true);
+
+            // Small delay to show transition state in UI
+            const redirectTimeout = setTimeout(() => {
+                router.push(`/game/${matchDetails.gameId}`);
+            }, 1000);
+
+            return () => clearTimeout(redirectTimeout);
+        }
+
+        return () => { };
+    }, [matchDetails, router]);
+
+    // Check active match on component mount
+    useEffect(() => {
+        if (session?.user?.id) {
+            const checkForActiveMatch = async () => {
+                try {
+                    const activeMatch = await MatchmakingService.checkActiveMatch(session.user.id);
+                    if (activeMatch) {
+                        setCheckingMatch(true);
+                        router.push(`/game/${activeMatch}`);
+                    }
+                } catch (error) {
+                    console.error("Error checking for active match:", error);
+                }
+            };
+
+            checkForActiveMatch();
+        }
+    }, [session, router]);
+
     if (!isConnected) {
         return null;
     }
 
-    const buttonDisabled = hasActiveGames || checking || queue.inQueue;
+    const buttonDisabled = hasActiveGames || checking || queue.inQueue || checkingMatch;
+
     const playButton = (
         <Button
             variant="contained"
@@ -45,7 +86,7 @@ function FindMatch() {
             startIcon={queue.inQueue ? <Stop /> : <PlayArrow />}
             onClick={handleQueueToggle}
             size="large"
-            disabled={hasActiveGames && !queue.inQueue}
+            disabled={buttonDisabled && !queue.inQueue}
             sx={{
                 minWidth: 200,
                 height: 56,
@@ -55,7 +96,7 @@ function FindMatch() {
             }}
         >
             {queue.inQueue ? "Cancel" : "Play"}
-            {(queue.inQueue || checking) && (
+            {(queue.inQueue || checking || checkingMatch) && (
                 <CircularProgress
                     size={24}
                     sx={{
@@ -84,7 +125,13 @@ function FindMatch() {
                 </Typography>
             )}
 
-            {hasActiveGames && !queue.inQueue && (
+            {checkingMatch && (
+                <Typography variant="body2" color="text.secondary">
+                    Match found! Setting up game...
+                </Typography>
+            )}
+
+            {hasActiveGames && !queue.inQueue && !checkingMatch && (
                 <Typography variant="body2" color="error">
                     Please finish your active games before starting a new one
                 </Typography>

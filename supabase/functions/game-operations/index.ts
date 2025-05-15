@@ -5,13 +5,7 @@ import {
   corsHeaders,
   initSupabaseAdmin,
 } from "../_shared/auth-utils.ts";
-import {
-  handleMakeMove,
-  handleBanMove,
-  handleGameOffer,
-  handleResignation,
-  handleMushroomGrowth,
-} from "../_shared/game-handlers.ts";
+import { handleGameOperation } from "../_shared/game-handlers.ts";
 import {
   createGameFromMatchedPlayers,
   processMatchmakingQueue,
@@ -42,40 +36,46 @@ const gameRouter = createRouter([
     "admin",
   ),
 
-  defineRoute("makeMove", handleMakeMove),
-  defineRoute("banMove", handleBanMove),
+  // Game operation routes using unified handler
+  defineRoute("makeMove", async (user, params, supabase) => {
+    return await handleGameOperation(user, params, supabase, "makeMove");
+  }),
 
-  // Draw offers
+  defineRoute("banMove", async (user, params, supabase) => {
+    return await handleGameOperation(user, params, supabase, "banMove");
+  }),
+
   defineRoute("offerDraw", async (user, params, supabase) => {
-    return await handleGameOffer(user, params, supabase, "draw", "offer");
+    return await handleGameOperation(user, params, supabase, "offerDraw");
   }),
 
   defineRoute("acceptDraw", async (user, params, supabase) => {
-    return await handleGameOffer(user, params, supabase, "draw", "accept");
+    return await handleGameOperation(user, params, supabase, "acceptDraw");
   }),
 
   defineRoute("declineDraw", async (user, params, supabase) => {
-    return await handleGameOffer(user, params, supabase, "draw", "decline");
+    return await handleGameOperation(user, params, supabase, "declineDraw");
   }),
 
-  // Rematch offers
   defineRoute("offerRematch", async (user, params, supabase) => {
-    return await handleGameOffer(user, params, supabase, "rematch", "offer");
+    return await handleGameOperation(user, params, supabase, "offerRematch");
   }),
 
   defineRoute("acceptRematch", async (user, params, supabase) => {
-    return await handleGameOffer(user, params, supabase, "rematch", "accept");
+    return await handleGameOperation(user, params, supabase, "acceptRematch");
   }),
 
   defineRoute("declineRematch", async (user, params, supabase) => {
-    return await handleGameOffer(user, params, supabase, "rematch", "decline");
+    return await handleGameOperation(user, params, supabase, "declineRematch");
   }),
 
-  // Resignation
-  defineRoute("resign", handleResignation),
+  defineRoute("resign", async (user, params, supabase) => {
+    return await handleGameOperation(user, params, supabase, "resign");
+  }),
 
-  // Special functions
-  defineRoute("mushroomGrowth", handleMushroomGrowth),
+  defineRoute("mushroomGrowth", async (user, params, supabase) => {
+    return await handleGameOperation(user, params, supabase, "mushroomGrowth");
+  }),
 ]);
 
 // CRON job access handler

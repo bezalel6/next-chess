@@ -3,7 +3,8 @@ import { Box, Button, Typography, CircularProgress, Tooltip } from "@mui/materia
 import { PlayArrow, Stop } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { gameService, matchmakingService } from "@/utils/serviceTransition";
+import { GameService } from "@/services/gameService";
+import { MatchmakingService } from "@/services/matchmakingService";
 import { useRouter } from "next/router";
 
 function FindMatch() {
@@ -24,7 +25,7 @@ function FindMatch() {
 
             setChecking(true);
             try {
-                const games = await gameService.getUserActiveGames(user.id);
+                const games = await GameService.getUserActiveGames(user.id);
                 setHasActiveGames(games.length > 0);
             } catch (error) {
                 console.error('Error checking active games:', error);
@@ -58,10 +59,10 @@ function FindMatch() {
         if (session?.user?.id) {
             const checkForActiveMatch = async () => {
                 try {
-                    const activeMatch = await matchmakingService.checkActiveMatch(session.user.id);
+                    const activeMatch = await MatchmakingService.checkActiveMatch(session.user.id);
                     if (activeMatch) {
                         setCheckingMatch(true);
-                        await matchmakingService.joinGame(activeMatch, router);
+                        router.push(`/game/${activeMatch}`);
                     }
                 } catch (error) {
                     console.error("Error checking for active match:", error);

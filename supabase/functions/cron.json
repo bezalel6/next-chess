@@ -1,0 +1,40 @@
+{
+    "functions": [
+        {
+            "name": "process-matchmaking-queue",
+            "schedule": "* * * * *",
+            "method": "GET",
+            "function_name": "matchmaking",
+            "endpoint": "process-queue",
+            "auth": {
+                "type": "bearer_token",
+                "token_env_variable": "CRON_SECRET"
+            }
+        },
+        {
+            "name": "cleanup-stale-matchmaking",
+            "schedule": "*/10 * * * *",
+            "method": "POST",
+            "function_name": "matchmaking",
+            "endpoint": "cleanup-stale",
+            "payload": {
+                "maxAgeMinutes": 30
+            },
+            "auth": {
+                "type": "bearer_token",
+                "token_env_variable": "CRON_SECRET"
+            }
+        },
+        {
+            "name": "notify-game-updates",
+            "schedule": "*/1 * * * *",
+            "method": "GET",
+            "function_name": "game-operations",
+            "endpoint": "notify-updates",
+            "auth": {
+                "type": "bearer_token",
+                "token_env_variable": "CRON_SECRET"
+            }
+        }
+    ]
+}

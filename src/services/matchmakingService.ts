@@ -98,18 +98,41 @@ export class MatchmakingService {
    */
   static async checkActiveMatch(userId: string): Promise<string | null> {
     try {
-      // Check for active games first
-      const { data: activeGame } = await supabase
+      // Check for active games as white player
+      const { data: whiteGames, error: whiteError } = await supabase
         .from("games")
-        .select("id")
-        .or(`white_player_id.eq.${userId},black_player_id.eq.${userId}`)
+        .select("id, created_at")
+        .eq("white_player_id", userId)
         .eq("status", "active")
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
 
-      if (activeGame?.id) {
-        return activeGame.id;
+      if (whiteError) {
+        throw whiteError;
+      }
+
+      // Check for active games as black player
+      const { data: blackGames, error: blackError } = await supabase
+        .from("games")
+        .select("id, created_at")
+        .eq("black_player_id", userId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (blackError) {
+        throw blackError;
+      }
+
+      // Combine results
+      const activeGames = [...whiteGames, ...blackGames];
+      if (activeGames.length > 0) {
+        // Sort by created_at if there are games from both queries
+        activeGames.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+        return activeGames[0].id;
       }
 
       // Then check matchmaking for matched status

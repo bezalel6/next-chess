@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UserService } from '@/services/userService';
 import type { Game } from '@/types/game';
 import { useRouter } from 'next/compat/router';
-import { gameService } from '@/utils/serviceTransition';
+import { GameService } from '@/services/gameService';
 
 interface ActiveGamesProps {
   fullHeight?: boolean;
@@ -30,7 +30,7 @@ function ActiveGames({ fullHeight = false }: ActiveGamesProps) {
       }
 
       try {
-        const games = await gameService.getUserActiveGames(user.id);
+        const games = await GameService.getUserActiveGames(user.id);
 
         // Extract all opponent IDs
         const opponentIds = games.map(game =>

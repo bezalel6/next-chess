@@ -4,7 +4,8 @@ import type { QueueStatus, GameMatch } from "../types/realtime";
 import { GameProvider } from "./GameContext";
 import type { Session, RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "./AuthContext";
-import { gameService, matchmakingService } from '@/utils/serviceTransition';
+import { MatchmakingService } from '@/services/matchmakingService';
+import { GameService } from '@/services/gameService';
 import { useRouter } from "next/router";
 
 interface QueueState {
@@ -95,9 +96,6 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 if (status === 'SUBSCRIBED') {
                     await channel.track({ user_id: session.user.id, online_at: new Date().toISOString() });
                     addLogEntry("Successfully subscribed to presence channel");
-
-                    // Check for active matches on connection
-                    // checkActiveMatch();  
                 }
             });
 
@@ -112,10 +110,10 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         if (!session?.user) return;
 
         try {
-            const activeGameId = await matchmakingService.checkActiveMatch(session.user.id);
+            const activeGameId = await MatchmakingService.checkActiveMatch(session.user.id);
             if (activeGameId) {
                 addLogEntry(`Found active match: ${activeGameId}, redirecting...`);
-                await matchmakingService.joinGame(activeGameId, router);
+                router.push(`/game/${activeGameId}`);
             }
         } catch (error) {
             console.error("Error checking active match:", error);
@@ -156,11 +154,11 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 }
             });
 
-        // Set up match listener using the secured matchmaking service
-        matchmakingService.setupMatchListener(channel, router, (gameId, isWhite) => {
-            setMatchDetails({ gameId, isWhite });
+        // Set up match listener using the matchmaking service
+        MatchmakingService.setupMatchListener(channel, router, (gameId) => {
+            setMatchDetails({ gameId });
             setQueue({ inQueue: false, position: 0, size: 0 });
-            addLogEntry(`Game matched! Game ID: ${gameId}, playing as ${isWhite ? 'white' : 'black'}`);
+            addLogEntry(`Game matched! Game ID: ${gameId}`);
 
             // In case the router navigation in setupMatchListener fails
             setTimeout(() => {
@@ -181,6 +179,32 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 addLogEntry("Queue channel subscribed successfully");
             }
         });
+
+        // Check matchmaking status right after connecting
+        const checkMatchmakingStatus = async () => {
+            try {
+                // Check if we're already in the matchmaking system
+                const { data } = await supabase
+                    .from('matchmaking')
+                    .select('status, game_id')
+                    .eq('player_id', session.user.id)
+                    .maybeSingle();
+
+                if (data) {
+                    if (data.status === 'waiting') {
+                        setQueue(prev => ({ ...prev, inQueue: true }));
+                        addLogEntry("Detected existing queue entry");
+                    } else if (data.status === 'matched' && data.game_id) {
+                        addLogEntry(`Detected matched game: ${data.game_id}`);
+                        router.push(`/game/${data.game_id}`);
+                    }
+                }
+            } catch (error) {
+                console.error("Error checking matchmaking status:", error);
+            }
+        };
+
+        checkMatchmakingStatus();
 
         return () => {
             // Clean up - unsubscribe and untrack
@@ -207,8 +231,8 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
         try {
             if (queue.inQueue) {
-                // Leave queue using the secure matchmaking service
-                await matchmakingService.leaveQueue(session, queueChannel);
+                // Leave queue using the matchmaking service
+                await MatchmakingService.leaveQueue(session, queueChannel);
                 setQueue({ inQueue: false, position: 0, size: 0 });
                 addLogEntry("Manually left queue");
             } else {
@@ -220,10 +244,10 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
                 // First check for active matches
                 try {
-                    const activeGameId = await matchmakingService.checkActiveMatch(session.user.id);
+                    const activeGameId = await MatchmakingService.checkActiveMatch(session.user.id);
                     if (activeGameId) {
                         addLogEntry(`Found active match: ${activeGameId}, redirecting...`);
-                        await matchmakingService.joinGame(activeGameId, router);
+                        router.push(`/game/${activeGameId}`);
                         return;
                     }
                 } catch (error) {
@@ -233,7 +257,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
                 // Check for active games before joining queue
                 try {
-                    const activeGames = await gameService.getUserActiveGames(session.user.id);
+                    const activeGames = await GameService.getUserActiveGames(session.user.id);
 
                     if (activeGames.length > 0) {
                         addLogEntry("Cannot join queue: You have unfinished games");
@@ -245,9 +269,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     return;
                 }
 
-                // Join the queue using the secure matchmaking service with the existing channel
+                // Join the queue using the matchmaking service with the existing channel
                 try {
-                    await matchmakingService.joinQueue(session, queueChannel);
+                    await MatchmakingService.joinQueue(session, queueChannel);
                     setQueue(prev => ({ ...prev, inQueue: true }));
                     addLogEntry("Joined matchmaking queue");
                 } catch (error) {

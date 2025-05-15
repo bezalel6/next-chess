@@ -5,7 +5,7 @@ import { useRouter } from 'next/compat/router';
 import type { Game, GameContextType, PromoteablePieces } from '@/types/game';
 import type { GameMatch } from '@/types/realtime';
 import { useChessSounds } from '@/hooks/useChessSounds';
-import { gameService } from '@/utils/serviceTransition';
+import { GameService } from '@/services/gameService';
 import { useAuth } from './AuthContext';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Square } from 'chess.ts/dist/types';
@@ -43,7 +43,7 @@ export function GameProvider({ children }: GameProviderProps) {
         const loadGame = async () => {
             try {
                 setLoading(true);
-                const loadedGame = await gameService.getGame(gameId);
+                const loadedGame = await GameService.getGame(gameId);
                 if (loadedGame) {
                     setGame(loadedGame);
                     setPgn(loadedGame.pgn || '');
@@ -97,7 +97,7 @@ export function GameProvider({ children }: GameProviderProps) {
         console.log(`Setting up subscription for game ${game.id}`);
         const setupSubscription = async () => {
             try {
-                const newSubscription = await gameService.subscribeToGame(
+                const newSubscription = GameService.subscribeToGame(
                     game.id,
                     // Define a stable callback
                     (updatedGame) => {
@@ -128,7 +128,7 @@ export function GameProvider({ children }: GameProviderProps) {
                 subscription.unsubscribe();
             }
         };
-    }, [game?.id, playGameEnd, subscription, gameService]);
+    }, [game?.id, playGameEnd, subscription]);
 
     const makeMove = useCallback(async (from: string, to: string, promotion?: PromoteablePieces) => {
         if (!game || game.status !== 'active' || game.turn !== myColor || !user || !session) return;
@@ -150,13 +150,13 @@ export function GameProvider({ children }: GameProviderProps) {
             }
 
             // Proceed with the actual server update
-            const updatedGame = await gameService.makeMove(game.id, move);
+            const updatedGame = await GameService.makeMove(game.id, move);
             setGame(updatedGame);
             setPgn(updatedGame.pgn || '');
         } catch (error) {
             console.error('Invalid move:', error);
         }
-    }, [game, pgn, myColor, user, session, gameService]);
+    }, [game, pgn, myColor, user, session]);
 
     const banMove = useCallback(async (from: string, to: string) => {
         if (!game || game.status !== 'active' || !user || !session) return;
@@ -165,13 +165,13 @@ export function GameProvider({ children }: GameProviderProps) {
             const move = { from: from as Square, to: to as Square };
 
             // Call the service to ban the move
-            const updatedGame = await gameService.banMove(game.id, move);
+            const updatedGame = await GameService.banMove(game.id, move);
             setGame(updatedGame);
             setPgn(updatedGame.pgn || '');
         } catch (error) {
             console.error('Error banning move:', error);
         }
-    }, [game, user, session, gameService]);
+    }, [game, user, session]);
 
     const resetGame = useCallback(async () => {
         // Make sure to clean up subscription before resetting game state
@@ -233,38 +233,38 @@ export function GameProvider({ children }: GameProviderProps) {
         if (!game || game.status !== 'active' || !myColor || !user || !session) return;
 
         try {
-            const updatedGame = await gameService.offerDraw(game.id, myColor);
+            const updatedGame = await GameService.offerDraw(game.id, myColor);
             setGame(updatedGame);
         } catch (error) {
             console.error('Error offering draw:', error);
         }
-    }, [game, myColor, user, session, gameService]);
+    }, [game, myColor, user, session]);
 
     // New function to accept a draw
     const acceptDraw = useCallback(async () => {
         if (!game || game.status !== 'active' || !user || !session) return;
 
         try {
-            const updatedGame = await gameService.acceptDraw(game.id);
+            const updatedGame = await GameService.acceptDraw(game.id);
             setGame(updatedGame);
             setPgn(updatedGame.pgn || '');
             playGameEnd();
         } catch (error) {
             console.error('Error accepting draw:', error);
         }
-    }, [game, user, session, playGameEnd, gameService]);
+    }, [game, user, session, playGameEnd]);
 
     // New function to decline a draw
     const declineDraw = useCallback(async () => {
         if (!game || game.status !== 'active' || !user || !session) return;
 
         try {
-            const updatedGame = await gameService.declineDraw(game.id);
+            const updatedGame = await GameService.declineDraw(game.id);
             setGame(updatedGame);
         } catch (error) {
             console.error('Error declining draw:', error);
         }
-    }, [game, user, session, gameService]);
+    }, [game, user, session]);
 
     // New function to resign
     const resign = useCallback(async () => {
@@ -272,7 +272,7 @@ export function GameProvider({ children }: GameProviderProps) {
 
         if (window.confirm('Are you sure you want to resign?')) {
             try {
-                const updatedGame = await gameService.resign(game.id, myColor);
+                const updatedGame = await GameService.resign(game.id, myColor);
                 setGame(updatedGame);
                 setPgn(updatedGame.pgn || '');
                 playGameEnd();
@@ -280,19 +280,19 @@ export function GameProvider({ children }: GameProviderProps) {
                 console.error('Error resigning:', error);
             }
         }
-    }, [game, myColor, user, session, playGameEnd, gameService]);
+    }, [game, myColor, user, session, playGameEnd]);
 
     // New function to offer a rematch
     const offerRematch = useCallback(async () => {
         if (!game || game.status !== 'finished' || !myColor || !user || !session) return;
 
         try {
-            const updatedGame = await gameService.offerRematch(game.id, myColor);
+            const updatedGame = await GameService.offerRematch(game.id, myColor);
             setGame(updatedGame);
         } catch (error) {
             console.error('Error offering rematch:', error);
         }
-    }, [game, myColor, user, session, gameService]);
+    }, [game, myColor, user, session]);
 
     // New function to accept a rematch
     const acceptRematch = useCallback(async () => {
@@ -301,10 +301,10 @@ export function GameProvider({ children }: GameProviderProps) {
         try {
             // First clear the rematch offer from the current game
             // This prevents errors if the accepting player refreshes
-            await gameService.declineRematch(game.id);
+            await GameService.declineRematch(game.id);
 
             // Create the new game with swapped colors
-            const newGame = await gameService.acceptRematch(game.id);
+            const newGame = await GameService.acceptRematch(game.id);
 
             // Update the local state for the current game
             setGame({
@@ -330,19 +330,19 @@ export function GameProvider({ children }: GameProviderProps) {
         } catch (error) {
             console.error('Error accepting rematch:', error);
         }
-    }, [game, user, session, router, gameService]);
+    }, [game, user, session, router]);
 
     // New function to decline a rematch
     const declineRematch = useCallback(async () => {
         if (!game || game.status !== 'finished' || !user || !session) return;
 
         try {
-            const updatedGame = await gameService.declineRematch(game.id);
+            const updatedGame = await GameService.declineRematch(game.id);
             setGame(updatedGame);
         } catch (error) {
             console.error('Error declining rematch:', error);
         }
-    }, [game, user, session, gameService]);
+    }, [game, user, session]);
 
     // Listen for rematch broadcasts to redirect both players
     useEffect(() => {

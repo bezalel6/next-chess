@@ -112,21 +112,37 @@ export const testMatchmaking = {
       throw new Error("No user ID provided and not logged in");
     }
 
-    const { data, error } = await supabase
+    // Check games where player is white
+    const { data: whiteGames, error: whiteError } = await supabase
       .from("games")
       .select("id, white_player_id, black_player_id, status, created_at")
-      .or(`white_player_id.eq.${checkId},black_player_id.eq.${checkId}`)
+      .eq("white_player_id", checkId)
       .eq("status", "active");
 
-    if (error) {
-      console.error(`[TEST] Error checking active games:`, error);
-      throw error;
+    if (whiteError) {
+      console.error(`[TEST] Error checking active games as white:`, whiteError);
+      throw whiteError;
     }
 
+    // Check games where player is black
+    const { data: blackGames, error: blackError } = await supabase
+      .from("games")
+      .select("id, white_player_id, black_player_id, status, created_at")
+      .eq("black_player_id", checkId)
+      .eq("status", "active");
+
+    if (blackError) {
+      console.error(`[TEST] Error checking active games as black:`, blackError);
+      throw blackError;
+    }
+
+    // Combine results
+    const allGames = [...whiteGames, ...blackGames];
+
     console.log(
-      `[TEST] Found ${data.length} active games for user ${checkId}:`,
-      data,
+      `[TEST] Found ${allGames.length} active games for user ${checkId}:`,
+      allGames,
     );
-    return data;
+    return allGames;
   },
 };

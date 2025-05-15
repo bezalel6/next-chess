@@ -3,14 +3,18 @@ import { Box, Button, Typography, CircularProgress, Tooltip } from "@mui/materia
 import { PlayArrow, Stop } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { GameService } from "@/services/gameService";
+import { gameService, matchmakingService } from "@/utils/serviceTransition";
+import { useRouter } from "next/router";
 
 function FindMatch() {
-    const { isConnected, queue, handleQueueToggle } = useConnection();
-    const { user } = useAuth();
+    const { isConnected, queue, matchDetails, handleQueueToggle } = useConnection();
+    const { user, session } = useAuth();
     const [hasActiveGames, setHasActiveGames] = useState(false);
     const [checking, setChecking] = useState(false);
+    const [checkingMatch, setCheckingMatch] = useState(false);
+    const router = useRouter();
 
+    // Check for active games that would prevent joining matchmaking
     useEffect(() => {
         async function checkActiveGames() {
             if (!user) {
@@ -20,7 +24,7 @@ function FindMatch() {
 
             setChecking(true);
             try {
-                const games = await GameService.getUserActiveGames(user.id);
+                const games = await gameService.getUserActiveGames(user.id);
                 setHasActiveGames(games.length > 0);
             } catch (error) {
                 console.error('Error checking active games:', error);
@@ -33,11 +37,47 @@ function FindMatch() {
         checkActiveGames();
     }, [user]);
 
+    // Handle match detection and game redirection
+    useEffect(() => {
+        if (matchDetails?.gameId) {
+            setCheckingMatch(true);
+
+            // Small delay to show transition state in UI
+            const redirectTimeout = setTimeout(() => {
+                router.push(`/game/${matchDetails.gameId}`);
+            }, 1000);
+
+            return () => clearTimeout(redirectTimeout);
+        }
+
+        return () => { };
+    }, [matchDetails, router]);
+
+    // Check active match on component mount
+    useEffect(() => {
+        if (session?.user?.id) {
+            const checkForActiveMatch = async () => {
+                try {
+                    const activeMatch = await matchmakingService.checkActiveMatch(session.user.id);
+                    if (activeMatch) {
+                        setCheckingMatch(true);
+                        await matchmakingService.joinGame(activeMatch, router);
+                    }
+                } catch (error) {
+                    console.error("Error checking for active match:", error);
+                }
+            };
+
+            checkForActiveMatch();
+        }
+    }, [session, router]);
+
     if (!isConnected) {
         return null;
     }
 
-    const buttonDisabled = hasActiveGames || checking || queue.inQueue;
+    const buttonDisabled = hasActiveGames || checking || queue.inQueue || checkingMatch;
+
     const playButton = (
         <Button
             variant="contained"
@@ -45,7 +85,7 @@ function FindMatch() {
             startIcon={queue.inQueue ? <Stop /> : <PlayArrow />}
             onClick={handleQueueToggle}
             size="large"
-            disabled={hasActiveGames && !queue.inQueue}
+            disabled={buttonDisabled && !queue.inQueue}
             sx={{
                 minWidth: 200,
                 height: 56,
@@ -55,7 +95,7 @@ function FindMatch() {
             }}
         >
             {queue.inQueue ? "Cancel" : "Play"}
-            {(queue.inQueue || checking) && (
+            {(queue.inQueue || checking || checkingMatch) && (
                 <CircularProgress
                     size={24}
                     sx={{
@@ -84,7 +124,13 @@ function FindMatch() {
                 </Typography>
             )}
 
-            {hasActiveGames && !queue.inQueue && (
+            {checkingMatch && (
+                <Typography variant="body2" color="text.secondary">
+                    Match found! Setting up game...
+                </Typography>
+            )}
+
+            {hasActiveGames && !queue.inQueue && !checkingMatch && (
                 <Typography variant="body2" color="error">
                     Please finish your active games before starting a new one
                 </Typography>

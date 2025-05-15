@@ -5,6 +5,7 @@ import { GameProvider } from "./GameContext";
 import type { Session, RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "./AuthContext";
 import { gameService, matchmakingService } from '@/utils/serviceTransition';
+import { useRouter } from "next/router";
 
 interface QueueState {
     inQueue: boolean;
@@ -45,6 +46,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         activeGames: 0,
         log: []
     });
+    const router = useRouter();
 
     const addLogEntry = (message: string) => {
         setStats(prev => ({
@@ -93,6 +95,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 if (status === 'SUBSCRIBED') {
                     await channel.track({ user_id: session.user.id, online_at: new Date().toISOString() });
                     addLogEntry("Successfully subscribed to presence channel");
+
+                    // Check for active matches on connection
+                    checkActiveMatch();
                 }
             });
 
@@ -101,6 +106,21 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
             addLogEntry("Unsubscribed from presence channel");
         };
     }, [session, isConnected]);
+
+    // Check for active matches that need redirection
+    const checkActiveMatch = async () => {
+        if (!session?.user) return;
+
+        try {
+            const activeGameId = await matchmakingService.checkActiveMatch(session.user.id);
+            if (activeGameId) {
+                addLogEntry(`Found active match: ${activeGameId}, redirecting...`);
+                await matchmakingService.joinGame(activeGameId, router);
+            }
+        } catch (error) {
+            console.error("Error checking active match:", error);
+        }
+    };
 
     // Setup queue channel
     useEffect(() => {
@@ -134,16 +154,23 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                         addLogEntry("Left queue");
                     }
                 }
-            })
-            .on('broadcast', { event: 'game-matched' }, ({ payload }) => {
-                const data = payload as GameMatch;
-                setMatchDetails(data);
-                setQueue({ inQueue: false, position: 0, size: 0 });
-                addLogEntry(`Game matched! Game ID: ${data.gameId}`);
-
-                // Redirect to the game page
-                window.location.href = `/game/${data.gameId}`;
             });
+
+        // Set up match listener using the secured matchmaking service
+        matchmakingService.setupMatchListener(channel, router, (gameId, isWhite) => {
+            setMatchDetails({ gameId, isWhite });
+            setQueue({ inQueue: false, position: 0, size: 0 });
+            addLogEntry(`Game matched! Game ID: ${gameId}, playing as ${isWhite ? 'white' : 'black'}`);
+
+            // In case the router navigation in setupMatchListener fails
+            setTimeout(() => {
+                const currentPath = router.pathname;
+                if (!currentPath.includes(`/game/${gameId}`)) {
+                    addLogEntry(`Ensuring redirection to game ${gameId}`);
+                    router.push(`/game/${gameId}`);
+                }
+            }, 2000);
+        });
 
         setQueueChannel(channel);
 
@@ -173,21 +200,15 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         };
         // needs to stay without the queue deps
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session]);
+    }, [session, router]);
 
     const handleQueueToggle = async () => {
         if (!session?.user || !queueChannel) return;
 
         try {
             if (queue.inQueue) {
-                // Leave queue
-                await queueChannel.untrack();
-
-                // Notify the server via edge function
-                if (queueSubscribed) {
-                    await matchmakingService.leaveQueue(session, queueChannel);
-                }
-
+                // Leave queue using the secure matchmaking service
+                await matchmakingService.leaveQueue(session, queueChannel);
                 setQueue({ inQueue: false, position: 0, size: 0 });
                 addLogEntry("Manually left queue");
             } else {
@@ -195,6 +216,19 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 if (!queueSubscribed) {
                     addLogEntry("Queue channel not yet subscribed, please try again in a moment");
                     return;
+                }
+
+                // First check for active matches
+                try {
+                    const activeGameId = await matchmakingService.checkActiveMatch(session.user.id);
+                    if (activeGameId) {
+                        addLogEntry(`Found active match: ${activeGameId}, redirecting...`);
+                        await matchmakingService.joinGame(activeGameId, router);
+                        return;
+                    }
+                } catch (error) {
+                    console.error("Error checking active match:", error);
+                    addLogEntry(`Error checking active matches: ${error.message || "Unknown error"}`);
                 }
 
                 // Check for active games before joining queue
@@ -211,10 +245,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     return;
                 }
 
-                // Join the queue using matchmakingService with the existing channel
+                // Join the queue using the secure matchmaking service with the existing channel
                 try {
                     await matchmakingService.joinQueue(session, queueChannel);
-
                     setQueue(prev => ({ ...prev, inQueue: true }));
                     addLogEntry("Joined matchmaking queue");
                 } catch (error) {

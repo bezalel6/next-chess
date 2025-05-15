@@ -4,6 +4,7 @@ export interface QueueStatus {
 
 export interface GameMatch {
   gameId: string;
+  isWhite?: boolean;
 }
 
 export interface GameMove {

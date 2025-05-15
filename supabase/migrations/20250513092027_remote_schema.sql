@@ -161,10 +161,12 @@ CREATE OR REPLACE FUNCTION "public"."create_game_with_notifications"(
 ) RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = "public", "pg_temp"
 AS $$
 DECLARE
   new_game_id TEXT;
   new_game JSONB;
+  notification_id UUID;
 BEGIN
   -- Create the game
   INSERT INTO public.games (
@@ -200,7 +202,7 @@ BEGIN
     jsonb_build_object(
       'matchTime', now()
     )
-  );
+  ) RETURNING id INTO notification_id;
   
   -- Remove players from queue
   DELETE FROM public.queue
@@ -214,7 +216,8 @@ BEGIN
     'status', g.status,
     'current_fen', g.current_fen,
     'turn', g.turn,
-    'created_at', g.created_at
+    'created_at', g.created_at,
+    'notification_id', notification_id
   ) INTO new_game
   FROM public.games g
   WHERE g.id = new_game_id;
@@ -363,21 +366,47 @@ CREATE POLICY "profiles_service_all" ON "public"."profiles" TO "service_role" US
 CREATE POLICY "profiles_auth_all" ON "public"."profiles" TO "authenticator" USING (true) WITH CHECK (true);
 
 -- RLS policies for games - who can see and modify games
-CREATE POLICY "games_select_own" ON "public"."games" FOR SELECT USING (
+DROP POLICY IF EXISTS "games_select_own" ON "public"."games";
+DROP POLICY IF EXISTS "games_insert_own" ON "public"."games";
+DROP POLICY IF EXISTS "games_update_own" ON "public"."games";
+DROP POLICY IF EXISTS "games_update_turn" ON "public"."games";
+DROP POLICY IF EXISTS "games_service_all" ON "public"."games";
+
+-- More restrictive game policies
+CREATE POLICY "games_select_player" ON "public"."games" FOR SELECT USING (
   "auth"."uid"() = "white_player_id" OR "auth"."uid"() = "black_player_id" -- Only players can see their games
 );
-CREATE POLICY "games_insert_own" ON "public"."games" FOR INSERT WITH CHECK (
-  "auth"."uid"() = "white_player_id" OR "auth"."uid"() = "black_player_id" -- Only can create games they play in
+
+-- Games should only be created by edge functions via service role
+CREATE POLICY "games_service_all" ON "public"."games" TO "service_role" USING (true) WITH CHECK (true);
+
+-- Only let players update specific fields, not the entire game record
+CREATE POLICY "games_update_draw_offer" ON "public"."games" FOR UPDATE 
+USING (
+  ("auth"."uid"() = "white_player_id" OR "auth"."uid"() = "black_player_id") AND
+  "status" = 'active'
+)
+WITH CHECK (
+  -- Only allow updating draw_offered_by or rematch_offered_by fields
+  (("auth"."uid"() = "white_player_id" AND "draw_offered_by" = 'white'::public.player_color) OR
+   ("auth"."uid"() = "black_player_id" AND "draw_offered_by" = 'black'::public.player_color) OR
+   ("auth"."uid"() = "white_player_id" AND "rematch_offered_by" = 'white'::public.player_color) OR
+   ("auth"."uid"() = "black_player_id" AND "rematch_offered_by" = 'black'::public.player_color))
 );
-CREATE POLICY "games_update_own" ON "public"."games" FOR UPDATE USING (
-  "auth"."uid"() = "white_player_id" OR "auth"."uid"() = "black_player_id" -- Only players can update their games
-);
-CREATE POLICY "games_update_turn" ON "public"."games" FOR UPDATE USING (
+
+-- More restrictive move policies
+CREATE POLICY "games_update_move" ON "public"."games" FOR UPDATE 
+USING (
   -- Only the player whose turn it is can make moves
-  ("auth"."uid"() = "white_player_id" AND "turn" = 'white') OR 
-  ("auth"."uid"() = "black_player_id" AND "turn" = 'black')
+  ("status" = 'active') AND
+  (("auth"."uid"() = "white_player_id" AND "turn" = 'white') OR 
+   ("auth"."uid"() = "black_player_id" AND "turn" = 'black'))
+)
+WITH CHECK (
+  -- After their move, it must be the other player's turn
+  (("auth"."uid"() = "white_player_id" AND "turn" = 'black') OR 
+   ("auth"."uid"() = "black_player_id" AND "turn" = 'white'))
 );
-CREATE POLICY "games_service_all" ON "public"."games" USING ("auth"."jwt"() ->> 'role' = 'service_role'); -- Backend service can manage all games
 
 -- RLS policies for moves - who can see and add moves
 CREATE POLICY "moves_select_game_player" ON "public"."moves" FOR SELECT USING (
@@ -399,17 +428,25 @@ CREATE POLICY "moves_insert_game_player" ON "public"."moves" FOR INSERT WITH CHE
 CREATE POLICY "moves_service_insert" ON "public"."moves" FOR INSERT WITH CHECK ("auth"."jwt"() ->> 'role' = 'service_role');
 
 -- RLS policies for queue - who can see and manage queue entries
+DROP POLICY IF EXISTS "queue_select_own" ON "public"."queue";
+DROP POLICY IF EXISTS "queue_insert_own" ON "public"."queue";
+DROP POLICY IF EXISTS "queue_delete_own" ON "public"."queue";
+
+-- More restrictive queue policies
 CREATE POLICY "queue_select_own" ON "public"."queue" FOR SELECT USING ("auth"."uid"() = "user_id"); -- Only see own queue entry
 CREATE POLICY "queue_insert_own" ON "public"."queue" FOR INSERT WITH CHECK ("auth"."uid"() = "user_id"); -- Only join queue as self
 CREATE POLICY "queue_delete_own" ON "public"."queue" FOR DELETE USING ("auth"."uid"() = "user_id"); -- Only remove self from queue
+CREATE POLICY "queue_service_all" ON "public"."queue" FOR ALL TO "service_role" USING (true) WITH CHECK (true); -- Service role has full control
 
 -- RLS policies for queue notifications - who can see notifications
-CREATE POLICY "queue_notif_select_own" ON "public"."queue_notifications" FOR SELECT USING (
+DROP POLICY IF EXISTS "queue_notif_select_own" ON "public"."queue_notifications";
+DROP POLICY IF EXISTS "queue_notif_service_insert" ON "public"."queue_notifications";
+
+-- More restrictive notification policies
+CREATE POLICY "queue_notif_select_player" ON "public"."queue_notifications" FOR SELECT USING (
   "auth"."uid"() = "white_player_id" OR "auth"."uid"() = "black_player_id" -- Only see notifications for your games
 );
-CREATE POLICY "queue_notif_service_insert" ON "public"."queue_notifications" FOR INSERT WITH CHECK (
-  "auth"."jwt"() ->> 'role' = 'service_role' -- Only backend services can create notifications
-);
+CREATE POLICY "queue_notif_service_only" ON "public"."queue_notifications" TO "service_role" USING (true) WITH CHECK (true);
 
 -- Grant appropriate permissions
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";

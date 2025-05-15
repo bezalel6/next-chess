@@ -5,7 +5,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-/**
+/**1
  * Creates a new game between matched players
  * Simple, direct function for game creation
  */
@@ -18,7 +18,7 @@ export async function createGameFromMatchedPlayers(
     // Get matched players (status = 'matched')
     const { data: matchedPlayers, error: matchError } = await supabase
       .from("queue")
-      .select("user_id")
+      .select("user_id, joined_at")
       .eq("status", "matched")
       .order("joined_at", { ascending: true })
       .limit(2);
@@ -74,6 +74,45 @@ export async function createGameFromMatchedPlayers(
     }
 
     console.log(`[MATCH] Success: Created game ${game.id}`);
+
+    // Explicitly create additional channel notification to ensure immediate client update
+    try {
+      // Using supabase's channel broadcast mechanism with proper initialization
+      const channel = supabase.channel("queue-system", {
+        config: {
+          broadcast: { self: true },
+          presence: { key: "system" },
+        },
+      });
+
+      // Subscribe first, then send
+      await channel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          console.log(
+            `[MATCH] Channel subscribed, sending broadcast for game ${game.id}`,
+          );
+          await channel.send({
+            type: "broadcast",
+            event: "game-matched",
+            payload: {
+              gameId: game.id,
+              whitePlayerId: whiteId,
+              blackPlayerId: blackId,
+            },
+          });
+
+          // Unsubscribe after sending
+          setTimeout(() => channel.unsubscribe(), 1000);
+        }
+      });
+
+      console.log(`[MATCH] Initialized broadcast for game ${game.id}`);
+    } catch (broadcastError) {
+      console.error(
+        `[MATCH] Broadcast error (non-critical): ${broadcastError.message}`,
+      );
+      // Non-critical error - main notification will still be in the database
+    }
 
     return buildResponse(
       { success: true, message: "Game created", game },

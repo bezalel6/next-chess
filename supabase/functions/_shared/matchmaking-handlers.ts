@@ -140,39 +140,39 @@ export async function handleJoinQueue(
   console.log(`[MATCHMAKING] User ${user.id} joining queue`);
 
   try {
-    // 1. Check if player already has active games
-    const { data: activeGames, error: gameError } = await supabase
-      .from("games")
-      .select("id")
-      .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`)
-      .eq("status", "active")
-      .limit(1);
+    // // 1. Check if player already has active games
+    // const { data: activeGames, error: gameError } = await supabase
+    //   .from("games")
+    //   .select("id")
+    //   .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`)
+    //   .eq("status", "active")
+    //   .limit(1);
 
-    if (gameError) {
-      console.error(
-        `[MATCHMAKING] Error checking active games: ${gameError.message}`,
-      );
-      return buildResponse(
-        `Error checking games: ${gameError.message}`,
-        500,
-        corsHeaders,
-      );
-    }
+    // if (gameError) {
+    //   console.error(
+    //     `[MATCHMAKING] Error checking active games: ${gameError.message}`,
+    //   );
+    //   return buildResponse(
+    //     `Error checking games: ${gameError.message}`,
+    //     500,
+    //     corsHeaders,
+    //   );
+    // }
 
-    if (activeGames && activeGames.length > 0) {
-      console.log(
-        `[MATCHMAKING] User ${user.id} already has active game: ${activeGames[0].id}`,
-      );
-      return buildResponse(
-        {
-          success: false,
-          message: "Already in an active game",
-          game: activeGames[0],
-        },
-        400,
-        corsHeaders,
-      );
-    }
+    // if (activeGames && activeGames.length > 0) {
+    //   console.log(
+    //     `[MATCHMAKING] User ${user.id} already has active game: ${activeGames[0].id}`,
+    //   );
+    //   return buildResponse(
+    //     {
+    //       success: false,
+    //       message: "Already in an active game",
+    //       game: activeGames[0],
+    //     },
+    //     400,
+    //     corsHeaders,
+    //   );
+    // }
 
     // 2. Check if already in queue
     const { data: existingEntry, error: queueError } = await supabase
@@ -420,70 +420,108 @@ async function createOrFindGame(
   console.log(`[MATCHMAKING] Creating or finding game for user ${userId}`);
 
   try {
-    // 1. Check if game already exists
-    const { data: existingGames, error: gameError } = await supabase
-      .from("games")
-      .select("*")
+    // 1. Check if we already have a game created for this user
+    // Need to look for notifications since the player might be a participant
+    // in multiple games
+    const { data: notification, error: notifError } = await supabase
+      .from("queue_notifications")
+      .select("game_id, white_player_id, black_player_id")
       .or(`white_player_id.eq.${userId},black_player_id.eq.${userId}`)
-      .eq("status", "active")
+      .eq("type", "match_found")
       .order("created_at", { ascending: false })
-      .limit(1);
+      .limit(1)
+      .maybeSingle();
 
-    if (gameError) {
+    if (notifError && !notifError.message.includes("No rows found")) {
       console.error(
-        `[MATCHMAKING] Error checking for games: ${gameError.message}`,
+        `[MATCHMAKING] Error fetching notifications: ${notifError.message}`,
       );
       return buildResponse(
-        `Error checking for games: ${gameError.message}`,
+        `Database error: ${notifError.message}`,
         500,
         corsHeaders,
       );
     }
 
-    // 2. Return existing game if found
-    if (existingGames && existingGames.length > 0) {
-      console.log(`[MATCHMAKING] Found existing game ${existingGames[0].id}`);
+    if (notification?.game_id) {
+      console.log(
+        `[MATCHMAKING] Found existing game ${notification.game_id} for user ${userId}`,
+      );
+
+      // Check the game details to return to client
+      const { data: gameData, error: gameError } = await supabase
+        .from("games")
+        .select(
+          "id, white_player_id, black_player_id, status, created_at, current_fen, turn",
+        )
+        .eq("id", notification.game_id)
+        .single();
+
+      if (gameError) {
+        console.error(
+          `[MATCHMAKING] Error fetching game details: ${gameError.message}`,
+        );
+        return buildResponse(
+          `Database error: ${gameError.message}`,
+          500,
+          corsHeaders,
+        );
+      }
+
+      // Convert to the format expected by clients
+      const game = {
+        id: gameData.id,
+        white_player_id: gameData.white_player_id,
+        black_player_id: gameData.black_player_id,
+        status: gameData.status,
+        current_fen: gameData.current_fen,
+        turn: gameData.turn,
+        created_at: gameData.created_at,
+      };
+
       return buildResponse(
         {
           success: true,
           matchFound: true,
-          message: "Match found",
-          game: existingGames[0],
+          message: "Match found and game already created",
+          game,
         },
         200,
         corsHeaders,
       );
     }
 
-    // 3. Create new game for matched players
-    console.log(`[MATCHMAKING] No existing game, creating new game`);
-    const gameResponse = await createGameFromMatchedPlayers(supabase);
-
-    const gameResult = await gameResponse.json();
-    if (!gameResult.success) {
-      console.error(
-        `[MATCHMAKING] Error creating game: ${gameResult.message || "Unknown error"}`,
-      );
-      return buildResponse(
-        {
-          success: false,
-          message: gameResult.message || "Error creating game",
+    // 2. Request the edge function to create the game from matched players
+    // This uses an internal edge function call to create the game with service role privileges
+    console.log(
+      `[MATCHMAKING] No existing game, creating new game from matched players`,
+    );
+    const createGameResult = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/game-operations`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
         },
-        500,
-        corsHeaders,
-      );
-    }
+        body: JSON.stringify({
+          operation: "create-game-from-matched",
+          source: "db_trigger",
+        }),
+      },
+    ).then((res) => res.json());
 
-    if (gameResult.game) {
-      console.log(
-        `[MATCHMAKING] Successfully created game ${gameResult.game.id}`,
-      );
+    const gameResult = createGameResult.game;
+
+    // 3. If game created successfully, return it
+    if (gameResult) {
+      console.log(`[MATCHMAKING] Successfully created game ${gameResult.id}`);
       return buildResponse(
         {
           success: true,
           matchFound: true,
           message: "Match found and game created",
-          game: gameResult.game,
+          game: gameResult,
         },
         200,
         corsHeaders,

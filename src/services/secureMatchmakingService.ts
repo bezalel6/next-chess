@@ -2,12 +2,17 @@ import { supabase, invokeWithAuth } from "../utils/supabase";
 import type { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { SecureGameService } from "./secureGameService";
 import type { Game } from "@/types/game";
+import { useRouter } from "next/router";
+import type { NextRouter } from "next/router";
 
 export class SecureMatchmakingService {
   /**
    * Simplified matchmaking service - joins queue and sets up notification channel
    */
-  static async joinQueue(session: Session): Promise<RealtimeChannel> {
+  static async joinQueue(
+    session: Session,
+    existingChannel?: RealtimeChannel,
+  ): Promise<RealtimeChannel> {
     const userId = session.user.id;
     console.log(`[Matchmaking] User ${userId} joining queue`);
 
@@ -27,8 +32,8 @@ export class SecureMatchmakingService {
       }
     }
 
-    // 2. Set up realtime channel for game notifications
-    const channel = this.setupNotificationChannel(userId);
+    // 2. Set up realtime channel for game notifications (if not already provided)
+    const channel = existingChannel || this.setupNotificationChannel(userId);
 
     // 3. If already matched, handle the game immediately
     if (data?.matchFound && data?.game) {
@@ -106,10 +111,31 @@ export class SecureMatchmakingService {
   /**
    * Leave the matchmaking queue
    */
-  static async leaveQueue(): Promise<void> {
-    await invokeWithAuth("matchmaking", {
+  static async leaveQueue(
+    session: Session,
+    channel?: RealtimeChannel,
+  ): Promise<void> {
+    console.log(`[Matchmaking] User ${session.user.id} leaving queue`);
+
+    // Call the edge function to leave the queue
+    const { error } = await invokeWithAuth("matchmaking", {
       body: { operation: "leaveQueue" },
     });
+
+    if (error) {
+      console.error(`[Matchmaking] Error leaving queue: ${error.message}`);
+    }
+
+    // If we have a channel, attempt to untrack the user
+    if (channel) {
+      try {
+        await channel.untrack();
+      } catch (untrackError) {
+        console.warn(
+          `[Matchmaking] Error untracking from channel: ${untrackError.message}`,
+        );
+      }
+    }
   }
 
   /**
@@ -129,16 +155,118 @@ export class SecureMatchmakingService {
   }
 
   /**
-   * Set up listener for game matches
+   * Set up listener for game matches with navigation
    */
   static setupMatchListener(
     channel: RealtimeChannel,
-    callback: (gameId: string) => void,
+    router: NextRouter,
+    callback?: (gameId: string, isWhite?: boolean) => void,
   ): void {
     channel.on("broadcast", { event: "game-matched" }, (payload) => {
       if (payload.payload?.gameId) {
-        callback(payload.payload.gameId);
+        const gameId = payload.payload.gameId;
+        const whitePlayerId = payload.payload.whitePlayerId;
+        const blackPlayerId = payload.payload.blackPlayerId;
+        const currentUserId = supabase.auth
+          .getSession()
+          .then(({ data }) => data?.session?.user?.id);
+
+        console.log(`[Matchmaking] Match found! Game ID: ${gameId}`);
+
+        // Determine if current user is white
+        currentUserId.then((userId) => {
+          const isWhite = userId === whitePlayerId;
+
+          // Execute optional callback if provided
+          if (callback) {
+            callback(gameId, isWhite);
+          }
+
+          // Navigate to the game page
+          router.push(`/game/${gameId}`);
+        });
       }
     });
+  }
+
+  /**
+   * Utility method to directly join a specific game
+   */
+  static async joinGame(gameId: string, router: NextRouter): Promise<void> {
+    console.log(`[Matchmaking] Directly joining game: ${gameId}`);
+
+    try {
+      // Verify the game exists and user is a participant
+      const { data: game, error } = await supabase
+        .from("games")
+        .select("id, white_player_id, black_player_id, status")
+        .eq("id", gameId)
+        .single();
+
+      if (error) {
+        console.error(`[Matchmaking] Error fetching game: ${error.message}`);
+        throw new Error(`Game not found: ${error.message}`);
+      }
+
+      if (game.status !== "active") {
+        console.warn(
+          `[Matchmaking] Joining non-active game: ${gameId} (status: ${game.status})`,
+        );
+      }
+
+      // Navigate to the game
+      router.push(`/game/${gameId}`);
+    } catch (error) {
+      console.error(`[Matchmaking] Error joining game: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a user has an active match in progress
+   */
+  static async checkActiveMatch(userId: string): Promise<string | null> {
+    try {
+      // First check the queue for a matched status
+      const { data: queueEntry } = await supabase
+        .from("queue")
+        .select("status")
+        .eq("user_id", userId)
+        .eq("status", "matched")
+        .single();
+
+      if (queueEntry) {
+        // User is matched, check for game
+        const { data: notification } = await supabase
+          .from("queue_notifications")
+          .select("game_id")
+          .or(`white_player_id.eq.${userId},black_player_id.eq.${userId}`)
+          .eq("type", "match_found")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (notification?.game_id) {
+          return notification.game_id;
+        }
+      }
+
+      // Next check for active games
+      const { data: activeGame } = await supabase
+        .from("games")
+        .select("id")
+        .or(`white_player_id.eq.${userId},black_player_id.eq.${userId}`)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      return activeGame?.id || null;
+    } catch (error) {
+      console.error(
+        `[Matchmaking] Error checking active match: ${error.message}`,
+      );
+      return null;
+    }
   }
 }

@@ -17,6 +17,7 @@ import { dbQuery } from "../_shared/db-utils.ts";
 import { validateWithZod } from "../_shared/validation-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { uuidSchema } from "./../_shared/validation-utils.ts";
 
 // Create a logger for this module
 const logger = createLogger("GAME-OPS");
@@ -24,7 +25,7 @@ const logger = createLogger("GAME-OPS");
 // Game operations schemas
 const GameOpsSchemas = {
   NotifyUpdateParams: z.object({
-    gameId: z.string().uuid(),
+    gameId: uuidSchema,
   }),
 };
 

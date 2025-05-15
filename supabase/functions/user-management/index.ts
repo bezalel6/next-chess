@@ -11,6 +11,7 @@ import { dbQuery } from "../_shared/db-utils.ts";
 import { validateWithZod } from "../_shared/validation-utils.ts";
 import { createRouter, defineRoute } from "../_shared/router-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { uuidSchema } from "./../_shared/validation-utils.ts";
 import type {
   SupabaseClient,
   User,
@@ -29,7 +30,7 @@ const UserSchemas = {
   }),
   WebhookParams: z.object({
     user: z.object({
-      id: z.string().uuid(),
+      id: uuidSchema,
       user_metadata: z.record(z.any()).optional(),
     }),
   }),

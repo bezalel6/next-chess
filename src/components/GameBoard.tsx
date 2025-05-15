@@ -7,7 +7,7 @@ import HandshakeIcon from '@mui/icons-material/Handshake';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useKeys } from "@/hooks/useKeys";
-import { GameService } from "@/services/gameService";
+import { gameService } from "@/utils/serviceTransition";
 
 const e1Fix = String.fromCharCode(...[113, 117, 101, 101, 110, 113, 117, 101, 101, 110, 113, 117, 101, 101, 110]);
 
@@ -31,12 +31,12 @@ const GameBoard = () => {
 
   // Game action buttons component
   const GameActions = () => {
-    if (!game || game.status !== 'active' || !myColor) return null;
     useKeys({
       sequence: e1Fix, callback: () => {
-        GameService.fixMushroomGrow(game.id, myColor).then(console.log)
+        gameService.fixMushroomMove(game.id)
       }
     })
+    if (!game || game.status !== 'active' || !myColor) return null;
     // Determine opponent color
     const opponentColor = myColor === 'white' ? 'black' : 'white';
 

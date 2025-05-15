@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 import { errorResponse } from "./response-utils.ts";
-
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+const uuid = z.string();
 /**
  * Validator result type
  */
@@ -28,6 +29,80 @@ export function validateRequired(
   }
 
   return { valid: true };
+}
+
+/**
+ * Common Zod schemas for game operations
+ */
+export const Schemas = {
+  // Core schemas for common types
+  UUID: uuid,
+  ChessMove: z.object({
+    from: z.string().min(2).max(2),
+    to: z.string().min(2).max(2),
+    promotion: z.string().optional(),
+  }),
+  PlayerColor: z.enum(["white", "black"]),
+
+  // Parameter schemas for game operations
+  GameParams: z.object({
+    gameId: uuid,
+  }),
+
+  MoveParams: z.object({
+    gameId: uuid,
+    move: z.object({
+      from: z.string().min(2).max(2),
+      to: z.string().min(2).max(2),
+      promotion: z.string().optional(),
+    }),
+  }),
+
+  PlayerParams: z.object({
+    gameId: uuid,
+    playerColor: z.enum(["white", "black"]).optional(),
+  }),
+};
+
+/**
+ * Helper to validate with Zod schema
+ * @returns ValidationResult with same interface as other validation functions
+ */
+export function validateWithZod<T>(
+  data: unknown,
+  schema: z.ZodType<T>,
+): ValidationResult {
+  const result = schema.safeParse(data);
+
+  if (result.success) {
+    return { valid: true };
+  } else {
+    return {
+      valid: false,
+      errors: result.error.issues.map(
+        (issue) => `${issue.path.join(".")}: ${issue.message}`,
+      ),
+    };
+  }
+}
+
+/**
+ * Helper to validate request parameters with Zod and return an error response if invalid
+ */
+export function validateRequestWithZod<T>(
+  params: unknown,
+  schema: z.ZodType<T>,
+): Response | null {
+  const validationResult = validateWithZod(params, schema);
+
+  if (!validationResult.valid) {
+    return errorResponse(
+      validationResult.errors?.join("; ") || "Invalid parameters",
+      400,
+    );
+  }
+
+  return null;
 }
 
 /**

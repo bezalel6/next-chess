@@ -47,49 +47,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Function to fetch user profile
     const fetchProfile = async (userId: string) => {
-        // Try to get the existing profile
         const { data, error } = await supabase
             .from('profiles')
-            .select('*')
+            .select('username')
             .eq('id', userId)
-            .single();
+            .maybeSingle();
 
         if (error) {
+            console.error('Error fetching profile:', error);
+
+            // If profile doesn't exist, create it with a random username
             if (error.code === 'PGRST116') {
-                // Profile not found - let's verify user exists before trying to create a profile
-                console.log('Profile not found, checking if user exists...');
-
-                // Check if the user exists in auth.users
-                const { data: userExists, error: userError } = await supabase.rpc('get_user', {
-                    user_id: userId
-                });
-
-                if (userError) {
-                    console.error('Error checking if user exists:', userError);
-                    return;
-                }
-
-                if (!userExists) {
-                    console.error('Error: User does not exist in auth.users');
-                    return;
-                }
-
-                // User exists, now create the profile
                 const username = `user_${Math.random().toString(36).substring(2, 8)}`;
-                try {
-                    await supabase
-                        .from('profiles')
-                        .insert({
-                            id: userId,
-                            username
-                        });
-                    // After creating, set the new profile
-                    setProfile({ username });
-                } catch (insertError) {
+
+                const { error: insertError } = await supabase
+                    .from('profiles')
+                    .insert({
+                        id: userId,
+                        username
+                    });
+
+                if (insertError) {
                     console.error('Error creating profile:', insertError);
+                    return;
                 }
-            } else {
-                console.error('Error fetching profile:', error);
+
+                setProfile({ username });
             }
             return;
         }

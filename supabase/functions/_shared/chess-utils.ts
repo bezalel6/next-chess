@@ -3,6 +3,7 @@ import { Chess, type PartialMove } from "https://esm.sh/chess.ts@0.16.2";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createLogger } from "./logger.ts";
 import { dbQuery } from "./db-utils.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const logger = createLogger("CHESS");
 
@@ -32,6 +33,23 @@ export interface Game {
 }
 
 export type PlayerColor = "white" | "black";
+
+// Zod schemas for chess operations
+export const ChessSchemas = {
+  Move: z.object({
+    from: z.string().min(2).max(2),
+    to: z.string().min(2).max(2),
+    promotion: z.string().optional(),
+  }),
+
+  GameAccess: z.object({
+    gameId: z.string().uuid(),
+    userId: z.string().uuid(),
+    requiresTurn: z.boolean().optional().default(false),
+  }),
+
+  FenString: z.string().min(10),
+};
 
 /**
  * Verifies if a user is authorized to perform an action on a game

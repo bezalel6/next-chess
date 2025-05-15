@@ -6,6 +6,8 @@ import {
   isGameOver,
   type ChessMove,
   type PlayerColor,
+  type GameResult,
+  type GameEndReason,
 } from "./chess-utils.ts";
 import type {
   SupabaseClient,
@@ -30,6 +32,23 @@ interface MoveParams extends GameParams {
 
 interface PlayerParams extends GameParams {
   playerColor?: PlayerColor;
+}
+
+/**
+ * Generate a random short ID for games
+ */
+function generateShortId(length = 8): string {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  const randomValues = new Uint8Array(length);
+  crypto.getRandomValues(randomValues);
+
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(randomValues[i] % chars.length);
+  }
+
+  return result;
 }
 
 /**
@@ -134,14 +153,14 @@ async function handleMakeMove(
       return errorResponse(error, 403);
     }
 
-    // Validate the move using chess rules
-    const moveResult = validateMove(game.current_fen, move);
+    // Validate the move using chess rules, passing the current PGN to preserve history
+    const moveResult = validateMove(game.current_fen, move, game.pgn);
     if (!moveResult.valid) {
       return errorResponse(moveResult.error, 400);
     }
 
-    // Check game over conditions
-    const gameOverState = isGameOver(moveResult.newFen);
+    // Check game over conditions using PGN to account for banned moves
+    const gameOverState = isGameOver(moveResult.newFen, moveResult.newPgn);
     const status = gameOverState.isOver ? "finished" : "active";
 
     // Update the game with the new state
@@ -260,6 +279,21 @@ async function handleBanMove(
     chess.loadPgn(game.pgn);
   }
   chess.setComment(`banning: ${move.from}${move.to}`);
+  const updatedPgn = chess.pgn();
+
+  // Check if the game is over after banning this move
+  const gameOverState = isGameOver(game.current_fen, updatedPgn);
+  const updateData: Record<string, any> = {
+    banning_player: null,
+    pgn: updatedPgn,
+  };
+
+  // If the game is over after this ban, update the game status
+  if (gameOverState.isOver) {
+    updateData.status = "finished";
+    updateData.result = gameOverState.result;
+    updateData.end_reason = gameOverState.reason;
+  }
 
   // Update the game
   const { data: updatedGame, error: updateError } = await dbQuery(
@@ -267,10 +301,7 @@ async function handleBanMove(
     "games",
     "update",
     {
-      data: {
-        banning_player: null,
-        pgn: chess.pgn(),
-      },
+      data: updateData,
       match: { id: gameId },
       select: "*",
       single: true,
@@ -282,7 +313,7 @@ async function handleBanMove(
     return errorResponse(`Failed to update game: ${updateError.message}`, 500);
   }
 
-  // Record event
+  // Record ban event
   await recordEvent(
     supabase,
     EventType.GAME_UPDATED,
@@ -293,6 +324,20 @@ async function handleBanMove(
     },
     user.id,
   );
+
+  // If game ended because of this ban, record that too
+  if (gameOverState.isOver) {
+    await recordEvent(
+      supabase,
+      EventType.GAME_ENDED,
+      {
+        game_id: gameId,
+        result: gameOverState.result,
+        reason: gameOverState.reason,
+      },
+      user.id,
+    );
+  }
 
   return successResponse(updatedGame);
 }
@@ -434,6 +479,9 @@ async function handleGameOffer(
 
       return successResponse(updatedGame);
     } else if (offerType === "rematch") {
+      // Generate a new game ID
+      const newGameId = generateShortId();
+
       // Create a new game with swapped colors
       const { data: newGame, error: createError } = await dbQuery(
         supabase,
@@ -441,6 +489,7 @@ async function handleGameOffer(
         "insert",
         {
           data: {
+            id: newGameId,
             white_player_id: game.black_player_id,
             black_player_id: game.white_player_id,
             status: "active",
@@ -608,7 +657,33 @@ async function handleMushroomGrowth(
 
   // Set the custom position and create a new PGN
   chess.load(fen);
-  const newPgn = `[SetUp "1"]\n[FEN "${fen}"]`;
+
+  // Preserve existing PGN comments/history and add transformation record
+  let newPgn = game.pgn;
+  if (!newPgn || newPgn.trim() === "") {
+    newPgn = `[SetUp "1"]\n[FEN "${fen}"]`;
+  } else {
+    // Add a comment to indicate mushroom transformation
+    chess.loadPgn(game.pgn);
+    chess.setComment(`mushroom_transformation: ${playerColor}`);
+    newPgn = chess.pgn();
+  }
+
+  // Check if the game is over after the transformation
+  const gameOverState = isGameOver(fen, newPgn);
+
+  const updateData: Record<string, any> = {
+    current_fen: fen,
+    pgn: newPgn,
+    turn: playerColor === "white" ? "black" : "white", // Switch turns after transformation
+  };
+
+  // If game is over, update status accordingly
+  if (gameOverState.isOver) {
+    updateData.status = "finished";
+    updateData.result = gameOverState.result;
+    updateData.end_reason = gameOverState.reason;
+  }
 
   // Update the game with the mushroom transformation
   const { data: updatedGame, error: updateError } = await dbQuery(
@@ -616,10 +691,7 @@ async function handleMushroomGrowth(
     "games",
     "update",
     {
-      data: {
-        current_fen: fen,
-        pgn: newPgn,
-      },
+      data: updateData,
       match: { id: gameId },
       select: "*",
       single: true,
@@ -645,6 +717,20 @@ async function handleMushroomGrowth(
     },
     user.id,
   );
+
+  // If game ended after transformation, record that too
+  if (gameOverState.isOver) {
+    await recordEvent(
+      supabase,
+      EventType.GAME_ENDED,
+      {
+        game_id: gameId,
+        result: gameOverState.result,
+        reason: gameOverState.reason,
+      },
+      user.id,
+    );
+  }
 
   return successResponse(updatedGame);
 }

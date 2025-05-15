@@ -368,7 +368,7 @@ async function processMatchmakingQueue(supabase: SupabaseClient) {
             status: "matched",
             game_id: gameId,
           },
-          match: { or: `player_id.eq.${player1},player_id.eq.${player2}` },
+          match: { _or: [{ player_id: player1 }, { player_id: player2 }] },
           operation: "update matchmaking entries",
         },
       );

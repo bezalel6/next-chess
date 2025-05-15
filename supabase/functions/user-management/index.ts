@@ -7,15 +7,13 @@ import {
 } from "../_shared/auth-utils.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";
-import { dbQuery } from "../_shared/db-utils.ts";
+import { logOperation, getTable } from "../_shared/db-utils.ts";
+import type { TypedSupabaseClient } from "../_shared/db-utils.ts";
 import { validateWithZod } from "../_shared/validation-utils.ts";
 import { createRouter, defineRoute } from "../_shared/router-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { uuidSchema } from "./../_shared/validation-utils.ts";
-import type {
-  SupabaseClient,
-  User,
-} from "https://esm.sh/@supabase/supabase-js@2";
+import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Create a logger for this module
 const logger = createLogger("USER-MGMT");
@@ -62,7 +60,7 @@ const userRouter = createRouter([
 async function handleCreateProfile(
   user: User,
   params: any,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ) {
   try {
     // Validate parameters using Zod
@@ -75,20 +73,15 @@ async function handleCreateProfile(
       params.username || `user_${crypto.randomUUID().substring(0, 8)}`;
 
     // Create profile for user
-    const { data: profile, error } = await dbQuery(
-      supabase,
-      "profiles",
-      "insert",
-      {
-        data: {
-          id: user.id,
-          username,
-        },
-        select: "*",
-        single: true,
-        operation: "create profile",
-      },
-    );
+    const { data: profile, error } = await getTable(supabase, "profiles")
+      .insert({
+        id: user.id,
+        username,
+      })
+      .select("*")
+      .maybeSingle();
+
+    logOperation("create profile", error);
 
     if (error) {
       return errorResponse(`Failed to create profile: ${error.message}`, 500);
@@ -116,7 +109,7 @@ async function handleCreateProfile(
 async function handleUpdateProfile(
   user: User,
   params: any,
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
 ) {
   try {
     // Validate parameters using Zod
@@ -128,18 +121,13 @@ async function handleUpdateProfile(
     const { username } = params;
 
     // Update profile for user
-    const { data: profile, error } = await dbQuery(
-      supabase,
-      "profiles",
-      "update",
-      {
-        data: { username },
-        match: { id: user.id },
-        select: "*",
-        single: true,
-        operation: "update profile",
-      },
-    );
+    const { data: profile, error } = await getTable(supabase, "profiles")
+      .update({ username })
+      .eq("id", user.id)
+      .select("*")
+      .maybeSingle();
+
+    logOperation("update profile", error);
 
     if (error) {
       return errorResponse(`Failed to update profile: ${error.message}`, 500);
@@ -164,7 +152,10 @@ async function handleUpdateProfile(
 /**
  * Handle new user webhook (called by auth webhook)
  */
-async function handleNewUserWebhook(params: any, supabase: SupabaseClient) {
+async function handleNewUserWebhook(
+  params: any,
+  supabase: TypedSupabaseClient,
+) {
   try {
     // Validate parameters using Zod
     const validation = validateWithZod(params, UserSchemas.WebhookParams);
@@ -180,20 +171,15 @@ async function handleNewUserWebhook(params: any, supabase: SupabaseClient) {
       `user_${crypto.randomUUID().substring(0, 8)}`;
 
     // Create profile for new user
-    const { data: profile, error } = await dbQuery(
-      supabase,
-      "profiles",
-      "insert",
-      {
-        data: {
-          id: user.id,
-          username,
-        },
-        select: "*",
-        single: true,
-        operation: "create profile for new user",
-      },
-    );
+    const { data: profile, error } = await getTable(supabase, "profiles")
+      .insert({
+        id: user.id,
+        username,
+      })
+      .select("*")
+      .maybeSingle();
+
+    logOperation("create profile for new user", error);
 
     if (error) {
       return errorResponse(`Failed to create profile: ${error.message}`, 500);
@@ -219,7 +205,7 @@ async function handleNewUserWebhook(params: any, supabase: SupabaseClient) {
  * Helper function to log events
  */
 async function logEvent(
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
   {
     eventType,
     entityType,
@@ -235,16 +221,15 @@ async function logEvent(
   },
 ) {
   try {
-    await dbQuery(supabase, "event_log", "insert", {
-      data: {
-        event_type: eventType,
-        entity_type: entityType,
-        entity_id: entityId,
-        user_id: userId,
-        data: data || {},
-      },
-      operation: "log event",
+    await getTable(supabase, "event_log").insert({
+      event_type: eventType,
+      entity_type: entityType,
+      entity_id: entityId,
+      user_id: userId,
+      data: data || {},
     });
+
+    logOperation("log event");
   } catch (error) {
     logger.warn(`Failed to log event ${eventType}:`, error);
   }

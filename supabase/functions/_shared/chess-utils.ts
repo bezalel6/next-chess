@@ -1,9 +1,9 @@
 /// <reference lib="deno.ns" />
-import { Chess, type PartialMove } from "https://esm.sh/chess.ts@0.16.2";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createLogger } from "./logger.ts";
-import { dbQuery } from "./db-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { Chess, type PartialMove } from "https://esm.sh/chess.ts@0.16.2";
+import type { TypedSupabaseClient } from "./db-utils.ts";
+import { getTable, logOperation } from "./db-utils.ts";
+import { createLogger } from "./logger.ts";
 import { uuidSchema } from "./validation-utils.ts";
 
 const logger = createLogger("CHESS");
@@ -22,7 +22,7 @@ export interface Game {
   result?: "white" | "black" | "draw" | null;
   current_fen: string;
   pgn: string;
-  last_move?: ChessMove;
+  last_move?: ChessMove | null;
   turn: "white" | "black";
   banning_player: "white" | "black" | null;
   created_at: string;
@@ -61,10 +61,38 @@ export const ChessSchemas = {
 };
 
 /**
+ * Helper to convert database game record to Game type
+ */
+function parseGameRecord(record: any): Game {
+  if (!record) return null;
+
+  // Parse last_move if it exists
+  let lastMove: ChessMove | null = null;
+  if (record.last_move) {
+    try {
+      // Handle if last_move is already a string or object
+      if (typeof record.last_move === "string") {
+        lastMove = JSON.parse(record.last_move);
+      } else {
+        lastMove = record.last_move as ChessMove;
+      }
+    } catch (e) {
+      logger.warn(`Failed to parse last_move: ${e.message}`);
+      lastMove = null;
+    }
+  }
+
+  return {
+    ...record,
+    last_move: lastMove,
+  };
+}
+
+/**
  * Verifies if a user is authorized to perform an action on a game
  */
 export async function verifyGameAccess(
-  supabase: SupabaseClient,
+  supabase: TypedSupabaseClient,
   gameId: string,
   userId: string,
   requiresTurn = false,
@@ -77,16 +105,15 @@ export async function verifyGameAccess(
   logger.debug(`Verifying game access for user ${userId} on game ${gameId}`);
 
   // Get the game
-  const { data: game, error: gameError } = await dbQuery<Game>(
-    supabase,
-    "games",
-    "select",
-    {
-      match: { id: gameId },
-      single: true,
-      operation: `get game ${gameId}`,
-    },
-  );
+  const { data: gameData, error: gameError } = await getTable(supabase, "games")
+    .select("*")
+    .eq("id", gameId)
+    .maybeSingle();
+
+  // Convert the database record to our Game type
+  const game = parseGameRecord(gameData);
+
+  logOperation(`get game ${gameId}`, gameError);
 
   if (gameError || !game) {
     logger.warn(`Game not found: ${gameId}`, gameError);

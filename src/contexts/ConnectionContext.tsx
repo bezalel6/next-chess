@@ -97,7 +97,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     addLogEntry("Successfully subscribed to presence channel");
 
                     // Check for active matches on connection
-                    checkActiveMatch();
+                    // checkActiveMatch();  
                 }
             });
 

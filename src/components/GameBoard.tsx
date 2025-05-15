@@ -50,7 +50,6 @@ const GameStatus = ({ game, currentTurnName }) => (
 // Draw offer buttons component
 const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
   const opponentColor = myColor === 'white' ? 'black' : 'white';
-  console.log(game);
 
   if (game.drawOfferedBy === myColor) {
     return (

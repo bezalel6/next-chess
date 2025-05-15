@@ -46,10 +46,10 @@ export async function recordEvent(
       },
     };
 
-    await dbQuery(supabase, "events", "insert", {
-      data: eventData,
-      operation: `record ${type} event`,
-    });
+    // await dbQuery(supabase, "events", "insert", {
+    //   data: eventData,
+    //   operation: `record ${type} event`,
+    // });
   } catch (error) {
     // Just log the error but don't fail the operation
     logger.error(`Failed to record event ${type}:`, error);

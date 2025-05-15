@@ -8,7 +8,9 @@ import {
 import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";
 import { dbQuery } from "../_shared/db-utils.ts";
+import { validateWithZod } from "../_shared/validation-utils.ts";
 import { createRouter, defineRoute } from "../_shared/router-utils.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import type {
   SupabaseClient,
   User,
@@ -16,6 +18,22 @@ import type {
 
 // Create a logger for this module
 const logger = createLogger("USER-MGMT");
+
+// User profile schemas
+const UserSchemas = {
+  ProfileParams: z.object({
+    username: z.string().min(3).max(30).optional(),
+  }),
+  UpdateProfileParams: z.object({
+    username: z.string().min(3).max(30),
+  }),
+  WebhookParams: z.object({
+    user: z.object({
+      id: z.string().uuid(),
+      user_metadata: z.record(z.any()).optional(),
+    }),
+  }),
+};
 
 // Define routes for user management operations
 const userRouter = createRouter([
@@ -46,6 +64,12 @@ async function handleCreateProfile(
   supabase: SupabaseClient,
 ) {
   try {
+    // Validate parameters using Zod
+    const validation = validateWithZod(params, UserSchemas.ProfileParams);
+    if (!validation.valid) {
+      return errorResponse(validation.errors!.join("; "), 400);
+    }
+
     const username =
       params.username || `user_${crypto.randomUUID().substring(0, 8)}`;
 
@@ -94,11 +118,13 @@ async function handleUpdateProfile(
   supabase: SupabaseClient,
 ) {
   try {
-    const { username } = params;
-
-    if (!username) {
-      return errorResponse("Username is required", 400);
+    // Validate parameters using Zod
+    const validation = validateWithZod(params, UserSchemas.UpdateProfileParams);
+    if (!validation.valid) {
+      return errorResponse(validation.errors!.join("; "), 400);
     }
+
+    const { username } = params;
 
     // Update profile for user
     const { data: profile, error } = await dbQuery(
@@ -139,11 +165,13 @@ async function handleUpdateProfile(
  */
 async function handleNewUserWebhook(params: any, supabase: SupabaseClient) {
   try {
-    const { user } = params;
-
-    if (!user || !user.id) {
-      return errorResponse("Invalid user data", 400);
+    // Validate parameters using Zod
+    const validation = validateWithZod(params, UserSchemas.WebhookParams);
+    if (!validation.valid) {
+      return errorResponse(validation.errors!.join("; "), 400);
     }
+
+    const { user } = params;
 
     // Extract username from user metadata if available, otherwise generate a random one
     const username =

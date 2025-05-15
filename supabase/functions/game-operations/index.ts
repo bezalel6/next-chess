@@ -14,10 +14,19 @@ import { createRouter, defineRoute } from "../_shared/router-utils.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";
 import { dbQuery } from "../_shared/db-utils.ts";
+import { validateWithZod } from "../_shared/validation-utils.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Create a logger for this module
 const logger = createLogger("GAME-OPS");
+
+// Game operations schemas
+const GameOpsSchemas = {
+  NotifyUpdateParams: z.object({
+    gameId: z.string().uuid(),
+  }),
+};
 
 // Define routes for game operations - admin routes have required role
 const gameRouter = createRouter([
@@ -215,11 +224,16 @@ async function generateGameId() {
  */
 async function notifyGameUpdate(params: any, supabase: SupabaseClient) {
   try {
-    const { gameId } = params;
-
-    if (!gameId) {
-      return errorResponse("Game ID is required", 400);
+    // Validate parameters using Zod
+    const validation = validateWithZod(
+      params,
+      GameOpsSchemas.NotifyUpdateParams,
+    );
+    if (!validation.valid) {
+      return errorResponse(validation.errors!.join("; "), 400);
     }
+
+    const { gameId } = params;
 
     await notifyGameChange(supabase, gameId);
 

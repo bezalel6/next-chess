@@ -9,14 +9,25 @@ import {
 import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";
 import { dbQuery } from "../_shared/db-utils.ts";
-import { validateRequired } from "../_shared/validation-utils.ts";
+import { validateWithZod, Schemas } from "../_shared/validation-utils.ts";
 import { createRouter, defineRoute } from "../_shared/router-utils.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import type {
   SupabaseClient,
   User,
 } from "https://esm.sh/@supabase/supabase-js@2";
 
 const logger = createLogger("MATCHMAKING");
+
+// Matchmaking-specific schemas
+const MatchmakingSchemas = {
+  QueueParams: z.object({
+    preferences: z.record(z.any()).optional(),
+  }),
+  CheckStatusParams: z.object({
+    queueId: z.string().uuid().optional(),
+  }),
+};
 
 // Define matchmaking operations
 const matchmakingRouter = createRouter([
@@ -357,7 +368,7 @@ async function processMatchmakingQueue(supabase: SupabaseClient) {
             status: "matched",
             game_id: gameId,
           },
-          match: { player_id: { in: [player1, player2] } },
+          match: { or: `player_id.eq.${player1},player_id.eq.${player2}` },
           operation: "update matchmaking entries",
         },
       );

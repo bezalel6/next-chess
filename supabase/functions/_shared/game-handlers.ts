@@ -14,7 +14,7 @@ import type {
 import { createLogger } from "./logger.ts";
 import { successResponse, errorResponse } from "./response-utils.ts";
 import { dbQuery } from "./db-utils.ts";
-import { validateRequired } from "./validation-utils.ts";
+import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { EventType, recordEvent } from "./event-utils.ts";
 
 const logger = createLogger("GAME");
@@ -114,10 +114,10 @@ async function handleMakeMove(
   supabase: SupabaseClient,
 ): Promise<Response> {
   try {
-    // Validate required params
-    const validation = validateRequired(params, ["gameId", "move"]);
+    // Validate required params using Zod
+    const validation = validateWithZod(params, Schemas.MoveParams);
     if (!validation.valid) {
-      return errorResponse(validation.errors.join("; "), 400);
+      return errorResponse(validation.errors!.join("; "), 400);
     }
 
     const { gameId, move } = params;
@@ -226,10 +226,10 @@ async function handleBanMove(
   params: MoveParams,
   supabase: SupabaseClient,
 ): Promise<Response> {
-  // Validate required params
-  const validation = validateRequired(params, ["gameId", "move"]);
+  // Validate required params using Zod
+  const validation = validateWithZod(params, Schemas.MoveParams);
   if (!validation.valid) {
-    return errorResponse(validation.errors.join("; "), 400);
+    return errorResponse(validation.errors!.join("; "), 400);
   }
 
   const { gameId, move } = params;
@@ -249,7 +249,7 @@ async function handleBanMove(
   const userColor = game.white_player_id === user.id ? "white" : "black";
   if (game.banningPlayer !== userColor) {
     return errorResponse(
-      "You don't have permission to ban a move at this time",
+      `Player ${user.id} (${userColor}) attempted to ban a move but only ${game.banningPlayer} player can ban moves at this time`,
       403,
     );
   }
@@ -307,6 +307,12 @@ async function handleGameOffer(
   offerType: "draw" | "rematch",
   action: "offer" | "accept" | "decline",
 ): Promise<Response> {
+  // Validate required params using Zod
+  const validation = validateWithZod(params, Schemas.PlayerParams);
+  if (!validation.valid) {
+    return errorResponse(validation.errors!.join("; "), 400);
+  }
+
   const { gameId } = params;
 
   // Verify game access
@@ -502,6 +508,13 @@ async function handleResignation(
   params: PlayerParams,
   supabase: SupabaseClient,
 ): Promise<Response> {
+  // Validate required params using Zod
+  const validation = validateWithZod(params, Schemas.PlayerParams);
+  if (!validation.valid) {
+    console.log(params);
+    return errorResponse(validation.errors!.join("; "), 400);
+  }
+
   const { gameId } = params;
 
   // Verify game access
@@ -562,6 +575,12 @@ async function handleMushroomGrowth(
   params: GameParams,
   supabase: SupabaseClient,
 ): Promise<Response> {
+  // Validate required params using Zod
+  const validation = validateWithZod(params, Schemas.GameParams);
+  if (!validation.valid) {
+    return errorResponse(validation.errors!.join("; "), 400);
+  }
+
   const { gameId } = params;
 
   // Verify game access - must be player's turn

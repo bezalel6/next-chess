@@ -2,7 +2,8 @@
 import { successResponse, errorResponse } from "./response-utils.ts";
 import { createLogger } from "./logger.ts";
 import { dbQuery } from "./db-utils.ts";
-import { validateRequired } from "./validation-utils.ts";
+import { validateWithZod, Schemas } from "./validation-utils.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import type {
   SupabaseClient,
   User,
@@ -21,6 +22,18 @@ interface QueueParams {
   preferences?: Record<string, any>;
 }
 
+// Define Zod schemas for matchmaking
+const MatchmakingSchemas = {
+  CreateMatchParams: z.object({
+    player1Id: z.string().uuid(),
+    player2Id: z.string().uuid(),
+  }),
+
+  QueueParams: z.object({
+    preferences: z.record(z.any()).optional(),
+  }),
+};
+
 /**
  * Handles creating a new match
  */
@@ -35,11 +48,14 @@ export async function handleCreateMatch(
       params,
     );
 
-    // Validate required parameters
-    const validation = validateRequired(params, ["player1Id", "player2Id"]);
+    // Validate required parameters using Zod
+    const validation = validateWithZod(
+      params,
+      MatchmakingSchemas.CreateMatchParams,
+    );
     if (!validation.valid) {
-      logger.warn(`Missing parameters for create match:`, validation.errors);
-      return errorResponse(validation.errors.join("; "), 400);
+      logger.warn(`Invalid parameters for create match:`, validation.errors);
+      return errorResponse(validation.errors!.join("; "), 400);
     }
 
     const { player1Id, player2Id } = params;

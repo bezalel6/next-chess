@@ -5,12 +5,12 @@ import { useGame } from "@/contexts/GameContext";
 import { useRouter } from 'next/compat/router';
 
 import { useAuth } from "@/contexts/AuthContext";
-import { gameService } from "@/utils/serviceTransition";
 import GameBoard from "@/components/GameBoard";
 import MoveHistory from "@/components/MoveHistory";
 import LoadingScreen from "@/components/LoadingScreen";
 import NotFoundScreen from "@/components/NotFoundScreen";
 import GameLoading from "@/components/GameLoading";
+import { GameService } from "@/services/gameService";
 
 export default function GamePage() {
     const { game, loading, myColor } = useGame();
@@ -33,7 +33,7 @@ export default function GamePage() {
             }
 
             try {
-                const gameData = await gameService.getGame(id);
+                const gameData = await GameService.getGame(id);
 
                 if (!gameData) {
                     console.error('Game not found');

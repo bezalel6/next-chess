@@ -50,7 +50,7 @@ const GameStatus = ({ game, currentTurnName }) => (
 // Draw offer buttons component
 const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
   const opponentColor = myColor === 'white' ? 'black' : 'white';
-
+  console.log(game);
   if (game.drawOfferedBy === myColor) {
     return (
       <Typography variant="body2" sx={{ color: 'white', fontStyle: 'italic', alignSelf: 'center' }}>
@@ -137,13 +137,13 @@ const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw
         </Tooltip>
 
         {/* Draw buttons */}
-        {!game.drawOfferedBy && <DrawButtons
+        <DrawButtons
           game={game}
           myColor={myColor}
           offerDraw={offerDraw}
           acceptDraw={acceptDraw}
           declineDraw={declineDraw}
-        />}
+        />
       </Stack>
     </Box>
   );

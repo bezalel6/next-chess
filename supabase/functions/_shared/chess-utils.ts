@@ -1,6 +1,10 @@
 /// <reference lib="deno.ns" />
 import { Chess, type PartialMove } from "https://esm.sh/chess.ts@0.16.2";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createLogger } from "./logger.ts";
+import { dbQuery } from "./db-utils.ts";
+
+const logger = createLogger("CHESS");
 
 export interface ChessMove {
   from: string;
@@ -43,14 +47,22 @@ export async function verifyGameAccess(
   authorized: boolean;
   error?: string;
 }> {
+  logger.debug(`Verifying game access for user ${userId} on game ${gameId}`);
+
   // Get the game
-  const { data: game, error: gameError } = await supabase
-    .from("games")
-    .select("*")
-    .eq("id", gameId)
-    .single<Game>();
+  const { data: game, error: gameError } = await dbQuery<Game>(
+    supabase,
+    "games",
+    "select",
+    {
+      match: { id: gameId },
+      single: true,
+      operation: `get game ${gameId}`,
+    },
+  );
 
   if (gameError || !game) {
+    logger.warn(`Game not found: ${gameId}`, gameError);
     return {
       game: null,
       playerColor: null,
@@ -64,6 +76,7 @@ export async function verifyGameAccess(
   const isBlackPlayer = game.black_player_id === userId;
 
   if (!isWhitePlayer && !isBlackPlayer) {
+    logger.warn(`User ${userId} is not a player in game ${gameId}`);
     return {
       game,
       playerColor: null,
@@ -76,6 +89,7 @@ export async function verifyGameAccess(
 
   // If this operation requires it to be the player's turn
   if (requiresTurn && game.turn !== playerColor) {
+    logger.warn(`Not ${userId}'s turn in game ${gameId}`);
     return {
       game,
       playerColor,
@@ -84,6 +98,7 @@ export async function verifyGameAccess(
     };
   }
 
+  logger.debug(`Access authorized for user ${userId} as ${playerColor}`);
   return {
     game,
     playerColor,
@@ -99,19 +114,23 @@ export function validateMove(
   move: ChessMove,
 ): { valid: boolean; newFen?: string; newPgn?: string; error?: string } {
   try {
+    logger.debug(`Validating move: ${move.from}-${move.to}`);
     const chess = new Chess(fen);
     const result = chess.move(move as PartialMove);
 
     if (!result) {
+      logger.warn(`Invalid move: ${move.from}-${move.to}`);
       return { valid: false, error: "Invalid move" };
     }
 
+    logger.debug(`Move validated successfully`);
     return {
       valid: true,
       newFen: chess.fen(),
       newPgn: chess.pgn(),
     };
   } catch (error) {
+    logger.error(`Chess error validating move:`, error);
     return {
       valid: false,
       error: `Chess error: ${error.message}`,
@@ -127,51 +146,38 @@ export function isGameOver(fen: string): {
   result?: "white" | "black" | "draw" | null;
   reason?: string;
 } {
-  const chess = new Chess(fen);
+  try {
+    logger.debug(`Checking game state from FEN: ${fen.substring(0, 20)}...`);
+    const chess = new Chess(fen);
 
-  // Check for checkmate
-  if (chess.inCheckmate()) {
-    // The side to move has lost
-    const winner = chess.turn() === "w" ? "black" : "white";
-    return { isOver: true, result: winner, reason: "checkmate" };
-  }
-
-  // Check for draw conditions
-  if (chess.inDraw()) {
-    if (chess.inStalemate()) {
-      return { isOver: true, result: "draw", reason: "stalemate" };
+    // Check for checkmate
+    if (chess.inCheckmate()) {
+      // The side to move has lost
+      const winner = chess.turn() === "w" ? "black" : "white";
+      logger.info(`Game over by checkmate, winner: ${winner}`);
+      return { isOver: true, result: winner, reason: "checkmate" };
     }
-    if (chess.insufficientMaterial()) {
-      return { isOver: true, result: "draw", reason: "insufficient_material" };
+
+    // Check for draw conditions
+    if (chess.inDraw()) {
+      let reason = "fifty_move_rule";
+
+      if (chess.inStalemate()) {
+        reason = "stalemate";
+      } else if (chess.insufficientMaterial()) {
+        reason = "insufficient_material";
+      } else if (chess.inThreefoldRepetition()) {
+        reason = "threefold_repetition";
+      }
+
+      logger.info(`Game over by draw, reason: ${reason}`);
+      return { isOver: true, result: "draw", reason };
     }
-    if (chess.inThreefoldRepetition()) {
-      return { isOver: true, result: "draw", reason: "threefold_repetition" };
-    }
-    return { isOver: true, result: "draw", reason: "fifty_move_rule" };
+
+    logger.debug(`Game is not over`);
+    return { isOver: false };
+  } catch (error) {
+    logger.error(`Error checking game state:`, error);
+    return { isOver: false };
   }
-
-  return { isOver: false };
-}
-
-/**
- * Common response builder for edge functions
- */
-export function buildResponse(
-  data: unknown,
-  status = 200,
-  corsHeaders: HeadersInit = {},
-): Response {
-  const headers = {
-    ...corsHeaders,
-    "Content-Type": "application/json",
-  };
-
-  if (status >= 400) {
-    return new Response(JSON.stringify({ error: data }), { status, headers });
-  }
-
-  return new Response(JSON.stringify({ success: true, data }), {
-    status,
-    headers,
-  });
 }

@@ -4,7 +4,10 @@ import {
   type SupabaseClient,
   type User,
 } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildResponse } from "./chess-utils.ts";
+import { errorResponse, successResponse } from "./response-utils.ts";
+import { createLogger } from "./logger.ts";
+
+const logger = createLogger("AUTH");
 
 // CORS headers for all edge functions
 export const corsHeaders = {
@@ -48,6 +51,7 @@ export async function authenticateUser(
 ): Promise<User> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
+    logger.warn("Authentication failed: No authorization header");
     throw new Error("No authorization header");
   }
 
@@ -58,9 +62,11 @@ export async function authenticateUser(
   } = await supabase.auth.getUser(token);
 
   if (authError || !user) {
+    logger.warn("Authentication failed: Invalid token", authError);
     throw new Error(`Invalid token: ${authError?.message || "Unknown error"}`);
   }
 
+  logger.debug(`User authenticated: ${user.id}`);
   return user;
 }
 
@@ -88,8 +94,8 @@ export async function handleAuthenticatedRequest(
     try {
       body = await req.json();
     } catch (parseError) {
-      console.error(`Error parsing request body: ${parseError.message}`);
-      return buildResponse("Invalid JSON in request body", 400, corsHeaders);
+      logger.error(`Error parsing request body:`, parseError);
+      return errorResponse("Invalid JSON in request body", 400);
     }
 
     // Special case for database triggers
@@ -98,8 +104,8 @@ export async function handleAuthenticatedRequest(
       body.source === "db_trigger" &&
       body.operation === "create-game-from-matched"
     ) {
-      console.log(
-        "[AUTH] Request from database trigger, using service role authentication",
+      logger.info(
+        "Request from database trigger, using service role authentication",
       );
       // For database trigger calls, we use a special system user
       user = {
@@ -114,19 +120,22 @@ export async function handleAuthenticatedRequest(
       try {
         user = await authenticateUser(req, supabase);
       } catch (authError) {
-        console.error(`Authentication error: ${authError.message}`);
-        return buildResponse(
+        return errorResponse(
           `Authentication failed: ${authError.message}`,
           401,
-          corsHeaders,
         );
       }
     }
 
     // Handle the authenticated request
-    return await handler(user, body, supabase);
+    try {
+      return await handler(user, body, supabase);
+    } catch (error) {
+      logger.error(`Error in request handler:`, error);
+      return errorResponse(`Server error: ${error.message}`, 500);
+    }
   } catch (error) {
-    console.error(`Error processing request: ${error.message}`);
-    return buildResponse(error.message, 500, corsHeaders);
+    logger.error(`Unhandled error processing request:`, error);
+    return errorResponse(error.message, 500);
   }
 }

@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 import { corsHeaders } from "./auth-utils.ts";
-import { buildResponse } from "./chess-utils.ts";
+import { successResponse, errorResponse } from "./response-utils.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -25,23 +25,17 @@ export async function createGameFromMatchedPlayers(
 
     if (matchError) {
       console.error(`[MATCH] DB Error: ${matchError.message}`);
-      return buildResponse(
-        { success: false, message: "Database error fetching matched players" },
-        500,
-        corsHeaders,
-      );
+      return errorResponse("Database error fetching matched players", 500);
     }
 
     // We need exactly 2 matched players to create a game
     if (!matchedPlayers || matchedPlayers.length < 2) {
-      return buildResponse(
+      return successResponse(
         {
-          success: false,
-          message: "Not enough matched players",
           count: matchedPlayers?.length || 0,
         },
+        "Not enough matched players",
         200,
-        corsHeaders,
       );
     }
 
@@ -66,11 +60,7 @@ export async function createGameFromMatchedPlayers(
 
     if (txError) {
       console.error(`[MATCH] Game creation error: ${txError.message}`);
-      return buildResponse(
-        { success: false, message: "Error creating game" },
-        500,
-        corsHeaders,
-      );
+      return errorResponse("Error creating game", 500);
     }
 
     console.log(`[MATCH] Success: Created game ${game.id}`);
@@ -114,18 +104,10 @@ export async function createGameFromMatchedPlayers(
       // Non-critical error - main notification will still be in the database
     }
 
-    return buildResponse(
-      { success: true, message: "Game created", game },
-      200,
-      corsHeaders,
-    );
+    return successResponse({ game }, "Game created", 200);
   } catch (error) {
     console.error(`[MATCH] Error: ${error.message}`);
-    return buildResponse(
-      { success: false, message: "Internal server error" },
-      500,
-      corsHeaders,
-    );
+    return errorResponse("Internal server error", 500);
   }
 }
 
@@ -145,10 +127,6 @@ export async function processMatchmakingQueue(
       `Error processing matchmaking queue: ${error.message}`,
       error,
     );
-    return buildResponse(
-      `Internal server error: ${error.message}`,
-      500,
-      corsHeaders,
-    );
+    return errorResponse(`Internal server error: ${error.message}`, 500);
   }
 }

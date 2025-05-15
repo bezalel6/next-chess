@@ -228,12 +228,18 @@ export class SecureMatchmakingService {
   static async checkActiveMatch(userId: string): Promise<string | null> {
     try {
       // First check the queue for a matched status
-      const { data: queueEntry } = await supabase
+      const { data: queueEntry, error } = await supabase
         .from("queue")
         .select("status")
         .eq("user_id", userId)
         .eq("status", "matched")
-        .single();
+        .maybeSingle();
+
+      if (error) {
+        console.error(
+          `[Matchmaking] Error checking queue status: ${error.message}`,
+        );
+      }
 
       if (queueEntry) {
         // User is matched, check for game
@@ -244,7 +250,7 @@ export class SecureMatchmakingService {
           .eq("type", "match_found")
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (notification?.game_id) {
           return notification.game_id;
@@ -259,7 +265,7 @@ export class SecureMatchmakingService {
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       return activeGame?.id || null;
     } catch (error) {

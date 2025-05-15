@@ -34,6 +34,14 @@ export interface Game {
 }
 
 export type PlayerColor = "white" | "black";
+export type GameResult = "white" | "black" | "draw" | null;
+export type GameEndReason =
+  | "checkmate"
+  | "stalemate"
+  | "insufficient_material"
+  | "threefold_repetition"
+  | "fifty_move_rule"
+  | null;
 
 // Zod schemas for chess operations
 export const ChessSchemas = {
@@ -131,10 +139,22 @@ export async function verifyGameAccess(
 export function validateMove(
   fen: string,
   move: ChessMove,
+  currentPgn?: string,
 ): { valid: boolean; newFen?: string; newPgn?: string; error?: string } {
   try {
     logger.debug(`Validating move: ${move.from}-${move.to}`);
     const chess = new Chess(fen);
+
+    // Load the current PGN to preserve comments/history
+    if (currentPgn && currentPgn.trim().length > 0) {
+      try {
+        chess.loadPgn(currentPgn);
+      } catch (pgnError) {
+        logger.warn(`Could not load PGN, will create new: ${pgnError.message}`);
+        // If PGN can't be loaded, we'll continue with a fresh chess instance
+      }
+    }
+
     const result = chess.move(move as PartialMove);
 
     if (!result) {
@@ -158,16 +178,48 @@ export function validateMove(
 }
 
 /**
+ * Extracts the banned move from the PGN string
+ */
+export function getBannedMove(pgn: string): string | null {
+  if (!pgn) return null;
+  const bannedMoveMatch = pgn.match(/\{?banning: ([a-zA-Z0-9]{4})\}?$/);
+  return bannedMoveMatch ? bannedMoveMatch[1] : null;
+}
+
+/**
+ * Gets all banned moves from the PGN string
+ */
+export function getAllBannedMoves(pgn: string): string[] {
+  if (!pgn) return [];
+
+  const bannedMoveRegex = /\{?banning: ([a-zA-Z0-9]{4})\}?/g;
+  const bannedMoves: string[] = [];
+  let match;
+
+  while ((match = bannedMoveRegex.exec(pgn)) !== null) {
+    bannedMoves.push(match[1]);
+  }
+
+  return bannedMoves;
+}
+
+/**
  * Checks if the game is over based on the current position
  */
-export function isGameOver(fen: string): {
+export function isGameOver(
+  fen: string,
+  pgn?: string,
+): {
   isOver: boolean;
-  result?: "white" | "black" | "draw" | null;
-  reason?: string;
+  result?: GameResult;
+  reason?: GameEndReason;
 } {
   try {
     logger.debug(`Checking game state from FEN: ${fen.substring(0, 20)}...`);
     const chess = new Chess(fen);
+
+    // Use provided PGN or get it from the chess instance
+    const currentPgn = pgn || chess.pgn();
 
     // Check for checkmate
     if (chess.inCheckmate()) {
@@ -178,19 +230,51 @@ export function isGameOver(fen: string): {
     }
 
     // Check for draw conditions
-    if (chess.inDraw()) {
-      let reason = "fifty_move_rule";
+    if (chess.inStalemate()) {
+      logger.info(`Game over by stalemate`);
+      return { isOver: true, result: "draw", reason: "stalemate" };
+    } else if (chess.insufficientMaterial()) {
+      logger.info(`Game over by insufficient material`);
+      return { isOver: true, result: "draw", reason: "insufficient_material" };
+    } else if (chess.inThreefoldRepetition()) {
+      logger.info(`Game over by threefold repetition`);
+      return { isOver: true, result: "draw", reason: "threefold_repetition" };
+    } else if (chess.inDraw()) {
+      logger.info(`Game over by fifty-move rule`);
+      return { isOver: true, result: "draw", reason: "fifty_move_rule" };
+    }
 
-      if (chess.inStalemate()) {
-        reason = "stalemate";
-      } else if (chess.insufficientMaterial()) {
-        reason = "insufficient_material";
-      } else if (chess.inThreefoldRepetition()) {
-        reason = "threefold_repetition";
+    // Check banned move logic
+    const bannedMove = getBannedMove(currentPgn);
+    if (bannedMove) {
+      // Get all legal moves
+      const legalMoves = chess.moves({ verbose: true });
+
+      // If there is only one legal move and it matches the banned move,
+      // then the current player has no valid moves
+      if (legalMoves.length === 1) {
+        const onlyMove = `${legalMoves[0].from}${legalMoves[0].to}`;
+        logger.debug(
+          `Only one legal move: ${onlyMove}, banned move: ${bannedMove}`,
+        );
+
+        if (onlyMove === bannedMove) {
+          // Check if the king is in check
+          const inCheck = chess.inCheck();
+          if (inCheck) {
+            // If in check with no legal moves (since only move is banned), it's checkmate
+            const winner = chess.turn() === "w" ? "black" : "white";
+            logger.info(
+              `Game over by checkmate (banned move), winner: ${winner}`,
+            );
+            return { isOver: true, result: winner, reason: "checkmate" };
+          } else {
+            // If not in check with no legal moves, it's stalemate
+            logger.info(`Game over by stalemate (banned move)`);
+            return { isOver: true, result: "draw", reason: "stalemate" };
+          }
+        }
       }
-
-      logger.info(`Game over by draw, reason: ${reason}`);
-      return { isOver: true, result: "draw", reason };
     }
 
     logger.debug(`Game is not over`);

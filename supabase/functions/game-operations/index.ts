@@ -13,6 +13,8 @@ import {
 import { createRouter, defineRoute } from "../_shared/router-utils.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";
+import { dbQuery } from "../_shared/db-utils.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Create a logger for this module
 const logger = createLogger("GAME-OPS");
@@ -36,47 +38,281 @@ const gameRouter = createRouter([
     "admin",
   ),
 
+  // Game notification route - admin only
+  defineRoute(
+    "notify-game-update",
+    async (user, params, supabase) => {
+      return await notifyGameUpdate(params, supabase);
+    },
+    "service_role",
+  ),
+
+  // Generate game ID - admin only
+  defineRoute(
+    "generate-game-id",
+    async (user, params, supabase) => {
+      return await generateGameId();
+    },
+    "service_role",
+  ),
+
   // Game operation routes using unified handler
   defineRoute("makeMove", async (user, params, supabase) => {
-    return await handleGameOperation(user, params, supabase, "makeMove");
+    const result = await handleGameOperation(
+      user,
+      params,
+      supabase,
+      "makeMove",
+    );
+
+    // After successful operation, notify game update
+    if (result.status === 200 && params.gameId) {
+      try {
+        await notifyGameChange(supabase, params.gameId);
+      } catch (error) {
+        logger.warn(`Failed to notify game change: ${error.message}`);
+      }
+    }
+
+    return result;
   }),
 
   defineRoute("banMove", async (user, params, supabase) => {
-    return await handleGameOperation(user, params, supabase, "banMove");
+    const result = await handleGameOperation(user, params, supabase, "banMove");
+    if (result.status === 200 && params.gameId) {
+      await notifyGameChange(supabase, params.gameId);
+    }
+    return result;
   }),
 
   defineRoute("offerDraw", async (user, params, supabase) => {
-    return await handleGameOperation(user, params, supabase, "offerDraw");
+    const result = await handleGameOperation(
+      user,
+      params,
+      supabase,
+      "offerDraw",
+    );
+    if (result.status === 200 && params.gameId) {
+      await notifyGameChange(supabase, params.gameId);
+    }
+    return result;
   }),
 
   defineRoute("acceptDraw", async (user, params, supabase) => {
-    return await handleGameOperation(user, params, supabase, "acceptDraw");
+    const result = await handleGameOperation(
+      user,
+      params,
+      supabase,
+      "acceptDraw",
+    );
+    if (result.status === 200 && params.gameId) {
+      await notifyGameChange(supabase, params.gameId);
+    }
+    return result;
   }),
 
   defineRoute("declineDraw", async (user, params, supabase) => {
-    return await handleGameOperation(user, params, supabase, "declineDraw");
+    const result = await handleGameOperation(
+      user,
+      params,
+      supabase,
+      "declineDraw",
+    );
+    if (result.status === 200 && params.gameId) {
+      await notifyGameChange(supabase, params.gameId);
+    }
+    return result;
   }),
 
   defineRoute("offerRematch", async (user, params, supabase) => {
-    return await handleGameOperation(user, params, supabase, "offerRematch");
+    const result = await handleGameOperation(
+      user,
+      params,
+      supabase,
+      "offerRematch",
+    );
+    if (result.status === 200 && params.gameId) {
+      await notifyGameChange(supabase, params.gameId);
+    }
+    return result;
   }),
 
   defineRoute("acceptRematch", async (user, params, supabase) => {
-    return await handleGameOperation(user, params, supabase, "acceptRematch");
+    const result = await handleGameOperation(
+      user,
+      params,
+      supabase,
+      "acceptRematch",
+    );
+    if (result.status === 200 && params.gameId) {
+      await notifyGameChange(supabase, params.gameId);
+    }
+    return result;
   }),
 
   defineRoute("declineRematch", async (user, params, supabase) => {
-    return await handleGameOperation(user, params, supabase, "declineRematch");
+    const result = await handleGameOperation(
+      user,
+      params,
+      supabase,
+      "declineRematch",
+    );
+    if (result.status === 200 && params.gameId) {
+      await notifyGameChange(supabase, params.gameId);
+    }
+    return result;
   }),
 
   defineRoute("resign", async (user, params, supabase) => {
-    return await handleGameOperation(user, params, supabase, "resign");
+    const result = await handleGameOperation(user, params, supabase, "resign");
+    if (result.status === 200 && params.gameId) {
+      await notifyGameChange(supabase, params.gameId);
+    }
+    return result;
   }),
 
   defineRoute("mushroomGrowth", async (user, params, supabase) => {
-    return await handleGameOperation(user, params, supabase, "mushroomGrowth");
+    const result = await handleGameOperation(
+      user,
+      params,
+      supabase,
+      "mushroomGrowth",
+    );
+    if (result.status === 200 && params.gameId) {
+      await notifyGameChange(supabase, params.gameId);
+    }
+    return result;
   }),
 ]);
+
+/**
+ * Generate a random short ID for games
+ */
+function generateShortId(length = 8): string {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  const randomValues = new Uint8Array(length);
+  crypto.getRandomValues(randomValues);
+
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(randomValues[i] % chars.length);
+  }
+
+  return result;
+}
+
+/**
+ * Generate a game ID
+ */
+async function generateGameId() {
+  const gameId = generateShortId();
+  return successResponse({ gameId });
+}
+
+/**
+ * Handles game update notifications
+ */
+async function notifyGameUpdate(params: any, supabase: SupabaseClient) {
+  try {
+    const { gameId } = params;
+
+    if (!gameId) {
+      return errorResponse("Game ID is required", 400);
+    }
+
+    await notifyGameChange(supabase, gameId);
+
+    return successResponse({ success: true });
+  } catch (error) {
+    logger.error("Error notifying game update:", error);
+    return errorResponse(`Internal server error: ${error.message}`, 500);
+  }
+}
+
+/**
+ * Notify game changes via Supabase realtime
+ * This replaces the database notify function
+ */
+async function notifyGameChange(supabase: SupabaseClient, gameId: string) {
+  try {
+    // Fetch the game data
+    const { data: game } = await dbQuery(supabase, "games", "select", {
+      select: "*",
+      match: { id: gameId },
+      single: true,
+      operation: "get game for notification",
+    });
+
+    if (!game) {
+      logger.warn(`Game not found for notification: ${gameId}`);
+      return false;
+    }
+
+    // Log the event
+    await logEvent(supabase, {
+      eventType: "game_updated",
+      entityType: "game",
+      entityId: gameId,
+      data: {
+        status: game.status,
+        turn: game.turn,
+        white_player_id: game.white_player_id,
+        black_player_id: game.black_player_id,
+      },
+    });
+
+    // Use Supabase's realtime features
+    logger.info(`Game update notification: ${gameId}`);
+
+    // In a real implementation, you might use something like:
+    // await supabase.from('notifications').insert({
+    //   type: 'game_update',
+    //   recipient_id: game.white_player_id,
+    //   data: { game_id: game.id, status: game.status }
+    // });
+
+    return true;
+  } catch (error) {
+    logger.warn(`Failed to notify game change: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * Helper function to log events
+ */
+async function logEvent(
+  supabase: SupabaseClient,
+  {
+    eventType,
+    entityType,
+    entityId,
+    userId,
+    data,
+  }: {
+    eventType: string;
+    entityType: string;
+    entityId: string;
+    userId?: string;
+    data?: Record<string, any>;
+  },
+) {
+  try {
+    await dbQuery(supabase, "event_log", "insert", {
+      data: {
+        event_type: eventType,
+        entity_type: entityType,
+        entity_id: entityId,
+        user_id: userId,
+        data: data || {},
+      },
+      operation: "log event",
+    });
+  } catch (error) {
+    logger.warn(`Failed to log event ${eventType}:`, error);
+  }
+}
 
 // CRON job access handler
 async function handleCronRequest(req: Request) {

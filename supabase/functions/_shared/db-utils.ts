@@ -70,8 +70,8 @@ export async function dbQuery<T = any>(
           // Handle IN queries
           const [inKey, inValues] = Object.entries(value[0])[0];
           query = query.in(inKey, inValues);
-        } else if (Array.isArray(value) && key === "_or") {
-          // Handle OR queries
+        } else if (key === "_or" && Array.isArray(value)) {
+          // Handle OR queries with array format
           query = query.or(value.join(","));
         } else {
           // Standard equality

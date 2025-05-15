@@ -34,7 +34,33 @@ const matchmakingRouter = createRouter([
   defineRoute("checkStatus", async (user, params, supabase) => {
     return await checkQueueStatus(user, supabase);
   }),
+
+  // Process queue - admin only
+  defineRoute(
+    "processQueue",
+    async (user, params, supabase) => {
+      return await processMatchmakingQueue(supabase);
+    },
+    "service_role",
+  ),
 ]);
+
+/**
+ * Generate a random short ID for games
+ */
+function generateShortId(length = 8): string {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  const randomValues = new Uint8Array(length);
+  crypto.getRandomValues(randomValues);
+
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(randomValues[i] % chars.length);
+  }
+
+  return result;
+}
 
 /**
  * Handle join queue operation
@@ -117,13 +143,48 @@ async function handleJoinQueue(user: User, supabase: SupabaseClient) {
       return errorResponse(`Failed to join queue: ${error.message}`, 500);
     }
 
-    // Try to find a match immediately by calling the match_players function
-    try {
-      // Direct call to RPC function
-      await supabase.rpc("match_players");
-    } catch (rpcError) {
-      logger.warn(`Error calling match_players: ${rpcError.message}`);
-      // Non-critical error, continue
+    // Log the event
+    await logEvent(supabase, {
+      eventType: "queue_joined",
+      entityType: "matchmaking",
+      entityId: queueEntry.id,
+      userId: user.id,
+      data: { preferences: queueEntry.preferences },
+    });
+
+    // Try to find a match immediately
+    await processMatchmakingQueue(supabase);
+
+    // Check if the player was matched
+    const { data: updatedEntry } = await dbQuery(
+      supabase,
+      "matchmaking",
+      "select",
+      {
+        select: "*",
+        match: { player_id: user.id },
+        single: true,
+        operation: "check updated entry",
+      },
+    );
+
+    if (updatedEntry?.status === "matched" && updatedEntry?.game_id) {
+      // Get matched game info
+      const { data: game } = await dbQuery(supabase, "games", "select", {
+        select: "*",
+        match: {
+          id: updatedEntry.game_id,
+        },
+        single: true,
+        operation: "get matched game",
+      });
+
+      if (game) {
+        return successResponse({
+          matchFound: true,
+          game,
+        });
+      }
     }
 
     return successResponse({
@@ -141,6 +202,24 @@ async function handleJoinQueue(user: User, supabase: SupabaseClient) {
  */
 async function handleLeaveQueue(user: User, supabase: SupabaseClient) {
   try {
+    // Find the user's queue entry first
+    const { data: entry } = await dbQuery(supabase, "matchmaking", "select", {
+      select: "id",
+      match: { player_id: user.id, status: "waiting" },
+      single: true,
+      operation: "find queue entry",
+    });
+
+    if (entry) {
+      // Log the event
+      await logEvent(supabase, {
+        eventType: "queue_left",
+        entityType: "matchmaking",
+        entityId: entry.id,
+        userId: user.id,
+      });
+    }
+
     // Remove from matchmaking queue
     const { error } = await dbQuery(supabase, "matchmaking", "delete", {
       match: { player_id: user.id, status: "waiting" },
@@ -203,8 +282,215 @@ async function checkQueueStatus(user: User, supabase: SupabaseClient) {
   }
 }
 
+/**
+ * Process the matchmaking queue to match players
+ * This replaces the database trigger function
+ */
+async function processMatchmakingQueue(supabase: SupabaseClient) {
+  try {
+    // Find waiting players
+    const { data: waitingPlayers, error } = await dbQuery(
+      supabase,
+      "matchmaking",
+      "select",
+      {
+        select: "player_id",
+        match: { status: "waiting" },
+        order: { column: "joined_at", ascending: true },
+        limit: 2,
+        operation: "find waiting players",
+      },
+    );
+
+    if (error) {
+      return errorResponse(
+        `Failed to find waiting players: ${error.message}`,
+        500,
+      );
+    }
+
+    // If we have at least 2 waiting players, create a game
+    if (waitingPlayers && waitingPlayers.length >= 2) {
+      const player1 = waitingPlayers[0].player_id;
+      const player2 = waitingPlayers[1].player_id;
+
+      // Generate a unique game ID
+      const gameId = generateShortId();
+
+      // Create a new game
+      const { data: game, error: gameError } = await dbQuery(
+        supabase,
+        "games",
+        "insert",
+        {
+          data: {
+            id: gameId,
+            white_player_id: player1,
+            black_player_id: player2,
+            status: "active",
+            current_fen:
+              "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            pgn: "",
+            turn: "white",
+            banning_player: "black",
+          },
+          select: "*",
+          single: true,
+          operation: "create game",
+        },
+      );
+
+      if (gameError) {
+        return errorResponse(
+          `Failed to create game: ${gameError.message}`,
+          500,
+        );
+      }
+
+      // Update both players' matchmaking entries
+      const { error: updateError } = await dbQuery(
+        supabase,
+        "matchmaking",
+        "update",
+        {
+          data: {
+            status: "matched",
+            game_id: gameId,
+          },
+          match: { player_id: { in: [player1, player2] } },
+          operation: "update matchmaking entries",
+        },
+      );
+
+      if (updateError) {
+        return errorResponse(
+          `Failed to update matchmaking entries: ${updateError.message}`,
+          500,
+        );
+      }
+
+      // Log the event
+      await logEvent(supabase, {
+        eventType: "players_matched",
+        entityType: "game",
+        entityId: gameId,
+        data: {
+          white_player_id: player1,
+          black_player_id: player2,
+        },
+      });
+
+      // Notify the game update (replacing the database notify function)
+      try {
+        await notifyGameChange(supabase, game);
+      } catch (notifyError) {
+        logger.warn(`Failed to notify game change: ${notifyError.message}`);
+      }
+
+      logger.info(
+        `Created game ${gameId} for players ${player1} and ${player2}`,
+      );
+
+      return successResponse({
+        matchCreated: true,
+        gameId,
+        whitePlacerId: player1,
+        blackPlayerId: player2,
+      });
+    }
+
+    return successResponse({
+      matchCreated: false,
+      waitingPlayerCount: waitingPlayers?.length || 0,
+    });
+  } catch (error) {
+    logger.error("Error processing matchmaking queue:", error);
+    return errorResponse(`Internal server error: ${error.message}`, 500);
+  }
+}
+
+/**
+ * Notify game changes via Supabase realtime
+ * This replaces the database notify function
+ */
+async function notifyGameChange(supabase: SupabaseClient, game: any) {
+  try {
+    // Use Supabase's broadcast feature to notify clients
+    // This is a simplified version - in a real app, you'd use a more robust
+    // approach like a dedicated notification channel
+
+    // For now, we'll just log the notification
+    logger.info(`Game update notification: ${game.id}`);
+
+    // In a real implementation, you might use something like:
+    // await supabase.from('notifications').insert({
+    //   type: 'game_update',
+    //   recipient_id: game.white_player_id,
+    //   data: { game_id: game.id, status: game.status }
+    // });
+
+    return true;
+  } catch (error) {
+    logger.warn(`Failed to notify game change: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * Helper function to log events
+ */
+async function logEvent(
+  supabase: SupabaseClient,
+  {
+    eventType,
+    entityType,
+    entityId,
+    userId,
+    data,
+  }: {
+    eventType: string;
+    entityType: string;
+    entityId: string;
+    userId?: string;
+    data?: Record<string, any>;
+  },
+) {
+  try {
+    await dbQuery(supabase, "event_log", "insert", {
+      data: {
+        event_type: eventType,
+        entity_type: entityType,
+        entity_id: entityId,
+        user_id: userId,
+        data: data || {},
+      },
+      operation: "log event",
+    });
+  } catch (error) {
+    logger.warn(`Failed to log event ${eventType}:`, error);
+  }
+}
+
 // Main serve function
 serve(async (req) => {
+  // Extract request path
+  const url = new URL(req.url);
+  const path = url.pathname.split("/").pop();
+
+  // Special handling for CRON jobs (authenticated by Supabase platform)
+  if (
+    path === "process-queue" &&
+    req.headers.get("Authorization") === `Bearer ${Deno.env.get("CRON_SECRET")}`
+  ) {
+    try {
+      const supabaseAdmin = initSupabaseAdmin();
+      return await processMatchmakingQueue(supabaseAdmin);
+    } catch (error) {
+      logger.error("Error in cron handler:", error);
+      return errorResponse(error.message, 500);
+    }
+  }
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

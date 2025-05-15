@@ -4,7 +4,6 @@ import { parse } from "url";
 import next from "next";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "../env";
-import { SecureMatchmakingService } from "../services/secureMatchmakingService";
 
 const dev = env.NODE_ENV !== "production";
 const hostname = "localhost";

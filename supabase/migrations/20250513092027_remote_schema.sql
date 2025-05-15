@@ -29,135 +29,13 @@ CREATE TYPE public.end_reason AS ENUM ('checkmate', 'resignation', 'draw_agreeme
                                       'insufficient_material', 'threefold_repetition', 'fifty_move_rule');
 CREATE TYPE public.queue_status AS ENUM ('waiting', 'matched');
 
--- Automatically updates the updated_at timestamp when a record is modified
+-- Simple utility function for timestamps - keeping this as it's very basic
 CREATE OR REPLACE FUNCTION "public"."update_timestamp"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
 BEGIN
-    -- Set the updated_at column to the current timestamp
     NEW.updated_at = NOW();
     RETURN NEW;
-END;
-$$;
-
--- Generates random short IDs for user-friendly game/move identifiers
-CREATE OR REPLACE FUNCTION "public"."generate_short_id"("length" integer DEFAULT 8) RETURNS "text"
-    LANGUAGE "plpgsql"
-    AS $$
-DECLARE
-  chars TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  result TEXT := '';
-  i INTEGER := 0;
-BEGIN
-  -- Loop to build a random string of the specified length
-  FOR i IN 1..length LOOP
-    result := result || substr(chars, floor(random() * length(chars) + 1)::integer, 1);
-  END LOOP;
-  RETURN result;
-END;
-$$;
-
--- Function to check if a user exists in auth.users table
-CREATE OR REPLACE FUNCTION "public"."get_user"("user_id" "uuid") RETURNS boolean
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET search_path = "public", "auth", "pg_temp"
-    AS $$
-DECLARE
-  user_exists boolean;
-BEGIN
-  -- Check if the user exists in auth.users
-  SELECT EXISTS (
-    SELECT 1 FROM auth.users WHERE id = user_id
-  ) INTO user_exists;
-  
-  RETURN user_exists;
-END;
-$$;
-
--- Triggered when a new user signs up to create their profile
-CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-BEGIN
-  -- Extract username from user metadata if available, otherwise generate a random one
-  INSERT INTO public.profiles (id, username)
-  VALUES (
-    NEW.id,
-    COALESCE(
-      (NEW.raw_user_meta_data->>'username')::TEXT,
-      CONCAT('user_', SUBSTRING(gen_random_uuid()::TEXT, 1, 8))
-    )
-  );
-  RETURN NEW;
-END;
-$$;
-
--- Simple function to match players in queue
-CREATE OR REPLACE FUNCTION "public"."match_players"() RETURNS "void"
-    LANGUAGE "plpgsql"
-    AS $$
-DECLARE
-  player1_id UUID;
-  player2_id UUID;
-  new_game_id TEXT;
-BEGIN
-  -- Find the two players who have been waiting the longest
-  WITH waiting_players AS (
-    SELECT player_id FROM matchmaking 
-    WHERE status = 'waiting'
-    ORDER BY joined_at ASC
-    LIMIT 2
-    FOR UPDATE SKIP LOCKED
-  )
-  SELECT array_agg(player_id) INTO STRICT player1_id, player2_id
-  FROM waiting_players;
-  
-  -- If we found two players, create a game for them
-  IF player1_id IS NOT NULL AND player2_id IS NOT NULL THEN
-    -- Create the game
-    INSERT INTO public.games (
-      white_player_id,
-      black_player_id,
-      status,
-      current_fen,
-      pgn,
-      turn,
-      banning_player
-    ) VALUES (
-      player1_id,
-      player2_id,
-      'active',
-      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      '',
-      'white',
-      'black'
-    ) RETURNING id INTO new_game_id;
-    
-    -- Update the matchmaking entries
-    UPDATE matchmaking
-    SET status = 'matched', game_id = new_game_id
-    WHERE player_id IN (player1_id, player2_id);
-  END IF;
-END;
-$$;
-
--- Function to notify game updates to players
-CREATE OR REPLACE FUNCTION "public"."notify_game_change"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-BEGIN
-  -- Notify when a game is updated
-  PERFORM pg_notify(
-    'game_update',
-    json_build_object(
-      'game_id', NEW.id,
-      'white_player_id', NEW.white_player_id,
-      'black_player_id', NEW.black_player_id,
-      'status', NEW.status,
-      'turn', NEW.turn
-    )::text
-  );
-  RETURN NEW;
 END;
 $$;
 
@@ -167,7 +45,7 @@ SET default_table_access_method = "heap";
 
 -- Main table storing chess games
 CREATE TABLE IF NOT EXISTS "public"."games" (
-    "id" "text" DEFAULT "public"."generate_short_id"() NOT NULL,
+    "id" "text" NOT NULL, -- Will be filled by edge function
     "white_player_id" "uuid" NOT NULL, 
     "black_player_id" "uuid" NOT NULL,
     "status" public.game_status NOT NULL DEFAULT 'active'::public.game_status,
@@ -203,12 +81,24 @@ CREATE TABLE IF NOT EXISTS "public"."matchmaking" (
     "joined_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );
 
+-- Event log table for tracking changes/operations
+CREATE TABLE IF NOT EXISTS "public"."event_log" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "event_type" "text" NOT NULL,
+    "entity_type" "text" NOT NULL, 
+    "entity_id" "text" NOT NULL,
+    "data" "jsonb" DEFAULT '{}'::"jsonb",
+    "user_id" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
 -- Primary and unique keys
 ALTER TABLE ONLY "public"."games" ADD CONSTRAINT "games_pkey" PRIMARY KEY ("id");
 ALTER TABLE ONLY "public"."profiles" ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
 ALTER TABLE ONLY "public"."profiles" ADD CONSTRAINT "profiles_username_key" UNIQUE ("username");
 ALTER TABLE ONLY "public"."matchmaking" ADD CONSTRAINT "matchmaking_pkey" PRIMARY KEY ("id");
 ALTER TABLE ONLY "public"."matchmaking" ADD CONSTRAINT "matchmaking_player_id_key" UNIQUE ("player_id");
+ALTER TABLE ONLY "public"."event_log" ADD CONSTRAINT "event_log_pkey" PRIMARY KEY ("id");
 
 -- Indexes for performance optimization
 CREATE INDEX "idx_games_black_player" ON "public"."games" USING "btree" ("black_player_id");
@@ -220,25 +110,15 @@ CREATE INDEX "idx_matchmaking_joined_at" ON "public"."matchmaking" USING "btree"
 CREATE INDEX "idx_matchmaking_status" ON "public"."matchmaking" USING "btree" ("status");
 CREATE INDEX "idx_matchmaking_player_id" ON "public"."matchmaking" USING "btree" ("player_id");
 CREATE INDEX "idx_matchmaking_game_id" ON "public"."matchmaking" USING "btree" ("game_id");
+CREATE INDEX "idx_event_log_entity" ON "public"."event_log" USING "btree" ("entity_type", "entity_id");
+CREATE INDEX "idx_event_log_event_type" ON "public"."event_log" USING "btree" ("event_type");
+CREATE INDEX "idx_event_log_user_id" ON "public"."event_log" USING "btree" ("user_id");
 
--- Automatic timestamp updates when records are modified
+-- Simple timestamp update triggers
 CREATE TRIGGER "update_games_updated_at" BEFORE UPDATE ON "public"."games" 
     FOR EACH ROW EXECUTE FUNCTION "public"."update_timestamp"();
 CREATE TRIGGER "update_profiles_updated_at" BEFORE UPDATE ON "public"."profiles" 
     FOR EACH ROW EXECUTE FUNCTION "public"."update_timestamp"();
-
--- Try to match players when queue changes
-CREATE TRIGGER "try_match_players" AFTER INSERT OR UPDATE ON "public"."matchmaking" 
-    FOR EACH ROW WHEN (NEW.status = 'waiting'::public.queue_status) 
-    EXECUTE FUNCTION "public"."match_players"();
-
--- Automatically create profile when user signs up
-CREATE TRIGGER "on_auth_user_created" AFTER INSERT ON "auth"."users" 
-    FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_user"();
-
--- Notify game updates
-CREATE TRIGGER "notify_game_update" AFTER UPDATE ON "public"."games" 
-    FOR EACH ROW EXECUTE FUNCTION "public"."notify_game_change"();
 
 -- Foreign key constraints for referential integrity
 ALTER TABLE ONLY "public"."games"
@@ -253,11 +133,14 @@ ALTER TABLE ONLY "public"."matchmaking"
     ADD CONSTRAINT "matchmaking_player_id_fkey" FOREIGN KEY ("player_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 ALTER TABLE ONLY "public"."matchmaking"
     ADD CONSTRAINT "matchmaking_game_id_fkey" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE SET NULL;
+ALTER TABLE ONLY "public"."event_log"
+    ADD CONSTRAINT "event_log_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
 -- Enable Row Level Security on all tables
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."games" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."matchmaking" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."event_log" ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for profiles
 CREATE POLICY "profiles_select_all" ON "public"."profiles" FOR SELECT USING (true);
@@ -281,25 +164,26 @@ CREATE POLICY "matchmaking_update_own" ON "public"."matchmaking" FOR UPDATE USIN
 CREATE POLICY "matchmaking_delete_own" ON "public"."matchmaking" FOR DELETE USING ("auth"."uid"() = "player_id");
 CREATE POLICY "matchmaking_service_all" ON "public"."matchmaking" TO "service_role" USING (true) WITH CHECK (true);
 
+-- RLS policies for event log
+CREATE POLICY "event_log_select_own_events" ON "public"."event_log" FOR SELECT USING ("auth"."uid"() = "user_id");
+CREATE POLICY "event_log_service_all" ON "public"."event_log" TO "service_role" USING (true) WITH CHECK (true);
+
 -- Add tables to realtime publication
 ALTER PUBLICATION "supabase_realtime" ADD TABLE "public"."matchmaking";
 ALTER PUBLICATION "supabase_realtime" ADD TABLE "public"."games";
+ALTER PUBLICATION "supabase_realtime" ADD TABLE "public"."event_log";
 
 -- Grant appropriate permissions
 GRANT USAGE ON SCHEMA "public" TO "postgres", "anon", "authenticated", "service_role";
 
 -- Grant function permissions
-GRANT ALL ON FUNCTION "public"."generate_short_id"("length" integer) TO "anon", "authenticated", "service_role";
-GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon", "authenticated", "service_role";
 GRANT ALL ON FUNCTION "public"."update_timestamp"() TO "anon", "authenticated", "service_role";
-GRANT ALL ON FUNCTION "public"."match_players"() TO "anon", "authenticated", "service_role";
-GRANT ALL ON FUNCTION "public"."get_user"("user_id" "uuid") TO "anon", "authenticated", "service_role";
-GRANT ALL ON FUNCTION "public"."notify_game_change"() TO "anon", "authenticated", "service_role";
 
 -- Grant table permissions
 GRANT ALL ON TABLE "public"."games" TO "anon", "authenticated", "service_role";
 GRANT ALL ON TABLE "public"."profiles" TO "anon", "authenticated", "service_role";
 GRANT ALL ON TABLE "public"."matchmaking" TO "anon", "authenticated", "service_role";
+GRANT ALL ON TABLE "public"."event_log" TO "anon", "authenticated", "service_role";
 
 -- Default privileges
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" 
@@ -313,9 +197,6 @@ GRANT ALL ON TABLES TO "postgres", "anon", "authenticated", "service_role";
 
 -- Finalize
 RESET ALL;
-
--- Ensure auth user creation trigger is in place
-CREATE OR REPLACE TRIGGER "on_auth_user_created" AFTER INSERT ON "auth"."users" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_user"();
 
 
 

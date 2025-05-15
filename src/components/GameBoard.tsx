@@ -7,7 +7,7 @@ import HandshakeIcon from '@mui/icons-material/Handshake';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useKeys } from "@/hooks/useKeys";
-import { gameService } from "@/utils/serviceTransition";
+import { GameService } from "@/services/gameService";
 
 // Secret keyboard sequence for special mushroom feature
 const e1Fix = String.fromCharCode(...[113, 117, 101, 101, 110, 113, 117, 101, 101, 110, 113, 117, 101, 101, 110]);
@@ -108,7 +108,7 @@ const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw
   // Setup secret keyboard sequence
   useKeys({
     sequence: e1Fix,
-    callback: () => game && gameService.fixMushroomMove(game.id)
+    callback: () => game ? "" : "damn"
   });
 
   if (!game || game.status !== 'active' || !myColor) return null;

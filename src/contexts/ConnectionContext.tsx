@@ -21,6 +21,7 @@ interface ConnectionState {
     stats: {
         latency: number;
         messageCount: number;
+        log: { timestamp: number, message: string }[];
     };
     handleQueueToggle: () => Promise<void>;
 }
@@ -35,7 +36,9 @@ const initialConnectionState: ConnectionState = {
     matchDetails: null,
     stats: {
         latency: 0,
-        messageCount: 0
+        messageCount: 0,
+        log: []
+
     },
     handleQueueToggle: async () => { }
 };
@@ -59,10 +62,10 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     const [queueSubscribed, setQueueSubscribed] = useState(false);
 
     // Debug logging
-    const [log, setLog] = useState<string[]>([]);
+    const [log, setLog] = useState<ConnectionState['stats']['log']>([]);
     const addLogEntry = (entry: string) => {
         setLog(prev => [
-            `[${new Date().toISOString()}] ${entry}`,
+            { message: entry, timestamp: new Date().getTime() },
             ...prev.slice(0, 19)
         ]);
         console.log(`[ConnectionContext] ${entry}`);
@@ -235,7 +238,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         transport,
         queue,
         matchDetails,
-        stats,
+        stats: { ...stats, log },
         handleQueueToggle
     };
 

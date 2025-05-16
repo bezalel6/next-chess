@@ -138,7 +138,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     .select('status, game_id')
                     .eq('player_id', session.user.id)
                     .maybeSingle();
-
+                console.log("matchmaking system:", data)
                 if (data) {
                     if (data.status === 'waiting') {
                         setQueue(prev => ({ ...prev, inQueue: true }));

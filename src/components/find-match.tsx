@@ -41,11 +41,12 @@ function FindMatch() {
     // Handle match detection and game redirection
     useEffect(() => {
         if (matchDetails?.gameId) {
-            setCheckingMatch(true);
 
+            // RULED IN
             // Small delay to show transition state in UI
+            // setCheckingMatch(true);
             const redirectTimeout = setTimeout(() => {
-                router.push(`/game/${matchDetails.gameId}`);
+                // router.push(`/game/${matchDetails.gameId}`);
             }, 1000);
 
             return () => clearTimeout(redirectTimeout);

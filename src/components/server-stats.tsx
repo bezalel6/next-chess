@@ -4,7 +4,7 @@ import { useConnection } from "@/contexts/ConnectionContext";
 import { useEffect, useRef } from "react";
 
 function ServerStats() {
-    const { isConnected, stats } = useConnection();
+    const { stats } = useConnection();
     const logEndRef = useRef<HTMLDivElement>(null);
     const logContainerRef = useRef<HTMLDivElement>(null);
 
@@ -14,10 +14,6 @@ function ServerStats() {
             logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
         }
     }, [stats.log]);
-
-    if (!isConnected) {
-        return null;
-    }
 
     return (
         <Paper
@@ -38,7 +34,7 @@ function ServerStats() {
                 Server Status
             </Typography>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {/* <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Chip
                     icon={<People />}
                     label={`${stats.activeUsers} Active Users`}
@@ -51,7 +47,7 @@ function ServerStats() {
                     color="secondary"
                     sx={{ fontWeight: 'medium', px: 1 }}
                 />
-            </Box>
+            </Box> */}
 
             <Box
                 ref={logContainerRef}

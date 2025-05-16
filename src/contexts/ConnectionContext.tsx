@@ -14,151 +14,84 @@ interface QueueState {
     size: number;
 }
 
-interface Stats {
-    activeUsers: number;
-    activeGames: number;
-    log: Array<{
-        timestamp: string;
-        message: string;
-    }>;
-}
-
-interface ConnectionContextType {
-    isConnected: boolean;
+interface ConnectionState {
     transport: string;
     queue: QueueState;
     matchDetails: GameMatch | null;
-    stats: Stats;
-    handleQueueToggle: () => void;
+    stats: {
+        latency: number;
+        messageCount: number;
+    };
+    handleQueueToggle: () => Promise<void>;
 }
 
-const ConnectionContext = createContext<ConnectionContextType | undefined>(undefined);
+const initialConnectionState: ConnectionState = {
+    transport: '',
+    queue: {
+        inQueue: false,
+        position: 0,
+        size: 0
+    },
+    matchDetails: null,
+    stats: {
+        latency: 0,
+        messageCount: 0
+    },
+    handleQueueToggle: async () => { }
+};
+
+const ConnectionContext = createContext<ConnectionState>(initialConnectionState);
+
+export function useConnection() {
+    return useContext(ConnectionContext);
+}
 
 export function ConnectionProvider({ children }: { children: ReactNode }) {
     const { session } = useAuth();
-    const [isConnected, setIsConnected] = useState(false);
-    const [transport, setTransport] = useState("N/A");
+    const router = useRouter();
+    const [transport, setTransport] = useState('');
     const [queue, setQueue] = useState<QueueState>({ inQueue: false, position: 0, size: 0 });
     const [matchDetails, setMatchDetails] = useState<GameMatch | null>(null);
+    const [stats, setStats] = useState({ latency: 0, messageCount: 0 });
+
+    // Channel management
     const [queueChannel, setQueueChannel] = useState<RealtimeChannel | null>(null);
     const [queueSubscribed, setQueueSubscribed] = useState(false);
-    const [stats, setStats] = useState<Stats>({
-        activeUsers: 0,
-        activeGames: 0,
-        log: []
-    });
-    const router = useRouter();
 
-    const addLogEntry = (message: string) => {
-        setStats(prev => ({
-            ...prev,
-            log: [...prev.log, {
-                timestamp: new Date().toISOString(),
-                message
-            }].slice(-50)
-        }));
+    // Debug logging
+    const [log, setLog] = useState<string[]>([]);
+    const addLogEntry = (entry: string) => {
+        setLog(prev => [
+            `[${new Date().toISOString()}] ${entry}`,
+            ...prev.slice(0, 19)
+        ]);
+        console.log(`[ConnectionContext] ${entry}`);
     };
 
-    // Handle presence and connection status
+    // Handle player authentication and queue setup
     useEffect(() => {
         if (!session?.user) {
-            setIsConnected(false);
-            setTransport("N/A");
-            addLogEntry("User disconnected: No active session");
-            return;
-        }
-
-        const channel = supabase.channel('online-users', {
-            config: {
-                broadcast: { self: true },
-                presence: { key: session.user.id }
-            }
-        })
-            .on('presence', { event: 'sync' }, () => {
-                const presenceState = channel.presenceState();
-                const activeUsers = Object.keys(presenceState).length;
-                const wasConnected = isConnected;
-                setIsConnected(activeUsers > 0);
-                setTransport('supabase');
-
-                if (activeUsers > 0 && !wasConnected) {
-                    addLogEntry(`Connected to realtime service (${activeUsers} active users)`);
-                } else if (activeUsers === 0 && wasConnected) {
-                    addLogEntry("Disconnected from realtime service");
-                }
-
-                setStats(prev => ({
-                    ...prev,
-                    activeUsers
-                }));
-            })
-            .subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    await channel.track({ user_id: session.user.id, online_at: new Date().toISOString() });
-                    addLogEntry("Successfully subscribed to presence channel");
-                }
-            });
-
-        return () => {
-            channel.unsubscribe();
-            addLogEntry("Unsubscribed from presence channel");
-        };
-    }, [session, isConnected]);
-
-    // Check for active matches that need redirection
-    const checkActiveMatch = async () => {
-        if (!session?.user) return;
-
-        try {
-            const activeGameId = await MatchmakingService.checkActiveMatch(session.user.id);
-            if (activeGameId) {
-                addLogEntry(`Found active match: ${activeGameId}, redirecting...`);
-                router.push(`/game/${activeGameId}`);
-            }
-        } catch (error) {
-            console.error("Error checking active match:", error);
-        }
-    };
-
-    // Setup queue channel
-    useEffect(() => {
-        if (!session?.user) {
-            setQueue({ inQueue: false, position: 0, size: 0 });
-            setMatchDetails(null);
+            addLogEntry("No authenticated user, skipping queue setup");
             setQueueChannel(null);
             setQueueSubscribed(false);
-            addLogEntry("Queue system reset: No active session");
             return;
         }
 
-        // Create the channel without subscribing
-        const channel = supabase.channel('queue-system')
-            .on('presence', { event: 'sync' }, () => {
-                const presenceState = channel.presenceState<{ user_id: string; joined_at: string }>();
-                const queueUsers = Object.values(presenceState).flat();
-                const position = queueUsers.findIndex(user => user.user_id === session.user.id) + 1;
-                const oldPosition = queue.position;
+        addLogEntry(`Setting up queue for user ${session.user.id}`);
 
-                setQueue({
-                    inQueue: position > 0,
-                    position,
-                    size: queueUsers.length
-                });
-
-                if (position !== oldPosition) {
-                    if (position > 0) {
-                        addLogEntry(`Queue position updated: ${position}/${queueUsers.length}`);
-                    } else if (oldPosition > 0) {
-                        addLogEntry("Left queue");
-                    }
-                }
-            });
+        // Create a channel directly
+        const channel = supabase.channel(`matchmaking:${session.user.id}`, {
+            config: {
+                broadcast: { self: true },
+                presence: { key: session.user.id },
+            }
+        });
 
         // Set up match listener using the matchmaking service
-        MatchmakingService.setupMatchListener(channel, router, (gameId) => {
-            setMatchDetails({ gameId });
+        MatchmakingService.setupMatchListener(channel, router, (gameId, isWhite) => {
+            setMatchDetails({ gameId, isWhite });
             setQueue({ inQueue: false, position: 0, size: 0 });
-            addLogEntry(`Game matched! Game ID: ${gameId}`);
+            addLogEntry(`Game matched! Game ID: ${gameId}, Playing as white: ${isWhite}`);
 
             // In case the router navigation in setupMatchListener fails
             setTimeout(() => {
@@ -169,6 +102,22 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 }
             }, 2000);
         });
+
+        // Listen for custom game_matched event from the player-specific channel
+        const handleGameMatched = (event: CustomEvent<{ gameId: string, isWhite?: boolean, opponentId?: string }>) => {
+            const { gameId, isWhite, opponentId } = event.detail;
+            addLogEntry(`Custom game_matched event! Game ID: ${gameId}, Playing as white: ${isWhite}, Opponent: ${opponentId}`);
+            setMatchDetails({ gameId, isWhite, opponentId });
+            setQueue({ inQueue: false, position: 0, size: 0 });
+
+            // Navigate to the game
+            router.push(`/game/${gameId}`);
+        };
+
+        window.addEventListener('game_matched', handleGameMatched as EventListener);
+
+        // Setup player-specific channel via MatchmakingService
+        MatchmakingService.setupPlayerChannel(session.user.id);
 
         setQueueChannel(channel);
 
@@ -195,6 +144,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                         setQueue(prev => ({ ...prev, inQueue: true }));
                         addLogEntry("Detected existing queue entry");
                     } else if (data.status === 'matched' && data.game_id) {
+                        setQueue(prev => ({ ...prev, inQueue: false }))
                         addLogEntry(`Detected matched game: ${data.game_id}`);
                         router.push(`/game/${data.game_id}`);
                     }
@@ -208,18 +158,16 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
         return () => {
             // Clean up - unsubscribe and untrack
+            window.removeEventListener('game_matched', handleGameMatched as EventListener);
+
             if (channel) {
                 try {
-                    // Only attempt to untrack if we're in the queue
-                    if (queue.inQueue) {
-                        channel.untrack();
-                    }
                     channel.unsubscribe();
                     setQueueSubscribed(false);
+                    addLogEntry("Queue channel unsubscribed");
                 } catch (error) {
                     console.error("Error cleaning up queue channel:", error);
                 }
-                addLogEntry("Queue channel cleanup complete");
             }
         };
         // needs to stay without the queue deps
@@ -227,51 +175,49 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     }, [session, router]);
 
     const handleQueueToggle = async () => {
-        if (!session?.user || !queueChannel) return;
-
         try {
+            if (!session) {
+                console.error("Cannot toggle queue without a session");
+                addLogEntry("Error: No authenticated session");
+                return;
+            }
+
             if (queue.inQueue) {
-                // Leave queue using the matchmaking service
-                await MatchmakingService.leaveQueue(session, queueChannel);
-                setQueue({ inQueue: false, position: 0, size: 0 });
-                addLogEntry("Manually left queue");
-            } else {
-                // Join queue - first check if user has active games
-                if (!queueSubscribed) {
-                    addLogEntry("Queue channel not yet subscribed, please try again in a moment");
-                    return;
-                }
-
-                // First check for active matches
+                // Leave the queue
+                addLogEntry("Attempting to leave matchmaking queue");
                 try {
-                    const activeGameId = await MatchmakingService.checkActiveMatch(session.user.id);
-                    if (activeGameId) {
-                        addLogEntry(`Found active match: ${activeGameId}, redirecting...`);
-                        router.push(`/game/${activeGameId}`);
-                        return;
-                    }
+                    await MatchmakingService.leaveQueue(session, queueChannel || undefined);
+                    setQueue(prev => ({ ...prev, inQueue: false }));
+                    addLogEntry("Left matchmaking queue");
                 } catch (error) {
-                    console.error("Error checking active match:", error);
-                    addLogEntry(`Error checking active matches: ${error.message || "Unknown error"}`);
+                    console.error('Error leaving queue:', error);
+                    addLogEntry(`Error leaving queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
+            } else {
+                // Check if we're already in a game
+                addLogEntry("Checking for active games before joining queue");
 
-                // Check for active games before joining queue
                 try {
-                    const activeGames = await GameService.getUserActiveGames(session.user.id);
+                    const { data: activeGames } = await supabase
+                        .from('games')
+                        .select('id')
+                        .or(`white_player_id.eq.${session.user.id},black_player_id.eq.${session.user.id}`)
+                        .eq('status', 'active')
+                        .limit(1);
 
-                    if (activeGames.length > 0) {
-                        addLogEntry("Cannot join queue: You have unfinished games");
+                    if (activeGames && activeGames.length > 0) {
+                        addLogEntry(`Already in an active game: ${activeGames[0].id}`);
+                        router.push(`/game/${activeGames[0].id}`);
                         return;
                     }
                 } catch (error) {
                     console.error('Error checking active games:', error);
                     addLogEntry(`Error checking active games: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                    return;
                 }
 
                 // Join the queue using the matchmaking service with the existing channel
                 try {
-                    await MatchmakingService.joinQueue(session, queueChannel);
+                    await MatchmakingService.joinQueue(session, queueChannel || undefined);
                     setQueue(prev => ({ ...prev, inQueue: true }));
                     addLogEntry("Joined matchmaking queue");
                 } catch (error) {
@@ -286,7 +232,6 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     };
 
     const value = {
-        isConnected,
         transport,
         queue,
         matchDetails,
@@ -301,12 +246,4 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
             </GameProvider>
         </ConnectionContext.Provider>
     );
-}
-
-export function useConnection() {
-    const context = useContext(ConnectionContext);
-    if (context === undefined) {
-        throw new Error('useConnection must be used within a ConnectionProvider');
-    }
-    return context;
 }

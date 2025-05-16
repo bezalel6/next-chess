@@ -8,7 +8,7 @@ import { MatchmakingService } from "@/services/matchmakingService";
 import { useRouter } from "next/router";
 
 function FindMatch() {
-    const { isConnected, queue, matchDetails, handleQueueToggle } = useConnection();
+    const { queue, matchDetails, handleQueueToggle } = useConnection();
     const { user, session } = useAuth();
     const [hasActiveGames, setHasActiveGames] = useState(false);
     const [checking, setChecking] = useState(false);
@@ -54,28 +54,43 @@ function FindMatch() {
         return () => { };
     }, [matchDetails, router]);
 
-    // Check active match on component mount
+    // Check matchmaking status on component mount
     useEffect(() => {
-        if (session?.user?.id) {
-            const checkForActiveMatch = async () => {
+        if (session) {
+            const checkMatchmakingStatus = async () => {
                 try {
-                    const activeMatch = await MatchmakingService.checkActiveMatch(session.user.id);
-                    if (activeMatch) {
+                    const statusData = await MatchmakingService.checkStatus(session);
+
+                    // If we have a matched game with a game_id, redirect to it
+                    if (statusData.matchFound && statusData.game?.id) {
                         setCheckingMatch(true);
-                        router.push(`/game/${activeMatch}`);
+                        router.push(`/game/${statusData.game.id}`);
                     }
+
+                    // Note: The ConnectionContext will handle updating queue status
+                    // through its own checkMatchmakingStatus function
                 } catch (error) {
-                    console.error("Error checking for active match:", error);
+                    console.error("Error checking matchmaking status:", error);
                 }
             };
 
-            checkForActiveMatch();
+            checkMatchmakingStatus();
         }
     }, [session, router]);
 
-    if (!isConnected) {
-        return null;
-    }
+    // Listen for game_matched custom event
+    useEffect(() => {
+        const handleGameMatched = (event: CustomEvent<{ gameId: string, isWhite?: boolean }>) => {
+            setCheckingMatch(true);
+            // The ConnectionContext will handle the redirection
+        };
+
+        window.addEventListener('game_matched', handleGameMatched as EventListener);
+
+        return () => {
+            window.removeEventListener('game_matched', handleGameMatched as EventListener);
+        };
+    }, []);
 
     const buttonDisabled = hasActiveGames || checking || queue.inQueue || checkingMatch;
 

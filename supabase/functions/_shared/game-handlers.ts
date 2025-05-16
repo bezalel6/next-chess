@@ -546,7 +546,6 @@ async function handleResignation(
   // Validate required params using Zod
   const validation = validateWithZod(params, Schemas.PlayerParams);
   if (!validation.valid) {
-    console.log(params);
     return errorResponse(validation.errors!.join("; "), 400);
   }
 

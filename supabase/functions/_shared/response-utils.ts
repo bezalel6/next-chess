@@ -27,6 +27,12 @@ export function successResponse<T>(
     statusCode: status,
   };
 
+  // Log success responses for easier debugging
+  console.log(
+    `[SUCCESS] Status: ${status}${message ? ", Message: " + message : ""}`,
+    data,
+  );
+
   return new Response(JSON.stringify(response), {
     status,
     headers: {

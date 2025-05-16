@@ -373,30 +373,15 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
         return errorResponse("Failed to create game", 500);
       }
 
-      // Remove first player from the matchmaking queue
-      const { error: deleteError1 } = await getTable(supabase, "matchmaking")
+      const { error } = await getTable(supabase, "matchmaking")
         .delete()
-        .eq("player_id", player1);
+        .in("player_id", [player1, player2]);
 
-      logOperation("remove first player from queue", deleteError1);
+      logOperation("remove both players from queue", error);
 
-      if (deleteError1) {
+      if (error) {
         return errorResponse(
-          `Failed to remove first player from matchmaking queue: ${deleteError1.message}`,
-          500,
-        );
-      }
-
-      // Remove second player from the matchmaking queue
-      const { error: deleteError2 } = await getTable(supabase, "matchmaking")
-        .delete()
-        .eq("player_id", player2);
-
-      logOperation("remove second player from queue", deleteError2);
-
-      if (deleteError2) {
-        return errorResponse(
-          `Failed to remove second player from matchmaking queue: ${deleteError2.message}`,
+          `Failed to remove players from matchmaking queue: ${error.message}`,
           500,
         );
       }
@@ -449,21 +434,24 @@ async function notifyGameChange(
   supabase: TypedSupabaseClient,
   game: GameRecord,
 ) {
+  async function send(uid: string) {
+    const channel = supabase.channel(`player:${uid}`);
+    return await channel.send({
+      type: "broadcast",
+      event: "game_matched",
+      payload: {
+        gameId: game.id,
+        isWhite: game.white_player_id === uid,
+        opponentId:
+          uid === game.black_player_id
+            ? game.white_player_id
+            : game.black_player_id,
+      },
+    });
+  }
   try {
-    // Use Supabase's broadcast feature to notify clients
-    // This is a simplified version - in a real app, you'd use a more robust
-    // approach like a dedicated notification channel
-
-    // For now, we'll just log the notification
     logger.info(`Game update notification: ${game.id}`);
-
-    // In a real implementation, you might use something like:
-    // await supabase.from('notifications').insert({
-    //   type: 'game_update',
-    //   recipient_id: game.white_player_id,
-    //   data: { game_id: game.id, status: game.status }
-    // });
-
+    await Promise.all([send(game.white_player_id), send(game.black_player_id)]);
     return true;
   } catch (error) {
     logger.warn(`Failed to notify game change: ${error.message}`);

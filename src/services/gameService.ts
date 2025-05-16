@@ -73,30 +73,17 @@ export class GameService {
 
   static async getUserActiveGames(userId: string): Promise<Game[]> {
     try {
-      // First try to get games where user is white player
-      const { data: whiteGames, error: whiteError } = await supabase
+      const { data, error } = await supabase
         .from("games")
         .select("*")
-        .eq("white_player_id", userId)
-        .eq("status", "active");
+        .eq("status", "active")
+        .or(`white_player_id.eq.${userId},black_player_id.eq.${userId}`);
 
-      if (whiteError) {
-        throw whiteError;
+      if (error) {
+        throw error;
       }
 
-      // Then get games where user is black player
-      const { data: blackGames, error: blackError } = await supabase
-        .from("games")
-        .select("*")
-        .eq("black_player_id", userId)
-        .eq("status", "active");
-
-      if (blackError) {
-        throw blackError;
-      }
-
-      // Combine and sort the results
-      const allGames = [...whiteGames, ...blackGames].sort(
+      const allGames = data.sort(
         (a, b) =>
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
       );

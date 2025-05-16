@@ -26,6 +26,9 @@ export class MatchmakingService {
     // Setup notification channel if not provided
     const channel = existingChannel || this.setupNotificationChannel(userId);
 
+    // Also setup player-specific channel for direct notifications
+    this.setupPlayerChannel(userId);
+
     // Handle immediate match if exists
     if (data?.matchFound && data?.game) {
       console.log(`[Matchmaking] Already matched with game: ${data.game.id}`);
@@ -33,7 +36,10 @@ export class MatchmakingService {
         channel.send({
           type: "broadcast",
           event: "game-matched",
-          payload: { gameId: data.game.id },
+          payload: {
+            gameId: data.game.id,
+            isWhite: data.game.white_player_id === userId,
+          },
         });
       }, 500);
     }
@@ -42,33 +48,36 @@ export class MatchmakingService {
   }
 
   /**
-   * Leave the matchmaking queue
+   * Leave matchmaking queue
    */
   static async leaveQueue(
     session: Session,
     channel?: RealtimeChannel,
-  ): Promise<void> {
+  ): Promise<boolean> {
+    if (!session) {
+      console.error("[Matchmaking] Cannot leave queue: No session");
+      return false;
+    }
+
     console.log(`[Matchmaking] User ${session.user.id} leaving queue`);
 
-    // Call edge function to leave queue
+    // Leave queue via Edge function
     const { error } = await invokeWithAuth("matchmaking", {
       body: { operation: "leaveQueue" },
     });
 
     if (error) {
       console.error(`[Matchmaking] Error leaving queue: ${error.message}`);
+      throw error;
     }
 
-    // Cleanup channel if provided
+    // Unsubscribe from the channel if provided
     if (channel) {
-      try {
-        await channel.untrack();
-      } catch (untrackError) {
-        console.warn(
-          `[Matchmaking] Error untracking channel: ${untrackError.message}`,
-        );
-      }
+      await channel.unsubscribe();
+      console.log(`[Matchmaking] Unsubscribed from queue channel`);
     }
+
+    return true;
   }
 
   /**
@@ -79,14 +88,35 @@ export class MatchmakingService {
     router: NextRouter,
     callback?: (gameId: string, isWhite?: boolean) => void,
   ): void {
+    // Listen for the legacy game-matched event
     channel.on("broadcast", { event: "game-matched" }, (payload) => {
       if (payload.payload?.gameId) {
         const gameId = payload.payload.gameId;
-        console.log(`[Matchmaking] Match found! Game ID: ${gameId}`);
+        const isWhite = payload.payload.isWhite;
+        console.log(
+          `[Matchmaking] Match found! Game ID: ${gameId}, Playing as white: ${isWhite}`,
+        );
 
         // Navigate to game and execute callback if provided
         if (callback) {
-          callback(gameId);
+          callback(gameId, isWhite);
+        }
+        router.push(`/game/${gameId}`);
+      }
+    });
+
+    // Also listen for the new game_matched event format
+    channel.on("broadcast", { event: "game_matched" }, (payload) => {
+      if (payload.payload?.gameId) {
+        const gameId = payload.payload.gameId;
+        const isWhite = payload.payload.isWhite;
+        console.log(
+          `[Matchmaking] Match found! Game ID: ${gameId}, Playing as white: ${isWhite}`,
+        );
+
+        // Navigate to game and execute callback if provided
+        if (callback) {
+          callback(gameId, isWhite);
         }
         router.push(`/game/${gameId}`);
       }
@@ -94,62 +124,65 @@ export class MatchmakingService {
   }
 
   /**
-   * Check for active matches for a user
+   * Check matchmaking status
    */
-  static async checkActiveMatch(userId: string): Promise<string | null> {
-    try {
-      // Check for active games as white player
-      const { data: whiteGames, error: whiteError } = await supabase
-        .from("games")
-        .select("id, created_at")
-        .eq("white_player_id", userId)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (whiteError) {
-        throw whiteError;
-      }
-
-      // Check for active games as black player
-      const { data: blackGames, error: blackError } = await supabase
-        .from("games")
-        .select("id, created_at")
-        .eq("black_player_id", userId)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (blackError) {
-        throw blackError;
-      }
-
-      // Combine results
-      const activeGames = [...whiteGames, ...blackGames];
-      if (activeGames.length > 0) {
-        // Sort by created_at if there are games from both queries
-        activeGames.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        );
-        return activeGames[0].id;
-      }
-
-      // Then check matchmaking for matched status
-      const { data: matchmakingEntry } = await supabase
-        .from("matchmaking")
-        .select("game_id")
-        .eq("player_id", userId)
-        .eq("status", "matched")
-        .maybeSingle();
-
-      return matchmakingEntry?.game_id || null;
-    } catch (error) {
-      console.error(
-        `[Matchmaking] Error checking active match: ${error.message}`,
-      );
-      return null;
+  static async checkStatus(session: Session): Promise<any> {
+    if (!session) {
+      return { inQueue: false };
     }
+
+    console.log(`[Matchmaking] Checking status for user ${session.user.id}`);
+
+    const { data, error } = await invokeWithAuth("matchmaking", {
+      body: { operation: "checkStatus" },
+    });
+
+    if (error) {
+      console.error(
+        `[Matchmaking] Error checking status: ${error.message}`,
+        error,
+      );
+      throw error;
+    }
+
+    return data || { inQueue: false };
+  }
+
+  /**
+   * Setup a player-specific channel to receive direct notifications
+   */
+  static setupPlayerChannel(userId: string): RealtimeChannel {
+    const playerChannel = supabase.channel(`player:${userId}`, {
+      config: {
+        broadcast: { self: true },
+      },
+    });
+
+    // Listen for direct player notifications
+    playerChannel.on("broadcast", { event: "game_matched" }, (payload) => {
+      if (payload.payload?.gameId) {
+        const gameId = payload.payload.gameId;
+        const isWhite = payload.payload.isWhite;
+        const opponentId = payload.payload.opponentId;
+
+        console.log(
+          `[Matchmaking] Direct match notification! Game ID: ${gameId}, Playing as white: ${isWhite}, Opponent: ${opponentId}`,
+        );
+
+        // Dispatch a custom event for the ConnectionContext to handle
+        window.dispatchEvent(
+          new CustomEvent("game_matched", {
+            detail: { gameId, isWhite, opponentId },
+          }),
+        );
+      }
+    });
+
+    playerChannel.subscribe((status) => {
+      console.log(`[Matchmaking] Player channel status: ${status}`);
+    });
+
+    return playerChannel;
   }
 
   /**

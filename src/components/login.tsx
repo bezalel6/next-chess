@@ -6,7 +6,6 @@ import AuthForm from "@/components/auth-form";
 
 function Login() {
     const { user, profile, signOut, isLoading } = useAuth();
-    const { isConnected } = useConnection();
 
     if (isLoading) {
         return (
@@ -36,8 +35,8 @@ function Login() {
                     <Typography variant="h6" color="text.primary">
                         Welcome, {displayName}
                     </Typography>
-                    <Typography variant="body2" color={isConnected ? "success.main" : "error.main"}>
-                        {isConnected ? "Connected" : "Disconnected"}
+                    <Typography variant="body2" color={"success.main"}>
+                        {"Connected"}
                     </Typography>
                     <Button
                         variant="outlined"

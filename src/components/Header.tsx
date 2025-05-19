@@ -51,6 +51,10 @@ const Header = () => {
             bgcolor: 'background.paper',
             gap: { xs: 1, sm: 1, md: 0 },
             textAlign: { xs: 'center', sm: 'center', md: 'left' },
+            position: 'sticky',
+            top: 0,
+            zIndex: 1100,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
         }}>
             <LogoLink />
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>

@@ -4,8 +4,9 @@ import { useGame } from "@/contexts/GameContext";
 import Image from "next/image";
 import React, { useEffect } from "react";
 import { useRouter } from 'next/compat/router';
+import TabDialog from './TabDialog';
 
-const tabLabels = ["Home", "How To Play", "About"];
+const tabLabels = ["How To Play", "About", 'Contact Us'];
 
 const Header = () => {
     const { profile } = useAuth();
@@ -39,6 +40,36 @@ const Header = () => {
         return profile?.username || '';
     };
 
+    // Tab content functions
+    const HowToPlay = () => (
+        <>
+            <Typography variant="body1" gutterBottom>
+                Welcome to BanChess! Here&apos;s how to play:
+            </Typography>
+            <ul>
+                <li>Each player takes turns banning a piece from the board.</li>
+                <li>Once all bans are complete, play proceeds as in standard chess.</li>
+                <li>Checkmate your opponent to win!</li>
+            </ul>
+        </>
+    );
+
+    const About = () => (
+        <>
+            <Typography variant="body1" gutterBottom>
+                BanChess is a fun chess variant where you can ban pieces before the game starts. Created for chess lovers who want a twist!
+            </Typography>
+        </>
+    );
+
+    const ContactUs = () => (
+        <>
+            <Typography variant="body1" gutterBottom>
+                Have feedback or questions? Email us at <Link href="mailto:support@banchess.com">support@banchess.com</Link>.
+            </Typography>
+        </>
+    );
+
     return (
         <Box sx={{
             p: 1.5,
@@ -61,16 +92,18 @@ const Header = () => {
                 <Typography variant="h6" sx={{ mb: { xs: 0.5, md: 0 }, fontWeight: 600 }}>
                     {headerTitle}
                 </Typography>
-                <Tabs
-                    value={tabValue === -1 ? 0 : tabValue}
-                    onChange={handleTabChange}
-                    centered
-                    sx={{ minWidth: 200, mt: { xs: 1, sm: 1, md: 0 }, mb: { xs: 1, sm: 1, md: 0 } }}
-                >
-                    {tabLabels.map(label => (
-                        <Tab key={label} label={label} />
-                    ))}
-                </Tabs>
+                {/* TabDialog buttons row */}
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mb: 1 }}>
+                    <TabDialog buttonLabel="How To Play" title="How To Play" variant="dialog">
+                        <HowToPlay />
+                    </TabDialog>
+                    <TabDialog buttonLabel="About" title="About" variant="dialog">
+                        <About />
+                    </TabDialog>
+                    <TabDialog buttonLabel="Contact Us" title="Contact Us" variant="dialog">
+                        <ContactUs />
+                    </TabDialog>
+                </Box>
             </Box>
             {displayUserInfo() && (
                 <Typography

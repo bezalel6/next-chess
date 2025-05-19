@@ -3,8 +3,8 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Box, Typography, Ico
 import CloseIcon from '@mui/icons-material/Close';
 
 interface TabDialogProps {
-    buttonLabel: React.ReactNode;
-    title?: React.ReactNode;
+    title: React.ReactNode;
+    buttonLabel?: React.ReactNode;
     children: React.ReactNode;
     actions?: React.ReactNode;
     variant?: 'dialog' | 'panel';
@@ -13,8 +13,8 @@ interface TabDialogProps {
 }
 
 const TabDialog: React.FC<TabDialogProps> = ({
-    buttonLabel,
     title,
+    buttonLabel = title,
     children,
     actions,
     variant = 'dialog',
@@ -39,7 +39,7 @@ const TabDialog: React.FC<TabDialogProps> = ({
                             </IconButton>
                         </DialogTitle>
                     )}
-                    <DialogContent>{children}</DialogContent>
+                    <DialogContent dividers>{children}</DialogContent>
                     {actions && <DialogActions>{actions}</DialogActions>}
                 </Dialog>
             </>
@@ -78,4 +78,4 @@ const TabDialog: React.FC<TabDialogProps> = ({
     );
 };
 
-export default TabDialog; 
+export default TabDialog;

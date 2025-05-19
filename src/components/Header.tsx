@@ -4,7 +4,7 @@ import { useGame } from "@/contexts/GameContext";
 import Image from "next/image";
 import React, { useEffect } from "react";
 import { useRouter } from 'next/compat/router';
-import TabDialog from './TabDialog';
+import TabDialog, { type TitledComponent } from './TabDialog';
 
 const tabLabels = ["How To Play", "About", 'Contact Us'];
 
@@ -15,15 +15,6 @@ const Header = () => {
     const { tab } = router.query;
     // Determine tab index from query param
     const tabValue = typeof tab === 'string' ? tabLabels.findIndex(l => l.replace(/\s+/g, '').toLowerCase() === tab.toLowerCase()) : 0;
-
-    // Set ?tab= in URL when tab changes
-    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-        const tabKey = tabLabels[newValue].replace(/\s+/g, '').toLowerCase();
-        router.replace({
-            pathname: router.pathname,
-            query: { ...router.query, tab: tabKey },
-        }, undefined, { shallow: true });
-    };
 
     // Dynamic title based on tab
     const headerTitle = tabLabels[tabValue] || tabLabels[0];
@@ -54,13 +45,6 @@ const Header = () => {
         </>
     );
 
-    const About = () => (
-        <>
-            <Typography variant="body1" gutterBottom>
-                BanChess is a fun chess variant where you can ban pieces before the game starts. Created for chess lovers who want a twist!
-            </Typography>
-        </>
-    );
 
     const ContactUs = () => (
         <>
@@ -94,17 +78,9 @@ const Header = () => {
                 </Typography>
                 {/* TabDialog buttons row */}
                 <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mb: 1 }}>
-                    <TabDialog buttonLabel="How To Play" title="How To Play" variant="dialog">
-                        <HowToPlay />
-                    </TabDialog>
-                    <TabDialog buttonLabel="About" title="About" variant="dialog">
-                        <About />
-                    </TabDialog>
-                    <TabDialog buttonLabel="Contact Us" title="Contact Us" variant="dialog">
-                        <ContactUs />
-                    </TabDialog>
+                    <About />
                 </Box>
-            </Box>
+            </Box >
             {displayUserInfo() && (
                 <Typography
                     variant="body2"
@@ -123,4 +99,12 @@ const LogoLink = () => <Link href="/" style={{ textDecoration: 'none', display: 
         Ban<span className="pink-span">Chess</span>
     </Typography>
 </Link>
+const About: TitledComponent = () => {
+    return <TabDialog title={About.title}>
+        <Typography variant="body1" gutterBottom>
+            BanChess is a fun chess variant where you can ban pieces before the game starts. Created for chess lovers who want a twist!
+        </Typography>
+    </TabDialog>
+}
+About.title = "About!"
 export default Header; 

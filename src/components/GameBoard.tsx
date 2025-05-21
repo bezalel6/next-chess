@@ -175,9 +175,7 @@ const GameBoard = () => {
 
       {/* Chess board */}
       <Box sx={{
-        width: '80%',
-        maxWidth: 600,
-        aspectRatio: '1/1',
+        width: '100%',
         position: 'relative'
       }}>
         <LichessBoard />

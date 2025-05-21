@@ -35,7 +35,12 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     }, [pgn, game.banningPlayer]);
 
     const legalMoves = useMemo(() => {
-        if (!game?.chess || (!isMyTurn && !game.banningPlayer)) return new Map();
+        if (!game?.chess) return new Map()
+        if (pgn !== game.pgn) {
+            console.log("viewing an older position")
+            return new Map()
+        }
+        if ((!isMyTurn && !game.banningPlayer)) return new Map();
 
         return Array.from(game.chess.moves({ verbose: true }))
             .reduce((map, move) => {
@@ -50,7 +55,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 map.set(from, [...dests, to]);
                 return map;
             }, new Map())
-    }, [game.chess, game.banningPlayer, isMyTurn, bannedMove]);
+    }, [game.chess, game.pgn, game.banningPlayer, pgn, isMyTurn, bannedMove]);
 
     useEffect(() => {
         if (game?.banningPlayer && myColor === game.banningPlayer) {

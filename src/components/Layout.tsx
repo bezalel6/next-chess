@@ -13,7 +13,6 @@ const Layout = ({ children }: LayoutProps) => {
             <Box
                 component="main"
                 sx={{
-                    height: 'calc(100vh - 72px)', // Adjust height based on header height
                     width: '100%',
                     overflowY: 'auto',
                     bgcolor: 'background.default'

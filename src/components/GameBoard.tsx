@@ -105,12 +105,6 @@ const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
 
 // Game actions component
 const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw }) => {
-  // Setup secret keyboard sequence
-  useKeys({
-    sequence: e1Fix,
-    callback: () => game ? "" : "damn"
-  });
-
   if (!game || game.status !== 'active' || !myColor) return null;
 
   return (
@@ -181,9 +175,7 @@ const GameBoard = () => {
 
       {/* Chess board */}
       <Box sx={{
-        width: '80%',
-        maxWidth: 600,
-        aspectRatio: '1/1',
+        width: '100%',
         position: 'relative'
       }}>
         <LichessBoard />

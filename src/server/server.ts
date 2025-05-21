@@ -52,58 +52,6 @@ app.prepare().then(async () => {
           (a, b) =>
             new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime(),
         );
-
-        // // Match players in pairs
-        // let currentQueue = [...filteredQueue];
-        // for (let i = 0; i < currentQueue.length - 1; i += 2) {
-        //   const player1 = currentQueue[i];
-        //   const player2 = currentQueue[i + 1];
-
-        //   console.debug("[Server Queue] Attempting to match players:", {
-        //     player1: player1.user_id,
-        //     player2: player2.user_id,
-        //     player1JoinedAt: player1.joined_at,
-        //     player2JoinedAt: player2.joined_at,
-        //   });
-
-        //   try {
-        //     // Use SecureMatchmakingService to handle the match
-        //     await SecureMatchmakingService.createMatchServerSide(
-        //       player1.user_id,
-        //       player2.user_id,
-        //     );
-        //     console.debug("[Server Queue] Successfully matched players:", {
-        //       player1: player1.user_id,
-        //       player2: player2.user_id,
-        //     });
-
-        //     // Remove matched players from current queue
-        //     currentQueue = currentQueue.filter(
-        //       (player) =>
-        //         player.user_id !== player1.user_id &&
-        //         player.user_id !== player2.user_id,
-        //     );
-        //     i -= 2; // Adjust index since we removed two players
-        //   } catch (error) {
-        //     console.error("[Server Queue] Error in matchmaking:", {
-        //       player1: player1.user_id,
-        //       player2: player2.user_id,
-        //       error,
-        //     });
-        //   }
-        // }
-
-        // // Log remaining players if any
-        // if (currentQueue.length % 2 !== 0) {
-        //   const remainingPlayer = currentQueue[currentQueue.length - 1];
-        //   console.debug("[Server Queue] Player waiting for match:", {
-        //     player: remainingPlayer.user_id,
-        //     joinedAt: remainingPlayer.joined_at,
-        //     waitTime:
-        //       new Date().getTime() -
-        //       new Date(remainingPlayer.joined_at).getTime(),
-        //   });
-        // }
       } catch (error) {
         console.error("[Server Queue] Error processing queue:", error);
       }

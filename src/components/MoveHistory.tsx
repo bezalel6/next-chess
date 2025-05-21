@@ -161,7 +161,9 @@ function MovesRow({
         color: 'rgba(255,255,255,0.5)',
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         fontSize: '0.75rem',
-        textAlign: 'center'
+        textAlign: 'center',
+        verticalAlign: 'middle',
+        width: '10%'
       }}>
         {moveNumber}
       </Box>
@@ -172,10 +174,12 @@ function MovesRow({
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         fontSize: '0.8rem',
         textAlign: 'center',
+        verticalAlign: 'middle',
         bgcolor: selectedPly === whiteMove.fen ? 'rgba(255,255,255,0.15)' : 'transparent',
-        cursor: whiteMove.fen ? 'pointer' : 'default'
+        cursor: whiteMove.fen ? 'pointer' : 'default',
+        width: '45%'
       }}
-        onClick={() => onPlyClick(whiteMove.fen)}
+        onClick={() => whiteMove.fen && onPlyClick(whiteMove.fen)}
       >
         <PlyComponent ply={whiteMove} />
       </Box>
@@ -186,39 +190,67 @@ function MovesRow({
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         fontSize: '0.8rem',
         textAlign: 'center',
+        verticalAlign: 'middle',
         bgcolor: selectedPly === blackMove?.fen ? 'rgba(255,255,255,0.15)' : 'transparent',
-        cursor: blackMove?.fen ? 'pointer' : 'default'
+        cursor: blackMove?.fen ? 'pointer' : 'default',
+        width: '45%'
       }}
-        onClick={() => onPlyClick(blackMove?.fen)}
+        onClick={() => blackMove?.fen && onPlyClick(blackMove?.fen)}
       >
         <PlyComponent ply={blackMove} />
       </Box>
-    </Box >
+    </Box>
   );
 }
 
 function PlyComponent({ ply }: { ply: Ply }) {
-
   return (
-    <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Typography
-        component="span"
-        sx={{
-          display: 'inline-block',
-          fontWeight: ply?.banned ? 'normal' : 'medium'
-        }}
-      >
-        {ply?.move}
-      </Typography>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+        padding: '4px'
+      }}
+    >
+      {ply?.move && (
+        <Typography
+          component="span"
+          sx={{
+            fontWeight: 'normal',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: ply?.banned ? '50%' : '100%',
+            height: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {ply.move}
+        </Typography>
+      )}
 
       {ply?.banned && (
         <Tooltip title={`Banned move: ${ply.banned}`} arrow>
-          <Box component="span" sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            ml: 0.5,
-            color: 'error.main'
-          }}>
+          <Box
+            component="span"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'error.main',
+              width: ply?.move ? '50%' : '100%',
+              height: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
             {ply.banned}
           </Box>
         </Tooltip>
@@ -226,5 +258,4 @@ function PlyComponent({ ply }: { ply: Ply }) {
     </Box>
   );
 }
-
 export default MoveHistory; 

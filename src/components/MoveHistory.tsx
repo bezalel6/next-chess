@@ -59,7 +59,6 @@ const MoveHistory = () => {
         setMoveHistory([]);
       }
     };
-    console.log('move record:', plyRecord.toArr())
     formatMovesFromPgn();
   }, [game.pgn]);
 
@@ -123,11 +122,11 @@ const MoveHistory = () => {
         </Box>
 
         {/* Game moves */}
-        {moveHistory.map((move, plyIndex) => (
+        {moveHistory.map((move, index) => (
           <MovesRow
             move={move}
-            key={plyIndex}
-            moveNumber={getMoveNumber(plyIndex)}
+            key={index}
+            moveNumber={index + 1}
             selectedPly={selectedPly}
             onPlyClick={handlePlyClick}
           />

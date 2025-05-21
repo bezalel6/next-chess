@@ -7,10 +7,10 @@ import { debounce } from "lodash";
 
 // Zod schema for username validation
 const usernameSchema = z
-  .string()
-  .min(3, "Username must be at least 3 characters")
-  .max(20, "Username cannot exceed 20 characters")
-  .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens");
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .max(20, "Username cannot exceed 20 characters")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens");
 
 export default function AuthForm() {
     const { signIn, signUp, signInAsGuest, checkUsernameExists } = useAuth();
@@ -59,7 +59,7 @@ export default function AuthForm() {
             try {
                 usernameSchema.parse(username);
                 setUsernameError(null);
-                
+
                 // After basic validation passes, check if the username is unique
                 setCheckingUsername(true);
                 debouncedUsernameCheck(username);
@@ -71,7 +71,7 @@ export default function AuthForm() {
         } else {
             setUsernameError(null);
         }
-        
+
         // Cleanup function for debounce
         return () => {
             debouncedUsernameCheck.cancel();
@@ -99,7 +99,7 @@ export default function AuthForm() {
                 }
 
                 const result = await signUp(email, password, username);
-                
+
                 if (result.confirmEmail) {
                     setSuccess(result.message);
                     // Do not redirect if email confirmation is required
@@ -130,7 +130,7 @@ export default function AuthForm() {
         setSuccess(null);
         setIsLoading(true);
         setSubmitAction("guest");
-        
+
         try {
             await signInAsGuest();
             setSuccess("Signed in as guest! Redirecting...");
@@ -174,102 +174,112 @@ export default function AuthForm() {
     };
 
     return (
-        <Paper
-            elevation={2}
+        <Box
             sx={{
-                p: 3,
+                minHeight: '100%',
                 width: '100%',
-                maxWidth: '400px',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: 2
+                alignItems: 'center',
+                justifyContent: 'center',
             }}
         >
-            <Typography variant="h5" component="h2" align="center">
-                {isSignUp ? "Create Account" : "Sign In"}
-            </Typography>
+            <Paper
+                elevation={2}
+                sx={{
+                    p: 3,
+                    width: '100%',
+                    maxWidth: '400px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2
+                }}
+            >
+                <Typography variant="h5" component="h2" align="center">
+                    {isSignUp ? "Create Account" : "Sign In"}
+                </Typography>
 
-            {error && (
-                <Alert severity="error" onClose={() => setError(null)}>
-                    {error}
-                </Alert>
-            )}
+                {error && (
+                    <Alert severity="error" onClose={() => setError(null)}>
+                        {error}
+                    </Alert>
+                )}
 
-            {success && (
-                <Alert severity="success" onClose={() => setSuccess(null)}>
-                    {success}
-                </Alert>
-            )}
+                {success && (
+                    <Alert severity="success" onClose={() => setSuccess(null)}>
+                        {success}
+                    </Alert>
+                )}
 
-            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {isSignUp && (
+                <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {isSignUp && (
+                        <TextField
+                            label="Username"
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                            fullWidth
+                            disabled={isLoading}
+                            error={!!usernameError}
+                            helperText={
+                                checkingUsername
+                                    ? "Checking username availability..."
+                                    : usernameError || "3-20 characters, letters, numbers, _ and - only"
+                            }
+                            InputProps={{
+                                endAdornment: checkingUsername && <CircularProgress size={20} color="inherit" />
+                            }}
+                        />
+                    )}
                     <TextField
-                        label="Username"
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
+                        label="Email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         required
                         fullWidth
                         disabled={isLoading}
-                        error={!!usernameError}
-                        helperText={
-                            checkingUsername 
-                                ? "Checking username availability..." 
-                                : usernameError || "3-20 characters, letters, numbers, _ and - only"
-                        }
-                        InputProps={{
-                            endAdornment: checkingUsername && <CircularProgress size={20} color="inherit" />
-                        }}
                     />
-                )}
-                <TextField
-                    label="Email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    fullWidth
-                    disabled={isLoading}
-                />
-                <TextField
-                    label="Password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    fullWidth
-                    disabled={isLoading}
-                    helperText={isSignUp ? "Password must be at least 6 characters" : ""}
-                />
-                <Button
-                    type="submit"
-                    variant="contained"
-                    fullWidth
-                    disabled={isLoading || !isFormValid()}
-                    startIcon={isLoading && submitAction !== "guest" ? <CircularProgress size={20} color="inherit" /> : null}
-                >
-                    {getButtonText()}
-                </Button>
-                <Button
-                    variant="text"
-                    onClick={toggleSignUp}
-                    disabled={isLoading}
-                >
-                    {isSignUp ? "Already have an account? Sign In" : "Need an account? Sign Up"}
-                </Button>
-                
-                <Divider sx={{ my: 1 }}>or</Divider>
-                
-                <Button
-                    variant="outlined"
-                    fullWidth
-                    onClick={handleGuestSignIn}
-                    disabled={isLoading}
-                    startIcon={isLoading && submitAction === "guest" ? <CircularProgress size={20} color="inherit" /> : null}
-                >
-                    {submitAction === "guest" && isLoading ? "Continuing..." : "Continue as Guest"}
-                </Button>
-            </Box>
-        </Paper>
+                    <TextField
+                        label="Password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        fullWidth
+                        disabled={isLoading}
+                        helperText={isSignUp ? "Password must be at least 6 characters" : ""}
+                    />
+                    <Button
+                        type="submit"
+                        variant="contained"
+                        fullWidth
+                        disabled={isLoading || !isFormValid()}
+                        startIcon={isLoading && submitAction !== "guest" ? <CircularProgress size={20} color="inherit" /> : null}
+                    >
+                        {getButtonText()}
+                    </Button>
+                    <Button
+                        variant="text"
+                        onClick={toggleSignUp}
+                        disabled={isLoading}
+                    >
+                        {isSignUp ? "Already have an account? Sign In" : "Need an account? Sign Up"}
+                    </Button>
+
+                    <Divider sx={{ my: 1 }}>or</Divider>
+
+                    <Button
+                        variant="outlined"
+                        fullWidth
+                        onClick={handleGuestSignIn}
+                        disabled={isLoading}
+                        startIcon={isLoading && submitAction === "guest" ? <CircularProgress size={20} color="inherit" /> : null}
+                    >
+                        {submitAction === "guest" && isLoading ? "Continuing..." : "Continue as Guest"}
+                    </Button>
+                </Box>
+            </Paper>
+        </Box>
     );
 }

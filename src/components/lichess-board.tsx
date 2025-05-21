@@ -180,15 +180,21 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     } satisfies Config), [game.chess, myColor, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove]);
 
     return (
-        <>
-            <Chessground contained config={config} />
+        <Box position="relative" sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: '100%',
+        }}>
             {isBanningMode && (
                 <Box
                     sx={{
                         position: 'absolute',
-                        top: '10px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
+                        bottom: '-50px',
+                        left: '0',
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
                         zIndex: 20,
                     }}
                 >
@@ -196,11 +202,37 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                         label="BAN MODE - SELECT OPPONENT'S MOVE TO BAN"
                         color="warning"
                         sx={{
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
+                            padding: '10px',
+                            animation: 'pulse 1.5s infinite',
+                            '@keyframes pulse': {
+                                '0%': { boxShadow: '0 0 0 0 rgba(255, 152, 0, 0.4)' },
+                                '70%': { boxShadow: '0 0 0 10px rgba(255, 152, 0, 0)' },
+                                '100%': { boxShadow: '0 0 0 0 rgba(255, 152, 0, 0)' },
+                            },
+                            height: 'auto',
+                            minHeight: '32px',
+                            '& .MuiChip-label': {
+                                whiteSpace: 'normal',
+                                textAlign: 'center',
+                                lineHeight: 1.2,
+                                padding: '6px 0',
+                                display: 'block',
+                                maxWidth: '100%',
+                            }
                         }}
                     />
                 </Box>
             )}
+            <Box sx={{
+                width: '80%',
+                maxWidth: 600,
+                aspectRatio: '1/1',
+                margin: '0 auto',
+                position: 'relative',
+            }}>
+                <Chessground contained config={config} />
+            </Box>
             {overlay && (
                 <Box
                     sx={{
@@ -230,7 +262,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                     </Paper>
                 </Box>
             )}
-        </>
+        </Box>
     );
 };
 

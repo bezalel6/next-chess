@@ -1,5 +1,5 @@
 import { Box, Typography, Tooltip, IconButton } from "@mui/material";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { Chess } from "chess.ts";
 import { getAllBannedMoves, getBannedMove, getMoveNumber } from './../utils/gameUtils';
@@ -10,6 +10,7 @@ type Ply = {
   move?: string;
   banned?: string;
   fen?: string;
+  pgn?: string;
 }
 type Move = [Ply, Ply?];
 function pliesToMoves(plies: Ply[]): Move[] {
@@ -25,9 +26,9 @@ function pliesToMoves(plies: Ply[]): Move[] {
 }
 const plyRecord = createMagicalMap<Ply>(() => ({}))
 const MoveHistory = () => {
-  const { game } = useGame();
+  const { game, setPgn } = useGame();
   const [moveHistory, setMoveHistory] = useState<Move[]>([]);
-  const [selectedPly, setSelectedPly] = useState<string | null>(null);
+  const [selectedPly, setSelectedPly] = useState<Ply | null>(null);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
 
   // Update move history whenever the game state changes
@@ -49,9 +50,13 @@ const MoveHistory = () => {
 
           runningGame.move(move)
           const fen = runningGame.fen()
+          const comment = refGame.getComment(fen) || ''
+          runningGame.setComment(comment, fen)
+          const pgn = runningGame.pgn()
 
           plyRecord[index].move = move.san;
           plyRecord[index].fen = fen;
+          plyRecord[index].pgn = pgn;
         });
         setMoveHistory(pliesToMoves(plyRecord.toArr()));
       } catch (error) {
@@ -70,12 +75,10 @@ const MoveHistory = () => {
   }, [moveHistory]);
 
   // Handle ply selection
-  const handlePlyClick = (fen: string | undefined) => {
-    if (fen) {
-      setSelectedPly(fen);
-    }
-  };
-
+  const handlePlyClick = useCallback((ply: Ply) => {
+    setPgn(ply.pgn || game.pgn)
+    setSelectedPly(ply);
+  }, [game?.pgn, setPgn, setSelectedPly])
   return (
     <Box
       ref={moveHistoryRef}
@@ -143,9 +146,9 @@ function MovesRow({
   onPlyClick
 }: {
   move: Move;
-  selectedPly: string | null;
+  selectedPly: Ply | null;
   moveNumber: number;
-  onPlyClick: (fen: string | undefined) => void;
+  onPlyClick: (ply: Ply) => void;
 }) {
   return (
     <Box
@@ -174,11 +177,11 @@ function MovesRow({
         fontSize: '0.8rem',
         textAlign: 'center',
         verticalAlign: 'middle',
-        bgcolor: selectedPly === whiteMove.fen ? 'rgba(255,255,255,0.15)' : 'transparent',
-        cursor: whiteMove.fen ? 'pointer' : 'default',
+        bgcolor: selectedPly === whiteMove ? 'rgba(255,255,255,0.15)' : 'transparent',
+        cursor: 'pointer',
         width: '45%'
       }}
-        onClick={() => whiteMove.fen && onPlyClick(whiteMove.fen)}
+        onClick={() => onPlyClick(whiteMove)}
       >
         <PlyComponent ply={whiteMove} />
       </Box>
@@ -190,11 +193,11 @@ function MovesRow({
         fontSize: '0.8rem',
         textAlign: 'center',
         verticalAlign: 'middle',
-        bgcolor: selectedPly === blackMove?.fen ? 'rgba(255,255,255,0.15)' : 'transparent',
-        cursor: blackMove?.fen ? 'pointer' : 'default',
+        bgcolor: selectedPly === blackMove ? 'rgba(255,255,255,0.15)' : 'transparent',
+        cursor: blackMove ? 'pointer' : 'default',
         width: '45%'
       }}
-        onClick={() => blackMove?.fen && onPlyClick(blackMove?.fen)}
+        onClick={() => blackMove && onPlyClick(blackMove)}
       >
         <PlyComponent ply={blackMove} />
       </Box>

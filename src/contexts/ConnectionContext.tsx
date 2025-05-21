@@ -65,8 +65,8 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     const [log, setLog] = useState<ConnectionState['stats']['log']>([]);
     const addLogEntry = (entry: string) => {
         setLog(prev => [
+            ...prev.slice(0, 19),
             { message: entry, timestamp: new Date().getTime() },
-            ...prev.slice(0, 19)
         ]);
         console.log(`[ConnectionContext] ${entry}`);
     };

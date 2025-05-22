@@ -18,6 +18,7 @@ import {
 import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";
 import { createRouter, defineRoute } from "../_shared/router-utils.ts";
+import { DEFAULT_TIME_CONTROL, INITIAL_FEN } from "../_shared/constants.ts";
 
 const logger = createLogger("MATCHMAKING");
 
@@ -28,7 +29,7 @@ type MatchmakingRecord = Tables<"matchmaking">;
 // Matchmaking-specific schemas
 const MatchmakingSchemas = {
   QueueParams: z.object({
-    preferences: z.record(z.any()).optional(),
+    // Remove preferences object
   }),
   CheckStatusParams: z.object({
     queueId: z.string().uuid().optional(),
@@ -132,7 +133,7 @@ async function handleJoinQueue(user: User, supabase: TypedSupabaseClient) {
       .insert({
         player_id: user.id,
         status: "waiting",
-        preferences: {},
+        preferences: {}, // Empty preferences object (required by schema)
       })
       .select("*")
       .maybeSingle();
@@ -153,7 +154,7 @@ async function handleJoinQueue(user: User, supabase: TypedSupabaseClient) {
       entityType: "matchmaking",
       entityId: queueEntry.id,
       userId: user.id,
-      data: { preferences: queueEntry.preferences },
+      data: {}, // No preferences data
     });
 
     // Try to find a match immediately
@@ -341,18 +342,20 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       // Generate a unique game ID
       const gameId = generateShortId();
 
-      // Create a new game
+      // Create a new game with default time control
       const { data: game, error: gameError } = await getTable(supabase, "games")
         .insert({
           id: gameId,
           white_player_id: player1,
           black_player_id: player2,
           status: "active",
-          current_fen:
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          current_fen: INITIAL_FEN,
           pgn: "",
           turn: "white",
           banning_player: "black",
+          time_control: DEFAULT_TIME_CONTROL,
+          white_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
+          black_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
         })
         .select("*")
         .maybeSingle();

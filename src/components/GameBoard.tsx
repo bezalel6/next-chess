@@ -1,19 +1,13 @@
-import { Box, Typography, Stack, Button, Tooltip } from "@mui/material";
-import LichessBoard from "./lichess-board";
 import { useGame } from "@/contexts/GameContext";
-import GameOverOverlay from "./GameOverOverlay";
-import FlagIcon from '@mui/icons-material/Flag';
-import HandshakeIcon from '@mui/icons-material/Handshake';
-import CancelIcon from '@mui/icons-material/Cancel';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useKeys } from "@/hooks/useKeys";
-import { GameService } from "@/services/gameService";
-import { useState } from "react";
+import type { Game } from "@/types/game";
+import { Box, Typography } from "@mui/material";
+import { GameActions } from "./GameActions";
 import GameOverDetails from "./GameOverDetails";
+import GameOverOverlay from "./GameOverOverlay";
+import LichessBoard from "./lichess-board";
 import UserLink from "./user-link";
-import type { Game, PlayerColor, GameContextType } from "@/types/game";
+import TimeControl from "./TimeControl";
 
-// Secret keyboard sequence for special mushroom feature
 const e1Fix = String.fromCharCode(...[113, 117, 101, 101, 110, 113, 117, 101, 101, 110, 113, 117, 101, 101, 110]);
 
 // Types
@@ -62,132 +56,6 @@ const GameStatus = ({ game, currentTurnName }: GameStatusProps) => (
   </Box>
 );
 
-// Draw offer buttons component
-const DrawButtons = () => {
-  const { game, myColor, actions } = useGame();
-
-  if (!game || !myColor) return null;
-
-  const opponentColor = myColor === 'white' ? 'black' : 'white';
-
-  if (game.drawOfferedBy === myColor) {
-    return (
-      <Typography variant="body2" sx={{ color: 'white', fontStyle: 'italic', alignSelf: 'center' }}>
-        Draw offer sent
-      </Typography>
-    );
-  }
-
-  if (game.drawOfferedBy === opponentColor) {
-    return (
-      <>
-        <Tooltip title="Accept Draw Offer" arrow>
-          <Button
-            variant="outlined"
-            color="success"
-            size="small"
-            onClick={actions.acceptDraw}
-            startIcon={<CheckCircleIcon />}
-          >
-            Accept Draw
-          </Button>
-        </Tooltip>
-        <Tooltip title="Decline Draw Offer" arrow>
-          <Button
-            variant="outlined"
-            color="warning"
-            size="small"
-            onClick={actions.declineDraw}
-            startIcon={<CancelIcon />}
-          >
-            Decline
-          </Button>
-        </Tooltip>
-      </>
-    );
-  }
-
-  return (
-    <Tooltip title="Offer Draw" arrow>
-      <Button
-        variant="outlined"
-        color="info"
-        size="small"
-        onClick={actions.offerDraw}
-        startIcon={<HandshakeIcon />}
-      >
-        Offer Draw
-      </Button>
-    </Tooltip>
-  );
-};
-
-// Game actions component
-const GameActions = () => {
-  const [showResignConfirm, setShowResignConfirm] = useState(false);
-  const { game, myColor, actions } = useGame();
-
-  if (!game || game.status !== 'active' || !myColor) return null;
-
-  const handleResignClick = () => {
-    if (showResignConfirm) {
-      actions.resign();
-      setShowResignConfirm(false);
-    } else {
-      setShowResignConfirm(true);
-    }
-  };
-
-  const handleCancelResign = () => {
-    setShowResignConfirm(false);
-  };
-
-  return (
-    <Box sx={{
-      width: '100%',
-      maxWidth: 800,
-      mt: 1,
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center'
-    }}>
-      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-        {/* Draw buttons */}
-        <DrawButtons />
-        {/* Resignation button with confirmation */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Tooltip title={showResignConfirm ? "Click again to confirm" : "Resign Game"} arrow>
-            <Button
-              variant={showResignConfirm ? "contained" : "outlined"}
-              color="error"
-              size="small"
-              onClick={handleResignClick}
-              startIcon={<FlagIcon />}
-              sx={showResignConfirm ? { fontWeight: 'bold' } : {}}
-            >
-              Resign
-            </Button>
-          </Tooltip>
-
-          {showResignConfirm && (
-            <Tooltip title="Cancel" arrow>
-              <Button
-                sx={{ ml: 0.5 }}
-                variant="text"
-                color="inherit"
-                size="small"
-                onClick={handleCancelResign}
-              >
-                <CancelIcon fontSize="small" />
-              </Button>
-            </Tooltip>
-          )}
-        </Box>
-      </Stack>
-    </Box>
-  );
-};
-
 // Main GameBoard component
 const GameBoard = () => {
   const { game, myColor, playerUsernames } = useGame();
@@ -198,6 +66,9 @@ const GameBoard = () => {
   const opponentName = myColor === 'white' ? playerUsernames.black : playerUsernames.white;
   const myName = myColor === 'white' ? playerUsernames.white : playerUsernames.black;
   const currentTurnName = game.turn === 'white' ? playerUsernames.white : playerUsernames.black;
+
+  // Determine opponent color
+  const opponentColor = myColor === 'white' ? 'black' : 'white';
 
   return (
     <Box sx={{
@@ -210,6 +81,11 @@ const GameBoard = () => {
       {/* Opponent info */}
       <PlayerInfo username={opponentName} isOpponent={true} />
 
+      {/* Time control for opponent */}
+      {opponentColor && (
+        <TimeControl playerColor={opponentColor} />
+      )}
+
       {/* Chess board */}
       <Box sx={{
         width: '100%',
@@ -218,6 +94,11 @@ const GameBoard = () => {
         <LichessBoard />
         {game.status === 'finished' && <GameOverOverlay />}
       </Box>
+
+      {/* Time control for player */}
+      {myColor && (
+        <TimeControl playerColor={myColor} />
+      )}
 
       {/* Player info */}
       <PlayerInfo username={myName} />

@@ -14,19 +14,15 @@ interface QueueState {
 }
 
 interface ConnectionState {
-    transport: string;
     queue: QueueState;
     matchDetails: GameMatch | null;
     stats: {
-        latency: number;
-        messageCount: number;
         log: { timestamp: number, message: string }[];
     };
     handleQueueToggle: () => Promise<void>;
 }
 
 const initialConnectionState: ConnectionState = {
-    transport: '',
     queue: {
         inQueue: false,
         position: 0,
@@ -34,10 +30,7 @@ const initialConnectionState: ConnectionState = {
     },
     matchDetails: null,
     stats: {
-        latency: 0,
-        messageCount: 0,
         log: []
-
     },
     handleQueueToggle: async () => { }
 };
@@ -51,14 +44,11 @@ export function useConnection() {
 export function ConnectionProvider({ children }: { children: ReactNode }) {
     const { session } = useAuth();
     const router = useRouter();
-    const [transport, setTransport] = useState('');
     const [queue, setQueue] = useState<QueueState>({ inQueue: false, position: 0, size: 0 });
     const [matchDetails, setMatchDetails] = useState<GameMatch | null>(null);
-    const [stats, setStats] = useState({ latency: 0, messageCount: 0 });
 
     // Channel management
     const [playerChannel, setPlayerChannel] = useState<RealtimeChannel | null>(null);
-    const [channelSubscribed, setChannelSubscribed] = useState(false);
 
     // Debug logging
     const [log, setLog] = useState<ConnectionState['stats']['log']>([]);
@@ -75,7 +65,6 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         if (!session?.user) {
             addLogEntry("No authenticated user, skipping channel setup");
             setPlayerChannel(null);
-            setChannelSubscribed(false);
             return;
         }
 
@@ -105,7 +94,6 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         // Subscribe to the channel immediately
         channel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                setChannelSubscribed(true);
                 addLogEntry("Player channel subscribed successfully");
             }
         });
@@ -142,7 +130,6 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
             if (channel) {
                 try {
                     channel.unsubscribe();
-                    setChannelSubscribed(false);
                     addLogEntry("Player channel unsubscribed");
                 } catch (error) {
                     console.error("Error cleaning up player channel:", error);
@@ -211,10 +198,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     };
 
     const value = {
-        transport,
         queue,
         matchDetails,
-        stats: { ...stats, log },
+        stats: { log },
         handleQueueToggle
     };
 

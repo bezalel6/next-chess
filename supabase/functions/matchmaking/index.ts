@@ -28,11 +28,17 @@ type MatchmakingRecord = Tables<"matchmaking">;
 // Matchmaking-specific schemas
 const MatchmakingSchemas = {
   QueueParams: z.object({
-    preferences: z.record(z.any()).optional(),
+    // Remove preferences object
   }),
   CheckStatusParams: z.object({
     queueId: z.string().uuid().optional(),
   }),
+};
+
+// Add a fixed default time control
+const DEFAULT_TIME_CONTROL = {
+  initialTime: 600000, // 10 minutes in ms
+  increment: 0, // No increment
 };
 
 // Define matchmaking operations
@@ -132,7 +138,7 @@ async function handleJoinQueue(user: User, supabase: TypedSupabaseClient) {
       .insert({
         player_id: user.id,
         status: "waiting",
-        preferences: {},
+        preferences: {}, // Empty preferences object (required by schema)
       })
       .select("*")
       .maybeSingle();
@@ -153,7 +159,7 @@ async function handleJoinQueue(user: User, supabase: TypedSupabaseClient) {
       entityType: "matchmaking",
       entityId: queueEntry.id,
       userId: user.id,
-      data: { preferences: queueEntry.preferences },
+      data: {}, // No preferences data
     });
 
     // Try to find a match immediately
@@ -341,7 +347,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       // Generate a unique game ID
       const gameId = generateShortId();
 
-      // Create a new game
+      // Create a new game with default time control
       const { data: game, error: gameError } = await getTable(supabase, "games")
         .insert({
           id: gameId,
@@ -353,6 +359,9 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
           pgn: "",
           turn: "white",
           banning_player: "black",
+          time_control: DEFAULT_TIME_CONTROL,
+          white_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
+          black_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
         })
         .select("*")
         .maybeSingle();

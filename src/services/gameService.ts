@@ -164,6 +164,14 @@ export class GameService {
       endReason: dbGame.end_reason || null,
       rematchOfferedBy: dbGame.rematch_offered_by || null,
       parentGameId: dbGame.parent_game_id || null,
+      whiteTimeRemaining: dbGame.white_time_remaining || null,
+      blackTimeRemaining: dbGame.black_time_remaining || null,
+      timeControl: dbGame.time_control
+        ? {
+            initialTime: dbGame.time_control.initial_time || 10 * 60 * 1000,
+            increment: dbGame.time_control.increment || 0,
+          }
+        : null,
     };
   }
 

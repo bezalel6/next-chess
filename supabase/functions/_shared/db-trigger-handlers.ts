@@ -12,6 +12,12 @@ import type { Json } from "./database-types.ts";
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const logger = createLogger("DB_TRIGGER");
 
+// Add a fixed default time control
+const DEFAULT_TIME_CONTROL = {
+  initialTime: 600000, // 10 minutes in ms
+  increment: 0, // No increment
+};
+
 interface MatchedPlayer {
   player_id: string;
   joined_at: string;
@@ -147,7 +153,7 @@ export async function createGameFromMatchedPlayers(
       supabase,
       "matchmaking",
     )
-      .select("player_id, joined_at")
+      .select("player_id, joined_at, preferences")
       .eq("status", "matched")
       .order("joined_at", { ascending: true })
       .limit(2);
@@ -179,7 +185,9 @@ export async function createGameFromMatchedPlayers(
     const whiteId = isPlayer1White ? player1Id : player2Id;
     const blackId = isPlayer1White ? player2Id : player1Id;
 
-    logger.info(`Creating game: White=${whiteId}, Black=${blackId}`);
+    logger.info(
+      `Creating game: White=${whiteId}, Black=${blackId} with default time control`,
+    );
 
     // Generate a short game ID
     const gameId = generateShortId();
@@ -195,6 +203,9 @@ export async function createGameFromMatchedPlayers(
         pgn: "",
         turn: "white",
         banning_player: "black",
+        time_control: DEFAULT_TIME_CONTROL,
+        white_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
+        black_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
       })
       .select("*")
       .single();

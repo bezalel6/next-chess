@@ -17,6 +17,7 @@ export type GameEndReason =
   | "insufficient_material"
   | "threefold_repetition"
   | "fifty_move_rule"
+  | "timeout"
   | null;
 
 export interface ChessMove {
@@ -43,6 +44,13 @@ export interface Game {
   endReason: GameEndReason;
   rematchOfferedBy: PlayerColor | null;
   parentGameId: string | null;
+  // Time control properties
+  whiteTimeRemaining?: number;
+  blackTimeRemaining?: number;
+  timeControl?: {
+    initialTime: number; // in milliseconds
+    increment: number; // in milliseconds
+  };
 }
 
 export interface GameContextType {

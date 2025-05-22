@@ -87,7 +87,7 @@ export function useMagicalMap<T>(
   const mapRef = useRef<MagicalMap<T> | null>(null);
 
   // Force re-render when the map changes
-  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
+  const [updateCount, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   // Create the map only once or when dependencies change
   const magicalMap = useMemo(() => {
@@ -183,14 +183,19 @@ export function useMagicalMap<T>(
     });
   }, [magicalMap, clear, deleteKey, triggerUpdate]);
 
-  return reactiveMap;
+  // Return both the map and a stable dependency value
+  return {
+    map: reactiveMap,
+    version: updateCount, // This changes every time the map is modified
+  };
 }
 
 // Helper hook for common use case of arrays
 export function useMagicalArrayMap<T = unknown>(
   dependencies: React.DependencyList = [],
 ) {
-  return useMagicalMap<T[]>(() => [], dependencies);
+  const { map, version } = useMagicalMap<T[]>(() => [], dependencies);
+  return { map, version };
 }
 
 // Helper hook for common use case of objects
@@ -198,10 +203,10 @@ export function useMagicalObjectMap<T extends Record<string, unknown>>(
   defaultObject: () => T,
   dependencies: React.DependencyList = [],
 ) {
-  const map = useMagicalMap<T>(defaultObject, dependencies);
+  const { map, version } = useMagicalMap<T>(defaultObject, dependencies);
 
   // Return a proxy that also wraps object properties for reactivity
-  return new Proxy(map, {
+  const wrappedMap = new Proxy(map, {
     get(target, prop: string) {
       const value = target[prop];
 
@@ -226,58 +231,18 @@ export function useMagicalObjectMap<T extends Record<string, unknown>>(
       return value;
     },
   });
+
+  return { map: wrappedMap, version };
 }
 
-// Example React component usage:
-/*
-import React from 'react';
-import { useMagicalArrayMap, useMagicalObjectMap } from './useMagicalMap';
-
-function ExampleComponent() {
-  const arrayMap = useMagicalArrayMap<string>();
-  const userMap = useMagicalObjectMap(() => ({ name: '', age: 0 }));
-
-  const addItem = (category: string, item: string) => {
-    arrayMap[category].push(item);
-  };
-
-  const updateUser = (userId: string, updates: Partial<{ name: string; age: number }>) => {
-    Object.assign(userMap[userId], updates);
-  };
-
-  return (
-    <div>
-      <button onClick={() => addItem('fruits', 'apple')}>
-        Add Apple to Fruits
-      </button>
-      <button onClick={() => addItem('vegetables', 'carrot')}>
-        Add Carrot to Vegetables
-      </button>
-      <button onClick={() => updateUser('user1', { name: 'John', age: 25 })}>
-        Update User 1
-      </button>
-      
-      <div>
-        <h3>Arrays:</h3>
-        {arrayMap.keys().map(key => (
-          <div key={key}>
-            {key}: {JSON.stringify(arrayMap[key])}
-          </div>
-        ))}
-      </div>
-      
-      <div>
-        <h3>Users:</h3>
-        {userMap.keys().map(key => (
-          <div key={key}>
-            {key}: {JSON.stringify(userMap[key])}
-          </div>
-        ))}
-      </div>
-      
-      <button onClick={() => arrayMap.clear()}>Clear Arrays</button>
-      <button onClick={() => userMap.clear()}>Clear Users</button>
-    </div>
+// Convenience hook for creating computed values based on magical maps
+export function useMagicalMapComputed<T, R>(
+  magicalMapResult: { map: MagicalMap<T>; version: number },
+  computeFn: (map: MagicalMap<T>) => R,
+  additionalDeps: React.DependencyList = [],
+): R {
+  return useMemo(
+    () => computeFn(magicalMapResult.map),
+    [magicalMapResult.version, ...additionalDeps],
   );
 }
-*/

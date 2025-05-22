@@ -9,6 +9,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
 import LastPageIcon from '@mui/icons-material/LastPage';
 import { useSingleKeys, Keys } from "@/hooks/useKeys";
+import { useMagicalObjectMap } from "@/utils/magicalMap";
 
 type Ply = {
   move?: string;
@@ -23,43 +24,40 @@ type Move = {
   white: Ply;
   black?: Ply;
 }
+function pliesToMoves(plies: Ply[]): Move[] {
+  const moves: Move[] = [];
 
+  for (let i = 0; i < plies.length; i += 2) {
+    const whitePly = plies[i];
+    const blackPly = i + 1 < plies.length ? plies[i + 1] : undefined;
+    moves.push({ number: getMoveNumber(i), white: whitePly, black: blackPly });
+  }
+
+  return moves;
+}
 const MoveHistory = () => {
   const { game, setPgn } = useGame();
-  const [plies, setPlies] = useState<Ply[]>([]);
   const [currentPlyIndex, setCurrentPlyIndex] = useState<number>(-1);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
   const prevGameIdRef = useRef<string | null>(null);
-
+  const { map: magicalMoves, version: magicalMovesVersion } = useMagicalObjectMap(() => ({ index: -1 } as Ply), [])
   // Convert plies to paired moves for display
   const moves = useMemo<Move[]>(() => {
-    const result: Move[] = [];
-
-    for (let i = 0; i < plies.length; i += 2) {
-      const white = plies[i];
-      const black = i + 1 < plies.length ? plies[i + 1] : undefined;
-
-      result.push({
-        number: Math.floor(i / 2) + 1,
-        white,
-        black
-      });
-    }
-
-    return result;
-  }, [plies]);
+    return pliesToMoves(magicalMoves.toArray());
+  }, [magicalMovesVersion]);
 
   // Get the currently selected ply
   const selectedPly = useMemo(() => {
-    return currentPlyIndex >= 0 && currentPlyIndex < plies.length
-      ? plies[currentPlyIndex]
+    const arr = magicalMoves.toArray()
+    return currentPlyIndex >= 0 && currentPlyIndex < arr.length
+      ? arr[currentPlyIndex]
       : null;
-  }, [currentPlyIndex, plies]);
+  }, [currentPlyIndex, magicalMovesVersion]);
 
   // Reset state when game changes
   useEffect(() => {
     if (game.id && prevGameIdRef.current !== game.id) {
-      setPlies([]);
+      magicalMoves.clear()
       setCurrentPlyIndex(-1);
       prevGameIdRef.current = game.id;
     }
@@ -76,11 +74,13 @@ const MoveHistory = () => {
 
       // Get all banned moves
       const bannedMoves = getAllBannedMoves(game.pgn);
-
+      bannedMoves.forEach((m, i) => {
+        magicalMoves[i].banned = m;
+        magicalMoves[i].index = i;
+      })
       // Process move history
       const moveHistory = refGame.history({ verbose: true });
       const runningGame = new Chess();
-      const newPlies: Ply[] = [];
 
       moveHistory.forEach((move, index) => {
         runningGame.move(move);
@@ -88,22 +88,11 @@ const MoveHistory = () => {
         const comment = refGame.getComment(fen) || '';
         runningGame.setComment(comment, fen);
         const pgn = runningGame.pgn();
-
-        newPlies.push({
-          move: move.san,
-          banned: bannedMoves[index],
-          fen,
-          pgn,
-          index
-        });
+        magicalMoves[index].fen = fen;
+        magicalMoves[index].pgn = pgn;
+        magicalMoves[index].move = move.san;
       });
 
-      setPlies(newPlies);
-
-      // Select last move when history updates
-      if (newPlies.length > 0) {
-        setCurrentPlyIndex(newPlies.length - 1);
-      }
     } catch (error) {
       console.error("Error parsing PGN:", error);
     }
@@ -124,28 +113,28 @@ const MoveHistory = () => {
 
   // Navigation functions
   const navigateToFirst = useCallback(() => {
-    if (plies.length > 0) {
-      handlePlyClick(plies[0]);
+    if (magicalMoves.length > 0) {
+      handlePlyClick(magicalMoves[0]);
     }
-  }, [handlePlyClick, plies]);
+  }, [handlePlyClick, magicalMovesVersion]);
 
   const navigateToPrevious = useCallback(() => {
     if (currentPlyIndex > 0) {
-      handlePlyClick(plies[currentPlyIndex - 1]);
+      handlePlyClick(magicalMoves[currentPlyIndex - 1]);
     }
-  }, [currentPlyIndex, handlePlyClick, plies]);
+  }, [currentPlyIndex, handlePlyClick, magicalMovesVersion]);
 
   const navigateToNext = useCallback(() => {
-    if (currentPlyIndex < plies.length - 1) {
-      handlePlyClick(plies[currentPlyIndex + 1]);
+    if (currentPlyIndex < magicalMoves.length - 1) {
+      handlePlyClick(magicalMoves[currentPlyIndex + 1]);
     }
-  }, [currentPlyIndex, handlePlyClick, plies]);
+  }, [currentPlyIndex, handlePlyClick, magicalMovesVersion]);
 
   const navigateToLast = useCallback(() => {
-    if (plies.length > 0) {
-      handlePlyClick(plies[plies.length - 1]);
+    if (magicalMoves.length > 0) {
+      handlePlyClick(magicalMoves[magicalMoves.length - 1]);
     }
-  }, [handlePlyClick, plies]);
+  }, [handlePlyClick, magicalMovesVersion]);
 
   // Add keyboard navigation
   useSingleKeys(
@@ -282,7 +271,7 @@ const MoveHistory = () => {
             <IconButton
               size="small"
               onClick={navigateToNext}
-              disabled={currentPlyIndex >= plies.length - 1}
+              disabled={currentPlyIndex >= magicalMoves.length - 1}
               sx={{ color: 'white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
             >
               <ChevronRightIcon fontSize="small" />
@@ -294,7 +283,7 @@ const MoveHistory = () => {
             <IconButton
               size="small"
               onClick={navigateToLast}
-              disabled={currentPlyIndex >= plies.length - 1}
+              disabled={currentPlyIndex >= magicalMoves.length - 1}
               sx={{ color: 'white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
             >
               <LastPageIcon fontSize="small" />

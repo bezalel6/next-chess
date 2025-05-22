@@ -8,6 +8,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useKeys } from "@/hooks/useKeys";
 import { GameService } from "@/services/gameService";
+import { useState } from "react";
 
 // Secret keyboard sequence for special mushroom feature
 const e1Fix = String.fromCharCode(...[113, 117, 101, 101, 110, 113, 117, 101, 101, 110, 113, 117, 101, 101, 110]);
@@ -105,7 +106,22 @@ const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
 
 // Game actions component
 const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw }) => {
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
+
   if (!game || game.status !== 'active' || !myColor) return null;
+
+  const handleResignClick = () => {
+    if (showResignConfirm) {
+      resign();
+      setShowResignConfirm(false);
+    } else {
+      setShowResignConfirm(true);
+    }
+  };
+
+  const handleCancelResign = () => {
+    setShowResignConfirm(false);
+  };
 
   return (
     <Box sx={{
@@ -117,19 +133,6 @@ const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw
       alignItems: 'center'
     }}>
       <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-        {/* Resignation button */}
-        <Tooltip title="Resign Game" arrow>
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            onClick={resign}
-            startIcon={<FlagIcon />}
-          >
-            Resign
-          </Button>
-        </Tooltip>
-
         {/* Draw buttons */}
         <DrawButtons
           game={game}
@@ -138,6 +141,36 @@ const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw
           acceptDraw={acceptDraw}
           declineDraw={declineDraw}
         />
+        {/* Resignation button with confirmation */}
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Tooltip title={showResignConfirm ? "Click again to confirm" : "Resign Game"} arrow>
+            <Button
+              variant={showResignConfirm ? "contained" : "outlined"}
+              color="error"
+              size="small"
+              onClick={handleResignClick}
+              startIcon={<FlagIcon />}
+              sx={showResignConfirm ? { fontWeight: 'bold' } : {}}
+            >
+              Resign
+            </Button>
+          </Tooltip>
+
+          {showResignConfirm && (
+            <Tooltip title="Cancel" arrow>
+              <Button
+                sx={{ ml: 0.5 }}
+                variant="text"
+                color="inherit"
+                size="small"
+                onClick={handleCancelResign}
+              >
+                <CancelIcon fontSize="small" />
+              </Button>
+            </Tooltip>
+          )}
+        </Box>
+
       </Stack>
     </Box>
   );

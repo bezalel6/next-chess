@@ -157,6 +157,7 @@ export class GameService {
 
   static mapGameFromDB(dbGame: GameRow): Game {
     const chess = new Chess(dbGame.current_fen);
+    console.log({ dbGame });
     return {
       id: dbGame.id,
       whitePlayer: dbGame.white_player_id,
@@ -181,8 +182,7 @@ export class GameService {
       blackTimeRemaining: dbGame.black_time_remaining || null,
       timeControl: dbGame.time_control
         ? {
-            initialTime:
-              (dbGame.time_control as any)?.initial_time || 10 * 60 * 1000,
+            initialTime: (dbGame.time_control as any)?.initial_time,
             increment: (dbGame.time_control as any)?.increment || 0,
           }
         : null,

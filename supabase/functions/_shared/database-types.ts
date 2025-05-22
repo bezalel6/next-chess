@@ -203,7 +203,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_default_initial_time: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      get_default_time_control: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
     }
     Enums: {
       end_reason:

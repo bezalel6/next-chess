@@ -1,8 +1,34 @@
--- Time control utility functions for chess game
+-- Add time control fields to the games table
+ALTER TABLE public.games 
+  ADD COLUMN IF NOT EXISTS white_time_remaining BIGINT,
+  ADD COLUMN IF NOT EXISTS black_time_remaining BIGINT,
+  ADD COLUMN IF NOT EXISTS time_control JSONB;
 
--- IMPORTANT: These values must match the default time control in:
--- 1. Client-side constants: src/constants/timeControl.ts
--- 2. Server-side constants: supabase/functions/_shared/constants.ts
+-- Centralized time control configuration function
+CREATE OR REPLACE FUNCTION public.get_default_time_control()
+RETURNS JSONB AS $$
+BEGIN
+  -- Single place to configure default time control values
+  -- initial_time: 10 minutes (600000 milliseconds)
+  -- increment: 0 seconds
+  RETURN '{"initial_time": 600000, "increment": 0}'::jsonb;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Helper function to get the initial time value
+CREATE OR REPLACE FUNCTION public.get_default_initial_time()
+RETURNS BIGINT AS $$
+BEGIN
+  RETURN (public.get_default_time_control()->>'initial_time')::BIGINT;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Update existing games to have a default time control
+UPDATE public.games
+SET time_control = public.get_default_time_control()
+WHERE time_control IS NULL; 
+
+-- Time control utility functions for chess game
 
 -- Function to calculate time remaining after a move
 CREATE OR REPLACE FUNCTION public.update_time_remaining()
@@ -117,9 +143,9 @@ RETURNS TRIGGER AS $$
 BEGIN
   -- If time control is not set, initialize with default values
   IF NEW.time_control IS NULL THEN
-    NEW.time_control := '{"initial_time": 600000, "increment": 0}'::jsonb;
-    NEW.white_time_remaining := 600000;
-    NEW.black_time_remaining := 600000;
+    NEW.time_control := public.get_default_time_control();
+    NEW.white_time_remaining := public.get_default_initial_time();
+    NEW.black_time_remaining := public.get_default_initial_time();
   -- If time control is set, but time remaining is not initialized
   ELSIF NEW.white_time_remaining IS NULL OR NEW.black_time_remaining IS NULL THEN
     -- Set initial time for both players
@@ -142,12 +168,12 @@ EXECUTE FUNCTION public.initialize_time_control();
 ALTER TYPE public.end_reason ADD VALUE IF NOT EXISTS 'timeout';
 
 -- Update existing games with default time control if not set
--- Using the default values from constants
+-- Using the centralized default values
 UPDATE public.games
 SET 
-  time_control = '{"initial_time": 600000, "increment": 0}'::jsonb,
-  white_time_remaining = 600000,
-  black_time_remaining = 600000
+  time_control = public.get_default_time_control(),
+  white_time_remaining = public.get_default_initial_time(),
+  black_time_remaining = public.get_default_initial_time()
 WHERE 
   time_control IS NULL AND
-  status = 'active'; 
+  status = 'active';

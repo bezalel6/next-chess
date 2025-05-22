@@ -82,8 +82,8 @@ const GameBoard = () => {
       <PlayerInfo username={opponentName} isOpponent={true} />
 
       {/* Time control for opponent */}
-      {opponentColor && (<></>
-        // <TimeControl playerColor={opponentColor} />
+      {opponentColor && (
+        <TimeControl playerColor={opponentColor} />
       )}
 
       {/* Chess board */}
@@ -96,8 +96,8 @@ const GameBoard = () => {
       </Box>
 
       {/* Time control for player */}
-      {myColor && (<></>
-        // <TimeControl playerColor={myColor} />
+      {myColor && (
+        <TimeControl playerColor={myColor} />
       )}
 
       {/* Player info */}
@@ -111,7 +111,6 @@ const GameBoard = () => {
 
       {/* Game Over Details (under status) */}
       {game.status === 'finished' && <GameOverDetails />}
-      <Typography component={"pre"}>{JSON.stringify({ whiteTimeRemaining: game.whiteTimeRemaining, blackTimeRemaining: game.blackTimeRemaining })}</Typography>
     </Box>
   );
 };

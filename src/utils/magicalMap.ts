@@ -10,6 +10,7 @@ type MagicalMap<T> = {
   delete(key: string): boolean;
   keys(): string[];
   size(): number;
+  length: number;
   triggerUpdate(): void;
 };
 
@@ -43,6 +44,9 @@ function createMagicalMap<T>(initializer: () => T): MagicalMap<T> {
       return Object.keys(store);
     },
     size(): number {
+      return Object.keys(store).length;
+    },
+    get length(): number {
       return Object.keys(store).length;
     },
     triggerUpdate(): void {

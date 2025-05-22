@@ -1,8 +1,34 @@
-import { useMagicalArrayMap, useMagicalObjectMap } from "@/utils/magicalMap";
+import { useMagicalArrayMap, useMagicalMapComputed, useMagicalObjectMap } from "@/utils/magicalMap";
+import { useMemo } from "react";
 
-export default function ExampleComponent() {
-    const arrayMap = useMagicalArrayMap<string>();
-    const userMap = useMagicalObjectMap(() => ({ name: '', age: 0 }));
+export default
+    function ExampleComponent() {
+    const arrayMapResult = useMagicalArrayMap<string>();
+    const userMapResult = useMagicalObjectMap(() => ({ name: '', age: 0 }));
+
+    // Extract map and version for easier use
+    const { map: arrayMap, version: arrayVersion } = arrayMapResult;
+    const { map: userMap, version: userVersion } = userMapResult;
+
+    // Computed values that automatically update when maps change
+    const totalItems = useMagicalMapComputed(
+        arrayMapResult,
+        (map) => map.toArray().reduce((sum, arr) => sum + arr.length, 0)
+    );
+
+    const averageAge = useMagicalMapComputed(
+        userMapResult,
+        (map) => {
+            const users = map.toArray();
+            if (users.length === 0) return 0;
+            return users.reduce((sum, user) => sum + user.age, 0) / users.length;
+        }
+    );
+
+    // You can also use the version directly in useMemo
+    const categoryCount = useMemo(() => {
+        return arrayMap.keys().length;
+    }, [arrayVersion]);
 
     const addItem = (category: string, item: string) => {
         arrayMap[category].push(item);
@@ -14,6 +40,13 @@ export default function ExampleComponent() {
 
     return (
         <div>
+            <div>
+                <h3>Statistics:</h3>
+                <p>Total Items: {totalItems}</p>
+                <p>Category Count: {categoryCount}</p>
+                <p>Average User Age: {averageAge.toFixed(1)}</p>
+            </div>
+
             <button onClick={() => addItem('fruits', 'apple')}>
                 Add Apple to Fruits
             </button>
@@ -22,6 +55,9 @@ export default function ExampleComponent() {
             </button>
             <button onClick={() => updateUser('user1', { name: 'John', age: 25 })}>
                 Update User 1
+            </button>
+            <button onClick={() => updateUser('user2', { name: 'Jane', age: 30 })}>
+                Update User 2
             </button>
 
             <div>

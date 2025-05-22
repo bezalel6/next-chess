@@ -1,10 +1,9 @@
 import { Box, Typography, Tooltip, IconButton } from "@mui/material";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { Chess } from "chess.ts";
-import { getAllBannedMoves, getBannedMove, getMoveNumber } from './../utils/gameUtils';
+import { getAllBannedMoves, getBannedMove, getMoveNumber } from '@/utils/gameUtils';
 import BlockIcon from '@mui/icons-material/Block';
-import { createMagicalMap } from "@/utils/magicalMap";
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
@@ -16,111 +15,137 @@ type Ply = {
   banned?: string;
   fen?: string;
   pgn?: string;
+  index: number;
 }
-type Move = [Ply, Ply?];
-function pliesToMoves(plies: Ply[]): Move[] {
-  const moves: [Ply, Ply?][] = [];
 
-  for (let i = 0; i < plies.length; i += 2) {
-    const whitePly = plies[i];
-    const blackPly = i + 1 < plies.length ? plies[i + 1] : undefined;
-    moves.push([whitePly, blackPly]);
-  }
-
-  return moves;
+type Move = {
+  number: number;
+  white: Ply;
+  black?: Ply;
 }
-const plyRecord = createMagicalMap<Ply>(() => ({}))
+
 const MoveHistory = () => {
   const { game, setPgn } = useGame();
-  const [moveHistory, setMoveHistory] = useState<Move[]>([]);
-  const [selectedPly, setSelectedPly] = useState<Ply | null>(null);
+  const [plies, setPlies] = useState<Ply[]>([]);
   const [currentPlyIndex, setCurrentPlyIndex] = useState<number>(-1);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
+  const prevGameIdRef = useRef<string | null>(null);
 
-  // Update move history whenever the game state changes
+  // Convert plies to paired moves for display
+  const moves = useMemo<Move[]>(() => {
+    const result: Move[] = [];
+
+    for (let i = 0; i < plies.length; i += 2) {
+      const white = plies[i];
+      const black = i + 1 < plies.length ? plies[i + 1] : undefined;
+
+      result.push({
+        number: Math.floor(i / 2) + 1,
+        white,
+        black
+      });
+    }
+
+    return result;
+  }, [plies]);
+
+  // Get the currently selected ply
+  const selectedPly = useMemo(() => {
+    return currentPlyIndex >= 0 && currentPlyIndex < plies.length
+      ? plies[currentPlyIndex]
+      : null;
+  }, [currentPlyIndex, plies]);
+
+  // Reset state when game changes
   useEffect(() => {
-    // Use the game's PGN to generate move history
-    const formatMovesFromPgn = () => {
+    if (game.id && prevGameIdRef.current !== game.id) {
+      setPlies([]);
+      setCurrentPlyIndex(-1);
+      prevGameIdRef.current = game.id;
+    }
+  }, [game.id]);
+
+  // Update move history when PGN changes
+  useEffect(() => {
+    if (!game.pgn) return;
+
+    try {
+      // Process the game and extract moves
       const refGame = new Chess();
+      refGame.loadPgn(game.pgn);
 
-      try {
-        // Load the game from PGN
-        refGame.loadPgn(game.pgn);
-        getAllBannedMoves(game.pgn).forEach((m, i) => {
-          plyRecord[i].banned = m;
-        })
-        const moveHistory = refGame.history({ verbose: true });
+      // Get all banned moves
+      const bannedMoves = getAllBannedMoves(game.pgn);
 
-        const runningGame = new Chess()
-        moveHistory.forEach((move, index) => {
+      // Process move history
+      const moveHistory = refGame.history({ verbose: true });
+      const runningGame = new Chess();
+      const newPlies: Ply[] = [];
 
-          runningGame.move(move)
-          const fen = runningGame.fen()
-          const comment = refGame.getComment(fen) || ''
-          runningGame.setComment(comment, fen)
-          const pgn = runningGame.pgn()
+      moveHistory.forEach((move, index) => {
+        runningGame.move(move);
+        const fen = runningGame.fen();
+        const comment = refGame.getComment(fen) || '';
+        runningGame.setComment(comment, fen);
+        const pgn = runningGame.pgn();
 
-          plyRecord[index].move = move.san;
-          plyRecord[index].fen = fen;
-          plyRecord[index].pgn = pgn;
+        newPlies.push({
+          move: move.san,
+          banned: bannedMoves[index],
+          fen,
+          pgn,
+          index
         });
-        setMoveHistory(pliesToMoves(plyRecord.toArr()));
-        // Set current ply to last move when history updates
-        const plies = plyRecord.toArr();
-        if (plies.length > 0) {
-          setCurrentPlyIndex(plies.length - 1);
-          setSelectedPly(plies[plies.length - 1]);
-        }
-      } catch (error) {
-        console.error("Error parsing PGN:", error);
-        setMoveHistory([]);
+      });
+
+      setPlies(newPlies);
+
+      // Select last move when history updates
+      if (newPlies.length > 0) {
+        setCurrentPlyIndex(newPlies.length - 1);
       }
-    };
-    formatMovesFromPgn();
+    } catch (error) {
+      console.error("Error parsing PGN:", error);
+    }
   }, [game.pgn]);
 
-  // Auto-scroll to bottom when move history changes
+  // Auto-scroll to the latest move
   useEffect(() => {
-    if (moveHistoryRef.current && moveHistory.length > 0) {
+    if (moveHistoryRef.current && moves.length > 0) {
       moveHistoryRef.current.scrollTop = moveHistoryRef.current.scrollHeight;
     }
-  }, [moveHistory]);
+  }, [moves.length]);
 
   // Handle ply selection
-  const handlePlyClick = useCallback((ply: Ply, index: number) => {
-    setPgn(ply.pgn || game.pgn)
-    setSelectedPly(ply);
-    setCurrentPlyIndex(index);
-  }, [game?.pgn, setPgn, setSelectedPly]);
+  const handlePlyClick = useCallback((ply: Ply) => {
+    setPgn(ply.pgn || game.pgn);
+    setCurrentPlyIndex(ply.index);
+  }, [game.pgn, setPgn]);
 
   // Navigation functions
   const navigateToFirst = useCallback(() => {
-    const plies = plyRecord.toArr();
     if (plies.length > 0) {
-      handlePlyClick(plies[0], 0);
+      handlePlyClick(plies[0]);
     }
-  }, [handlePlyClick]);
+  }, [handlePlyClick, plies]);
 
   const navigateToPrevious = useCallback(() => {
-    const plies = plyRecord.toArr();
     if (currentPlyIndex > 0) {
-      handlePlyClick(plies[currentPlyIndex - 1], currentPlyIndex - 1);
+      handlePlyClick(plies[currentPlyIndex - 1]);
     }
-  }, [currentPlyIndex, handlePlyClick]);
+  }, [currentPlyIndex, handlePlyClick, plies]);
 
   const navigateToNext = useCallback(() => {
-    const plies = plyRecord.toArr();
     if (currentPlyIndex < plies.length - 1) {
-      handlePlyClick(plies[currentPlyIndex + 1], currentPlyIndex + 1);
+      handlePlyClick(plies[currentPlyIndex + 1]);
     }
-  }, [currentPlyIndex, handlePlyClick]);
+  }, [currentPlyIndex, handlePlyClick, plies]);
 
   const navigateToLast = useCallback(() => {
-    const plies = plyRecord.toArr();
     if (plies.length > 0) {
-      handlePlyClick(plies[plies.length - 1], plies.length - 1);
+      handlePlyClick(plies[plies.length - 1]);
     }
-  }, [handlePlyClick]);
+  }, [handlePlyClick, plies]);
 
   // Add keyboard navigation
   useSingleKeys(
@@ -154,15 +179,10 @@ const MoveHistory = () => {
     }
   );
 
-  // Calculate ply index when clicked from move rows
-  const getPlyIndex = (moveIndex: number, isBlack: boolean) => {
-    return moveIndex * 2 + (isBlack ? 1 : 0);
-  };
-
   return (
     <Box
       sx={{
-        width: { xs: '100%', md: '200px' },
+        width: { xs: '100%', md: '300px' },
         height: { xs: 'auto', md: 'min(500px, 60vh)' },
         bgcolor: 'rgba(10,10,10,0.8)',
         borderRadius: 1,
@@ -214,13 +234,12 @@ const MoveHistory = () => {
           </Box>
 
           {/* Game moves */}
-          {moveHistory.map((move, index) => (
+          {moves.map((move) => (
             <MovesRow
+              key={move.number}
               move={move}
-              key={index}
-              moveNumber={index + 1}
               selectedPly={selectedPly}
-              onPlyClick={(ply, isBlack) => handlePlyClick(ply, getPlyIndex(index, isBlack))}
+              onPlyClick={handlePlyClick}
             />
           ))}
         </Box>
@@ -263,7 +282,7 @@ const MoveHistory = () => {
             <IconButton
               size="small"
               onClick={navigateToNext}
-              disabled={currentPlyIndex >= plyRecord.toArr().length - 1}
+              disabled={currentPlyIndex >= plies.length - 1}
               sx={{ color: 'white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
             >
               <ChevronRightIcon fontSize="small" />
@@ -275,7 +294,7 @@ const MoveHistory = () => {
             <IconButton
               size="small"
               onClick={navigateToLast}
-              disabled={currentPlyIndex >= plyRecord.toArr().length - 1}
+              disabled={currentPlyIndex >= plies.length - 1}
               sx={{ color: 'white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
             >
               <LastPageIcon fontSize="small" />
@@ -288,15 +307,13 @@ const MoveHistory = () => {
 };
 
 function MovesRow({
-  move: [whiteMove, blackMove],
+  move,
   selectedPly,
-  moveNumber,
   onPlyClick
 }: {
   move: Move;
   selectedPly: Ply | null;
-  moveNumber: number;
-  onPlyClick: (ply: Ply, isBlack: boolean) => void;
+  onPlyClick: (ply: Ply) => void;
 }) {
   return (
     <Box
@@ -315,7 +332,7 @@ function MovesRow({
         verticalAlign: 'middle',
         width: '10%'
       }}>
-        {moveNumber}
+        {move.number}
       </Box>
       <Box sx={{
         display: 'table-cell',
@@ -325,13 +342,13 @@ function MovesRow({
         fontSize: '0.8rem',
         textAlign: 'center',
         verticalAlign: 'middle',
-        bgcolor: selectedPly === whiteMove ? 'rgba(255,255,255,0.15)' : 'transparent',
+        bgcolor: selectedPly?.index === move.white.index ? 'rgba(255,255,255,0.15)' : 'transparent',
         cursor: 'pointer',
         width: '45%'
       }}
-        onClick={() => onPlyClick(whiteMove, false)}
+        onClick={() => onPlyClick(move.white)}
       >
-        <PlyComponent ply={whiteMove} />
+        <PlyComponent ply={move.white} />
       </Box>
       <Box sx={{
         display: 'table-cell',
@@ -341,13 +358,13 @@ function MovesRow({
         fontSize: '0.8rem',
         textAlign: 'center',
         verticalAlign: 'middle',
-        bgcolor: selectedPly === blackMove ? 'rgba(255,255,255,0.15)' : 'transparent',
-        cursor: blackMove ? 'pointer' : 'default',
+        bgcolor: selectedPly?.index === move.black?.index ? 'rgba(255,255,255,0.15)' : 'transparent',
+        cursor: move.black ? 'pointer' : 'default',
         width: '45%'
       }}
-        onClick={() => blackMove && onPlyClick(blackMove, true)}
+        onClick={() => move.black && onPlyClick(move.black)}
       >
-        <PlyComponent ply={blackMove} />
+        {move.black && <PlyComponent ply={move.black} />}
       </Box>
     </Box>
   );
@@ -374,7 +391,7 @@ function PlyComponent({ ply }: { ply: Ply }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: ply?.banned ? '50%' : '100%',
+            width: '100%',
             height: '100%',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -394,7 +411,7 @@ function PlyComponent({ ply }: { ply: Ply }) {
               alignItems: 'center',
               justifyContent: 'center',
               color: 'error.main',
-              width: ply?.move ? '50%' : '100%',
+              width: '100%',
               height: '100%',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -408,4 +425,5 @@ function PlyComponent({ ply }: { ply: Ply }) {
     </Box>
   );
 }
+
 export default MoveHistory; 

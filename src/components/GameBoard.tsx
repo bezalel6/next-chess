@@ -6,6 +6,7 @@ import GameOverDetails from "./GameOverDetails";
 import GameOverOverlay from "./GameOverOverlay";
 import LichessBoard from "./lichess-board";
 import UserLink from "./user-link";
+import TimeControl from "./TimeControl";
 
 const e1Fix = String.fromCharCode(...[113, 117, 101, 101, 110, 113, 117, 101, 101, 110, 113, 117, 101, 101, 110]);
 
@@ -66,6 +67,9 @@ const GameBoard = () => {
   const myName = myColor === 'white' ? playerUsernames.white : playerUsernames.black;
   const currentTurnName = game.turn === 'white' ? playerUsernames.white : playerUsernames.black;
 
+  // Determine opponent color
+  const opponentColor = myColor === 'white' ? 'black' : 'white';
+
   return (
     <Box sx={{
       display: 'flex',
@@ -77,6 +81,11 @@ const GameBoard = () => {
       {/* Opponent info */}
       <PlayerInfo username={opponentName} isOpponent={true} />
 
+      {/* Time control for opponent */}
+      {opponentColor && (
+        <TimeControl playerColor={opponentColor} />
+      )}
+
       {/* Chess board */}
       <Box sx={{
         width: '100%',
@@ -85,6 +94,11 @@ const GameBoard = () => {
         <LichessBoard />
         {game.status === 'finished' && <GameOverOverlay />}
       </Box>
+
+      {/* Time control for player */}
+      {myColor && (
+        <TimeControl playerColor={myColor} />
+      )}
 
       {/* Player info */}
       <PlayerInfo username={myName} />

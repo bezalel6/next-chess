@@ -11,9 +11,19 @@ import type { TypedSupabaseClient } from "./db-utils.ts";
 const logger = createLogger("MATCHMAKING");
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+// Use a fixed default time control
+const DEFAULT_TIME_CONTROL = {
+  initialTime: 600000, // 10 minutes in ms
+  increment: 0, // No increment
+};
+
 interface CreateMatchParams {
   player1Id: string;
   player2Id: string;
+  timeControl?: {
+    initialTime: number;
+    increment: number;
+  };
 }
 
 interface QueueParams {
@@ -26,10 +36,25 @@ const MatchmakingSchemas = {
   CreateMatchParams: z.object({
     player1Id: uuidSchema,
     player2Id: uuidSchema,
+    timeControl: z
+      .object({
+        initialTime: z.number().default(600000), // 10 minutes in ms by default
+        increment: z.number().default(0), // No increment by default
+      })
+      .optional(),
   }),
 
   QueueParams: z.object({
-    preferences: z.record(z.any()).optional(),
+    preferences: z
+      .object({
+        timeControl: z
+          .object({
+            initialTime: z.number().default(600000), // 10 minutes in ms by default
+            increment: z.number().default(0), // No increment by default
+          })
+          .optional(),
+      })
+      .optional(),
   }),
 };
 
@@ -116,6 +141,9 @@ export async function handleCreateMatch(
       );
     }
 
+    // Set default time control if not provided
+    const timeControl = params.timeControl || DEFAULT_TIME_CONTROL;
+
     // Create the new game
     const { data: game, error: createError } = await getTable(supabase, "games")
       .insert({
@@ -127,6 +155,9 @@ export async function handleCreateMatch(
         pgn: "",
         turn: "white",
         banning_player: "black",
+        time_control: timeControl,
+        white_time_remaining: timeControl.initialTime,
+        black_time_remaining: timeControl.initialTime,
       })
       .select("*")
       .single();
@@ -525,7 +556,7 @@ export async function handleAutoMatch(
 
     logger.info(`Matching ${player1.player_id} with ${player2.player_id}`);
 
-    // Create a new game
+    // Create a new game with default time control
     const { data: game, error: createError } = await getTable(supabase, "games")
       .insert({
         id: generateShortId(),
@@ -536,6 +567,9 @@ export async function handleAutoMatch(
         pgn: "",
         turn: "white",
         banning_player: "black",
+        time_control: DEFAULT_TIME_CONTROL,
+        white_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
+        black_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
       })
       .select("*")
       .single();

@@ -21,24 +21,27 @@ Stores user profile information.
 
 Stores all chess game data.
 
-| Column             | Type      | Description                                  |
-| ------------------ | --------- | -------------------------------------------- |
-| id                 | uuid      | Primary key                                  |
-| white_player_id    | uuid      | References profiles.id                       |
-| black_player_id    | uuid      | References profiles.id                       |
-| status             | text      | Game status: 'active', 'finished'            |
-| result             | text      | Game result: 'white', 'black', 'draw', null  |
-| current_fen        | text      | Current FEN board position                   |
-| pgn                | text      | Game PGN notation                            |
-| turn               | text      | Current turn: 'white', 'black'               |
-| last_move          | jsonb     | Last move made                               |
-| banning_player     | text      | Player allowed to ban next move (nullable)   |
-| draw_offered_by    | text      | Player who offered draw (nullable)           |
-| rematch_offered_by | text      | Player who offered rematch (nullable)        |
-| end_reason         | text      | Reason game ended (nullable)                 |
-| parent_game_id     | uuid      | References games.id for rematches (nullable) |
-| created_at         | timestamp | When game was created                        |
-| updated_at         | timestamp | When game was last updated                   |
+| Column               | Type      | Description                                      |
+| -------------------- | --------- | ------------------------------------------------ |
+| id                   | uuid      | Primary key                                      |
+| white_player_id      | uuid      | References profiles.id                           |
+| black_player_id      | uuid      | References profiles.id                           |
+| status               | text      | Game status: 'active', 'finished'                |
+| result               | text      | Game result: 'white', 'black', 'draw', null      |
+| current_fen          | text      | Current FEN board position                       |
+| pgn                  | text      | Game PGN notation                                |
+| turn                 | text      | Current turn: 'white', 'black'                   |
+| last_move            | jsonb     | Last move made                                   |
+| banning_player       | text      | Player allowed to ban next move (nullable)       |
+| draw_offered_by      | text      | Player who offered draw (nullable)               |
+| rematch_offered_by   | text      | Player who offered rematch (nullable)            |
+| end_reason           | text      | Reason game ended (nullable)                     |
+| parent_game_id       | uuid      | References games.id for rematches (nullable)     |
+| white_time_remaining | bigint    | Time remaining for white player in ms (nullable) |
+| black_time_remaining | bigint    | Time remaining for black player in ms (nullable) |
+| time_control         | jsonb     | Time control settings (nullable)                 |
+| created_at           | timestamp | When game was created                            |
+| updated_at           | timestamp | When game was last updated                       |
 
 ### matchmaking
 

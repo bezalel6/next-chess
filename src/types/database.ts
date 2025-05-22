@@ -68,6 +68,7 @@ export type Database = {
         Row: {
           banning_player: Database["public"]["Enums"]["player_color"] | null
           black_player_id: string
+          black_time_remaining: number | null
           created_at: string
           current_fen: string
           draw_offered_by: Database["public"]["Enums"]["player_color"] | null
@@ -79,13 +80,16 @@ export type Database = {
           rematch_offered_by: Database["public"]["Enums"]["player_color"] | null
           result: Database["public"]["Enums"]["game_result"] | null
           status: Database["public"]["Enums"]["game_status"]
+          time_control: Json | null
           turn: Database["public"]["Enums"]["player_color"]
           updated_at: string
           white_player_id: string
+          white_time_remaining: number | null
         }
         Insert: {
           banning_player?: Database["public"]["Enums"]["player_color"] | null
           black_player_id: string
+          black_time_remaining?: number | null
           created_at?: string
           current_fen: string
           draw_offered_by?: Database["public"]["Enums"]["player_color"] | null
@@ -99,13 +103,16 @@ export type Database = {
             | null
           result?: Database["public"]["Enums"]["game_result"] | null
           status?: Database["public"]["Enums"]["game_status"]
+          time_control?: Json | null
           turn?: Database["public"]["Enums"]["player_color"]
           updated_at?: string
           white_player_id: string
+          white_time_remaining?: number | null
         }
         Update: {
           banning_player?: Database["public"]["Enums"]["player_color"] | null
           black_player_id?: string
+          black_time_remaining?: number | null
           created_at?: string
           current_fen?: string
           draw_offered_by?: Database["public"]["Enums"]["player_color"] | null
@@ -119,9 +126,11 @@ export type Database = {
             | null
           result?: Database["public"]["Enums"]["game_result"] | null
           status?: Database["public"]["Enums"]["game_status"]
+          time_control?: Json | null
           turn?: Database["public"]["Enums"]["player_color"]
           updated_at?: string
           white_player_id?: string
+          white_time_remaining?: number | null
         }
         Relationships: [
           {
@@ -194,7 +203,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_default_initial_time: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      get_default_time_control: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
     }
     Enums: {
       end_reason:
@@ -205,6 +221,7 @@ export type Database = {
         | "insufficient_material"
         | "threefold_repetition"
         | "fifty_move_rule"
+        | "timeout"
       game_result: "white" | "black" | "draw"
       game_status: "active" | "finished"
       player_color: "white" | "black"
@@ -335,6 +352,7 @@ export const Constants = {
         "insufficient_material",
         "threefold_repetition",
         "fifty_move_rule",
+        "timeout",
       ],
       game_result: ["white", "black", "draw"],
       game_status: ["active", "finished"],

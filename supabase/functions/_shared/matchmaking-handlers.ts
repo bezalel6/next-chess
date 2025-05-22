@@ -7,9 +7,9 @@ import { uuidSchema } from "./validation-utils.ts";
 import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTable, logOperation, ensureSingle } from "./db-utils.ts";
 import type { TypedSupabaseClient } from "./db-utils.ts";
+import { INITIAL_FEN } from "./constants.ts";
 
 const logger = createLogger("MATCHMAKING");
-const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 interface CreateMatchParams {
   player1Id: string;
@@ -29,7 +29,16 @@ const MatchmakingSchemas = {
   }),
 
   QueueParams: z.object({
-    preferences: z.record(z.any()).optional(),
+    preferences: z
+      .object({
+        timeControl: z
+          .object({
+            initialTime: z.number().default(600000), // 10 minutes in ms by default
+            increment: z.number().default(0), // No increment by default
+          })
+          .optional(),
+      })
+      .optional(),
   }),
 };
 
@@ -48,6 +57,49 @@ function generateShortId(length = 8): string {
   }
 
   return result;
+}
+
+/**
+ * Gets default time control from the database
+ */
+async function getTimeControlFromDB(supabase: TypedSupabaseClient) {
+  try {
+    // Call directly using SQL query to avoid TypeScript issues with RPC
+    const { data, error } = await supabase
+      .from("games")
+      .select("*")
+      .limit(1)
+      .maybeSingle()
+      .then(async () => {
+        return await supabase.rpc("get_default_time_control");
+      });
+
+    if (error) {
+      logger.error("Error fetching default time control:", error);
+      // Use fallback only if database call fails
+      return { initialTime: 600000, increment: 0 };
+    }
+
+    // Parse database response
+    if (data) {
+      try {
+        // Handle both string and object responses
+        const parsed = typeof data === "string" ? JSON.parse(data) : data;
+        return {
+          initialTime: parsed.initial_time || 600000,
+          increment: parsed.increment || 0,
+        };
+      } catch (e) {
+        logger.error("Error parsing time control:", e);
+      }
+    }
+
+    // Fallback
+    return { initialTime: 600000, increment: 0 };
+  } catch (err) {
+    logger.error("Exception fetching time control:", err);
+    return { initialTime: 600000, increment: 0 };
+  }
 }
 
 /**
@@ -116,6 +168,9 @@ export async function handleCreateMatch(
       );
     }
 
+    // Get time control from database (single source of truth)
+    const timeControl = await getTimeControlFromDB(supabase);
+
     // Create the new game
     const { data: game, error: createError } = await getTable(supabase, "games")
       .insert({
@@ -127,6 +182,9 @@ export async function handleCreateMatch(
         pgn: "",
         turn: "white",
         banning_player: "black",
+        time_control: timeControl,
+        white_time_remaining: timeControl.initialTime,
+        black_time_remaining: timeControl.initialTime,
       })
       .select("*")
       .single();
@@ -180,20 +238,20 @@ export async function handleJoinQueue(
     //   );
     // }
 
-    // if (activeGames && activeGames.length > 0) {
-    //   console.log(
-    //     `[MATCHMAKING] User ${user.id} already has active game: ${activeGames[0].id}`,
-    //   );
-    //   return buildResponse(
-    //     {
-    //       success: false,
-    //       message: "Already in an active game",
-    //       game: activeGames[0],
-    //     },
-    //     400,
-    //     corsHeaders,
-    //   );
-    // }
+    // // if (activeGames && activeGames.length > 0) {
+    // //   console.log(
+    // //     `[MATCHMAKING] User ${user.id} already has active game: ${activeGames[0].id}`,
+    // //   );
+    // //   return buildResponse(
+    // //     {
+    // //       success: false,
+    // //       message: "Already in an active game",
+    // //       game: activeGames[0],
+    // //     },
+    // //     400,
+    // //     corsHeaders,
+    // //   );
+    // // }
 
     // 2. Check if already in queue
     const { data: existingEntry, error: queueError } = await getTable(
@@ -231,6 +289,10 @@ export async function handleJoinQueue(
 
     // 4. Add to queue
     logger.info(`Adding user ${user.id} to queue`);
+
+    // Get time control from database (single source of truth)
+    const timeControl = await getTimeControlFromDB(supabase);
+
     const { data: newEntry, error: insertError } = await getTable(
       supabase,
       "matchmaking",
@@ -238,7 +300,7 @@ export async function handleJoinQueue(
       .insert({
         player_id: user.id,
         status: "waiting",
-        preferences: params.preferences || {},
+        preferences: params?.preferences || { timeControl },
       })
       .select("*")
       .single();
@@ -525,6 +587,9 @@ export async function handleAutoMatch(
 
     logger.info(`Matching ${player1.player_id} with ${player2.player_id}`);
 
+    // Get time control from database (single source of truth)
+    const timeControl = await getTimeControlFromDB(supabase);
+
     // Create a new game
     const { data: game, error: createError } = await getTable(supabase, "games")
       .insert({
@@ -536,6 +601,9 @@ export async function handleAutoMatch(
         pgn: "",
         turn: "white",
         banning_player: "black",
+        time_control: timeControl,
+        white_time_remaining: timeControl.initialTime,
+        black_time_remaining: timeControl.initialTime,
       })
       .select("*")
       .single();

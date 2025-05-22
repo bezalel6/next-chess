@@ -8,8 +8,8 @@ import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { EventType, recordEvent } from "./event-utils.ts";
 import type { Json } from "./database-types.ts";
+import { INITIAL_FEN } from "./constants.ts";
 
-const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const logger = createLogger("DB_TRIGGER");
 
 interface MatchedPlayer {
@@ -39,6 +39,49 @@ function generateShortId(length = 8): string {
   }
 
   return result;
+}
+
+/**
+ * Gets default time control from the database
+ */
+async function getTimeControlFromDB(supabase: TypedSupabaseClient) {
+  try {
+    // Call directly using SQL query to avoid TypeScript issues with RPC
+    const { data, error } = await supabase
+      .from("games")
+      .select("*")
+      .limit(1)
+      .maybeSingle()
+      .then(async () => {
+        return await supabase.rpc("get_default_time_control");
+      });
+
+    if (error) {
+      logger.error("Error fetching default time control:", error);
+      // Use fallback only if database call fails
+      return { initialTime: 600000, increment: 0 };
+    }
+
+    // Parse database response
+    if (data) {
+      try {
+        // Handle both string and object responses
+        const parsed = typeof data === "string" ? JSON.parse(data) : data;
+        return {
+          initialTime: parsed.initial_time || 600000,
+          increment: parsed.increment || 0,
+        };
+      } catch (e) {
+        logger.error("Error parsing time control:", e);
+      }
+    }
+
+    // Fallback
+    return { initialTime: 600000, increment: 0 };
+  } catch (err) {
+    logger.error("Exception fetching time control:", err);
+    return { initialTime: 600000, increment: 0 };
+  }
 }
 
 /**
@@ -147,7 +190,7 @@ export async function createGameFromMatchedPlayers(
       supabase,
       "matchmaking",
     )
-      .select("player_id, joined_at")
+      .select("player_id, joined_at, preferences")
       .eq("status", "matched")
       .order("joined_at", { ascending: true })
       .limit(2);
@@ -179,10 +222,15 @@ export async function createGameFromMatchedPlayers(
     const whiteId = isPlayer1White ? player1Id : player2Id;
     const blackId = isPlayer1White ? player2Id : player1Id;
 
-    logger.info(`Creating game: White=${whiteId}, Black=${blackId}`);
+    logger.info(
+      `Creating game: White=${whiteId}, Black=${blackId} with default time control`,
+    );
 
     // Generate a short game ID
     const gameId = generateShortId();
+
+    // Get time control from database (single source of truth)
+    const timeControl = await getTimeControlFromDB(supabase);
 
     // Create the game directly in the database
     const { data: game, error: gameError } = await getTable(supabase, "games")
@@ -195,6 +243,9 @@ export async function createGameFromMatchedPlayers(
         pgn: "",
         turn: "white",
         banning_player: "black",
+        time_control: timeControl,
+        white_time_remaining: timeControl.initialTime,
+        black_time_remaining: timeControl.initialTime,
       })
       .select("*")
       .single();

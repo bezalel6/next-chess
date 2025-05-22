@@ -17,31 +17,13 @@ export type GameEndReason =
   | "insufficient_material"
   | "threefold_repetition"
   | "fifty_move_rule"
+  | "timeout"
   | null;
 
 export interface ChessMove {
   from: Square;
   to: Square;
   promotion?: PromoteablePieces;
-}
-
-export interface DBGame {
-  id?: string;
-  white_player_id: string;
-  black_player_id: string;
-  status: GameStatus;
-  last_move?: ChessMove;
-  result?: GameResult;
-  current_fen: string;
-  pgn: string;
-  turn: PlayerColor;
-  banningPlayer: PlayerColor | null;
-  created_at?: number;
-  updated_at?: number;
-  draw_offered_by?: PlayerColor | null;
-  end_reason?: GameEndReason;
-  rematch_offered_by?: PlayerColor | null;
-  parent_game_id?: string | null;
 }
 
 export interface Game {
@@ -62,6 +44,13 @@ export interface Game {
   endReason: GameEndReason;
   rematchOfferedBy: PlayerColor | null;
   parentGameId: string | null;
+  // Time control properties
+  whiteTimeRemaining?: number;
+  blackTimeRemaining?: number;
+  timeControl?: {
+    initialTime: number; // in milliseconds
+    increment: number; // in milliseconds
+  };
 }
 
 export interface GameContextType {

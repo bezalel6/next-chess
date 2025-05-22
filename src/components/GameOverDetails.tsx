@@ -31,12 +31,24 @@ const GameOverDetails = () => {
 
         if (game.result === 'white') {
             resultHeader = `${playerUsernames.white} won`;
-            resultDetail = game.endReason === 'checkmate' ? 'by checkmate' : 'by resignation';
+            if (game.endReason === 'checkmate') {
+                resultDetail = 'by checkmate';
+            } else if (game.endReason === 'timeout') {
+                resultDetail = 'on time';
+            } else {
+                resultDetail = 'by resignation';
+            }
             if (myColor === 'white') resultType = 'win';
             else if (myColor === 'black') resultType = 'lose';
         } else if (game.result === 'black') {
             resultHeader = `${playerUsernames.black} won`;
-            resultDetail = game.endReason === 'checkmate' ? 'by checkmate' : 'by resignation';
+            if (game.endReason === 'checkmate') {
+                resultDetail = 'by checkmate';
+            } else if (game.endReason === 'timeout') {
+                resultDetail = 'on time';
+            } else {
+                resultDetail = 'by resignation';
+            }
             if (myColor === 'black') resultType = 'win';
             else if (myColor === 'white') resultType = 'lose';
         } else {

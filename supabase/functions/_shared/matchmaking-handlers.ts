@@ -7,15 +7,9 @@ import { uuidSchema } from "./validation-utils.ts";
 import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTable, logOperation, ensureSingle } from "./db-utils.ts";
 import type { TypedSupabaseClient } from "./db-utils.ts";
+import { DEFAULT_TIME_CONTROL, INITIAL_FEN } from "./constants.ts";
 
 const logger = createLogger("MATCHMAKING");
-const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
-// Use a fixed default time control
-const DEFAULT_TIME_CONTROL = {
-  initialTime: 600000, // 10 minutes in ms
-  increment: 0, // No increment
-};
 
 interface CreateMatchParams {
   player1Id: string;
@@ -155,9 +149,9 @@ export async function handleCreateMatch(
         pgn: "",
         turn: "white",
         banning_player: "black",
-        time_control: timeControl,
-        white_time_remaining: timeControl.initialTime,
-        black_time_remaining: timeControl.initialTime,
+        time_control: DEFAULT_TIME_CONTROL,
+        white_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
+        black_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
       })
       .select("*")
       .single();

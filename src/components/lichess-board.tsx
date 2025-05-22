@@ -128,6 +128,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
             check: true,
             lastMove: true
         },
+        selected: undefined,
         check,
         lastMove: lastMove ? [lastMove.from as Square, lastMove.to as Square] : undefined,
         movable: {

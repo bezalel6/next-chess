@@ -115,10 +115,13 @@ EXECUTE FUNCTION public.check_time_forfeit();
 CREATE OR REPLACE FUNCTION public.initialize_time_control()
 RETURNS TRIGGER AS $$
 BEGIN
+  -- If time control is not set, initialize with default values
+  IF NEW.time_control IS NULL THEN
+    NEW.time_control := '{"initial_time": 600000, "increment": 0}'::jsonb;
+    NEW.white_time_remaining := 600000;
+    NEW.black_time_remaining := 600000;
   -- If time control is set, but time remaining is not initialized
-  IF NEW.time_control IS NOT NULL 
-     AND (NEW.white_time_remaining IS NULL OR NEW.black_time_remaining IS NULL) THEN
-    
+  ELSIF NEW.white_time_remaining IS NULL OR NEW.black_time_remaining IS NULL THEN
     -- Set initial time for both players
     NEW.white_time_remaining := (NEW.time_control->>'initial_time')::BIGINT;
     NEW.black_time_remaining := (NEW.time_control->>'initial_time')::BIGINT;
@@ -128,13 +131,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger to initialize time control for new games
+-- Update the trigger to fire for all new games (remove the WHEN condition)
 DROP TRIGGER IF EXISTS initialize_time_control_trigger ON public.games;
 CREATE TRIGGER initialize_time_control_trigger
 BEFORE INSERT OR UPDATE ON public.games
 FOR EACH ROW
-WHEN (NEW.time_control IS NOT NULL AND 
-     (NEW.white_time_remaining IS NULL OR NEW.black_time_remaining IS NULL))
 EXECUTE FUNCTION public.initialize_time_control();
 
 -- Add timeout as a new end reason enum option

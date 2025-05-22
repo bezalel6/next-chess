@@ -1,12 +1,11 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/utils/supabase";
-import type { QueueStatus, GameMatch } from "../types/realtime";
-import { GameProvider } from "./GameContext";
-import type { Session, RealtimeChannel } from "@supabase/supabase-js";
-import { useAuth } from "./AuthContext";
 import { MatchmakingService } from '@/services/matchmakingService';
-import { GameService } from '@/services/gameService';
+import { supabase } from "@/utils/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useRouter } from "next/router";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import type { GameMatch } from "../types/realtime";
+import { useAuth } from "./AuthContext";
+import { GameProvider } from "./GameContext";
 
 interface QueueState {
     inQueue: boolean;

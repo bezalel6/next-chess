@@ -1,26 +1,23 @@
 /// <reference lib="deno.ns" />
 // matchmaking/index.ts
-import { serve } from "std/http/server.ts";
-import {
-  handleAuthenticatedRequest,
-  corsHeaders,
-  initSupabaseAdmin,
-} from "../_shared/auth-utils.ts";
-import { createLogger } from "../_shared/logger.ts";
-import { errorResponse, successResponse } from "../_shared/response-utils.ts";
-import {
-  ensureSingle,
-  ensureArray,
-  formatOrConditions,
-  logOperation,
-  getTable,
-} from "../_shared/db-utils.ts";
-import type { TypedSupabaseClient } from "../_shared/db-utils.ts";
-import { validateWithZod, Schemas } from "../_shared/validation-utils.ts";
-import { createRouter, defineRoute } from "../_shared/router-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import type { User } from "https://esm.sh/@supabase/supabase-js@2";
-import type { Database, Tables } from "../_shared/database-types.ts";
+import { serve } from "std/http/server.ts";
+import {
+  corsHeaders,
+  handleAuthenticatedRequest,
+  initSupabaseAdmin,
+} from "../_shared/auth-utils.ts";
+import type { Tables } from "../_shared/database-types.ts";
+import type { TypedSupabaseClient } from "../_shared/db-utils.ts";
+import {
+  formatOrConditions,
+  getTable,
+  logOperation,
+} from "../_shared/db-utils.ts";
+import { createLogger } from "../_shared/logger.ts";
+import { errorResponse, successResponse } from "../_shared/response-utils.ts";
+import { createRouter, defineRoute } from "../_shared/router-utils.ts";
 
 const logger = createLogger("MATCHMAKING");
 

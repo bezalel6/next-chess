@@ -19,6 +19,8 @@ export interface UserGameStats {
     fen: string;
     date_updated: string;
     playerColor: "white" | "black";
+    opponentId: string;
+    opponentUsername: string;
   }>;
 }
 
@@ -177,10 +179,24 @@ export class UserService {
         games: [],
       };
 
+      // Process games to get all opponent IDs
+      const opponentIds = data.map((game) =>
+        game.white_player_id === userId
+          ? game.black_player_id
+          : game.white_player_id,
+      );
+
+      // Fetch all opponent usernames in a single request
+      const opponentUsernames = await this.getUsernamesByIds(opponentIds);
+
       // Calculate stats
       data.forEach((game) => {
         // Determine player color
         const playerColor = game.white_player_id === userId ? "white" : "black";
+
+        // Determine opponent ID
+        const opponentId =
+          playerColor === "white" ? game.black_player_id : game.white_player_id;
 
         if (game.result === "draw") {
           stats.draws++;
@@ -199,6 +215,8 @@ export class UserService {
           fen: game.current_fen,
           date_updated: game.updated_at,
           playerColor,
+          opponentId,
+          opponentUsername: opponentUsernames[opponentId] || "Unknown Player",
         });
       });
 

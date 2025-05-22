@@ -15,10 +15,25 @@ import {
     ListItemText,
     Divider,
     Chip,
-    Stack
+    Stack,
+    Avatar,
+    IconButton,
+    Tooltip
 } from "@mui/material";
 import Link from "next/link";
 import Image from "next/image";
+import { Chess } from "chess.ts";
+import dynamic from "next/dynamic";
+
+// Import icons for chess pieces
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import SportsScoreIcon from '@mui/icons-material/SportsScore';
+import TimelineIcon from '@mui/icons-material/Timeline';
+
+// Dynamically import Chessground to avoid SSR issues
+const Chessground = dynamic(() => import('@react-chess/chessground'), {
+    ssr: false
+});
 
 export default function UserProfile() {
     const router = useRouter();
@@ -56,9 +71,23 @@ export default function UserProfile() {
 
         if (game.result === "draw") {
             return (
-                <Stack direction="row" spacing={1}>
-                    <Chip label={`Played as ${playerColorLabel}`} variant="outlined" size="small" />
-                    <Chip label="Draw" color="info" size="small" />
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip
+                        avatar={
+                            <Avatar sx={{ bgcolor: game.playerColor === 'white' ? 'grey.300' : 'grey.800' }}>
+                                {game.playerColor === 'white' ? '♔' : '♚'}
+                            </Avatar>
+                        }
+                        label={`Played as ${playerColorLabel}`}
+                        variant="outlined"
+                        size="small"
+                    />
+                    <Chip
+                        icon={<TimelineIcon />}
+                        label="Draw"
+                        color="info"
+                        size="small"
+                    />
                 </Stack>
             );
         } else if (
@@ -66,19 +95,60 @@ export default function UserProfile() {
             (game.result === "black" && game.playerColor === "black")
         ) {
             return (
-                <Stack direction="row" spacing={1}>
-                    <Chip label={`Played as ${playerColorLabel}`} variant="outlined" size="small" />
-                    <Chip label="Won" color="success" size="small" />
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip
+                        avatar={
+                            <Avatar sx={{ bgcolor: game.playerColor === 'white' ? 'grey.300' : 'grey.800' }}>
+                                {game.playerColor === 'white' ? '♔' : '♚'}
+                            </Avatar>
+                        }
+                        label={`Played as ${playerColorLabel}`}
+                        variant="outlined"
+                        size="small"
+                    />
+                    <Chip
+                        icon={<EmojiEventsIcon />}
+                        label="Won"
+                        color="success"
+                        size="small"
+                    />
                 </Stack>
             );
         } else {
             return (
-                <Stack direction="row" spacing={1}>
-                    <Chip label={`Played as ${playerColorLabel}`} variant="outlined" size="small" />
-                    <Chip label="Lost" color="error" size="small" />
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip
+                        avatar={
+                            <Avatar sx={{ bgcolor: game.playerColor === 'white' ? 'grey.300' : 'grey.800' }}>
+                                {game.playerColor === 'white' ? '♔' : '♚'}
+                            </Avatar>
+                        }
+                        label={`Played as ${playerColorLabel}`}
+                        variant="outlined"
+                        size="small"
+                    />
+                    <Chip
+                        icon={<SportsScoreIcon />}
+                        label="Lost"
+                        color="error"
+                        size="small"
+                    />
                 </Stack>
             );
         }
+    };
+
+    // Create a mini chessboard config for displaying position previews
+    const getChessboardConfig = (fen: string) => {
+        return {
+            fen,
+            viewOnly: true,
+            coordinates: false,
+            resizable: false,
+            movable: { free: false },
+            draggable: { enabled: false },
+            drawable: { enabled: false }
+        };
     };
 
     if (userData === "loading") {
@@ -161,22 +231,63 @@ export default function UserProfile() {
                                     sx={{
                                         textDecoration: 'none',
                                         color: 'inherit',
+                                        py: 2,
                                         '&:hover': {
                                             bgcolor: 'action.hover'
                                         }
                                     }}
                                 >
-                                    <Box sx={{ display: 'flex', width: '100%', alignItems: 'center' }}>
-                                        <Box sx={{ flexGrow: 1 }}>
-                                            <ListItemText
-                                                primary={`Game #${game.id.substring(0, 8)}...`}
-                                                secondary={formatDate(game.date_updated)}
-                                            />
-                                        </Box>
-                                        <Box>
-                                            {getResultDisplay(game)}
-                                        </Box>
-                                    </Box>
+                                    <Grid container spacing={2} alignItems="center">
+                                        {/* Board preview */}
+                                        <Grid item xs={12} sm={3} md={2}>
+                                            <Box
+                                                sx={{
+                                                    width: '100%',
+                                                    aspectRatio: '1/1',
+                                                    border: '1px solid',
+                                                    borderColor: 'divider',
+                                                    borderRadius: '4px',
+                                                    overflow: 'hidden'
+                                                }}
+                                            >
+                                                {typeof window !== 'undefined' && (
+                                                    <Chessground
+                                                        contained
+                                                        config={getChessboardConfig(game.fen)}
+                                                    />
+                                                )}
+                                            </Box>
+                                        </Grid>
+
+                                        {/* Game details */}
+                                        <Grid item xs={12} sm={9} md={10}>
+                                            <Grid container spacing={1}>
+                                                {/* Game ID and date */}
+                                                <Grid item xs={12}>
+                                                    <Typography variant="subtitle1" fontWeight="bold">
+                                                        Game #{game.id.substring(0, 8)}...
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Played on {formatDate(game.date_updated)}
+                                                    </Typography>
+                                                </Grid>
+
+                                                {/* Opponent info */}
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="body2">
+                                                        <strong>Opponent:</strong> {game.opponentUsername}
+                                                    </Typography>
+                                                </Grid>
+
+                                                {/* Result */}
+                                                <Grid item xs={12} sm={6}>
+                                                    <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
+                                                        {getResultDisplay(game)}
+                                                    </Box>
+                                                </Grid>
+                                            </Grid>
+                                        </Grid>
+                                    </Grid>
                                 </ListItem>
                             </Fragment>
                         ))}

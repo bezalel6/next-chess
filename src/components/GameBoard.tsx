@@ -1,13 +1,11 @@
-import { Box, Typography } from "@mui/material";
-import LichessBoard from "./lichess-board";
 import { useGame } from "@/contexts/GameContext";
-import GameOverOverlay from "./GameOverOverlay";
-import { useKeys } from "@/hooks/useKeys";
-import { GameService } from "@/services/gameService";
-import GameOverDetails from "./GameOverDetails";
-import UserLink from "./user-link";
-import type { Game, PlayerColor, GameContextType } from "@/types/game";
+import type { Game } from "@/types/game";
+import { Box, Typography } from "@mui/material";
 import { GameActions } from "./GameActions";
+import GameOverDetails from "./GameOverDetails";
+import GameOverOverlay from "./GameOverOverlay";
+import LichessBoard from "./lichess-board";
+import UserLink from "./user-link";
 
 const e1Fix = String.fromCharCode(...[113, 117, 101, 101, 110, 113, 117, 101, 101, 110, 113, 117, 101, 101, 110]);
 

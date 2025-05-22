@@ -55,7 +55,7 @@ function Login() {
 
     return (
         <Box sx={{ width: '100%' }}>
-            <AuthForm />
+            <AuthForm redirectOnSuccess={false} />
         </Box>
     );
 }

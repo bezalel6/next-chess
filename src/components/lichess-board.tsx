@@ -24,7 +24,7 @@ interface PromotionState {
 type Config = ComponentProps<typeof Chessground>['config']
 
 const LichessBoard = ({ }: LichessBoardProps) => {
-    const { game, makeMove, banMove, isMyTurn, myColor, pgn } = useGame();
+    const { game, actions, isMyTurn, myColor, pgn } = useGame();
     const { playMoveSound } = useChessSounds();
     const [overlay, setOverlay] = useState<React.ReactNode | null>(null)
     const isActiveGame = useMemo(() => {
@@ -78,9 +78,9 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     const handlePromotion = useCallback((piece: PromoteablePieces, promotionState: PromotionState) => {
         if (!promotionState) return;
 
-        makeMove(promotionState.from, promotionState.to, piece);
+        actions.makeMove(promotionState.from, promotionState.to, piece);
         setOverlay(null);
-    }, [makeMove])
+    }, [actions]);
 
     const [fen, lastMove, check] = useMemo(() => {
         const chess = new Chess(game.currentFen)
@@ -151,7 +151,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
 
                 // If it's my turn to ban a move
                 if (game.banningPlayer === myColor) {
-                    banMove(from, to);
+                    actions.banMove(from, to);
                     return;
                 }
 
@@ -172,7 +172,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                             return;
                         }
                         playMoveSound(move, game.chess);
-                        makeMove(from, to);
+                        actions.makeMove(from, to);
                     }
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 } catch (error) {
@@ -180,7 +180,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 }
             },
         },
-    } satisfies Config), [game.chess, myColor, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove, isActiveGame]);
+    } satisfies Config), [game.chess, myColor, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, actions, handlePromotion, drawableShapes, fen, check, lastMove, isActiveGame]);
 
     return (
         <Box position="relative" sx={{

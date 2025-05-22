@@ -24,6 +24,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Chess } from "chess.ts";
 import dynamic from "next/dynamic";
+import UserLink from "@/components/user-link";
 
 // Import icons for chess pieces
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
@@ -265,7 +266,7 @@ export default function UserProfile() {
                                                 {/* Game ID and date */}
                                                 <Grid item xs={12}>
                                                     <Typography variant="subtitle1" fontWeight="bold">
-                                                        Game #{game.id.substring(0, 8)}...
+                                                        Game #{game.id}
                                                     </Typography>
                                                     <Typography variant="caption" color="text.secondary">
                                                         Played on {formatDate(game.date_updated)}
@@ -273,10 +274,11 @@ export default function UserProfile() {
                                                 </Grid>
 
                                                 {/* Opponent info */}
-                                                <Grid item xs={12} sm={6}>
+                                                <Grid item xs={12} sm={6} display="flex" gap={1} flexDirection={'row'}>
                                                     <Typography variant="body2">
-                                                        <strong>Opponent:</strong> {game.opponentUsername}
+                                                        <strong>Opponent:</strong>
                                                     </Typography>
+                                                    <UserLink username={game.opponentUsername} />
                                                 </Grid>
 
                                                 {/* Result */}

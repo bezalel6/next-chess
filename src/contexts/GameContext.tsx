@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef } f
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/compat/router';
 ;
-import type { Game, GameContextType, PromoteablePieces } from '@/types/game';
+import type { Game, PromoteablePieces, PlayerColor, GameEndReason, GameResult, GameStatus, GameContextType } from '@/types/game';
 import type { GameMatch } from '@/types/realtime';
 import { useChessSounds } from '@/hooks/useChessSounds';
 import { GameService } from '@/services/gameService';
@@ -19,6 +19,7 @@ interface GameProviderProps {
 
 // Create the context with a proper initial null value
 const GameContext = createContext<GameContextType | null>(null);
+
 
 export function GameProvider({ children }: GameProviderProps) {
     const [game, setGame] = useState<Game | null>(null);
@@ -368,20 +369,22 @@ export function GameProvider({ children }: GameProviderProps) {
         setGame,
         pgn,
         setPgn,
-        makeMove,
-        banMove,
-        resetGame,
         isMyTurn: game?.status === 'active' && game?.turn === myColor,
         myColor,
         loading,
         playerUsernames,
-        offerDraw,
-        acceptDraw,
-        declineDraw,
-        resign,
-        offerRematch,
-        acceptRematch,
-        declineRematch
+        actions: {
+            makeMove,
+            banMove,
+            resetGame,
+            offerDraw,
+            acceptDraw,
+            declineDraw,
+            resign,
+            offerRematch,
+            acceptRematch,
+            declineRematch
+        }
     };
 
     return (

@@ -18,6 +18,7 @@ export interface UserGameStats {
     result: string;
     fen: string;
     date_updated: string;
+    playerColor: "white" | "black";
   }>;
 }
 
@@ -178,11 +179,14 @@ export class UserService {
 
       // Calculate stats
       data.forEach((game) => {
+        // Determine player color
+        const playerColor = game.white_player_id === userId ? "white" : "black";
+
         if (game.result === "draw") {
           stats.draws++;
         } else if (
-          (game.result === "white" && game.white_player_id === userId) ||
-          (game.result === "black" && game.black_player_id === userId)
+          (game.result === "white" && playerColor === "white") ||
+          (game.result === "black" && playerColor === "black")
         ) {
           stats.wins++;
         } else {
@@ -194,6 +198,7 @@ export class UserService {
           result: game.result,
           fen: game.current_fen,
           date_updated: game.updated_at,
+          playerColor,
         });
       });
 

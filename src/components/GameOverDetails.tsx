@@ -132,6 +132,58 @@ const GameOverDetails = () => {
 
     if (!gameResultInfo) return null;
 
+    // For spectators, show a simple score instead of personalized icon/message
+    if (!myColor) {
+        let score = '';
+        if (game.result === 'white') score = '1 - 0';
+        else if (game.result === 'black') score = '0 - 1';
+        else if (game.result === 'draw') score = '½ - ½';
+        return (
+            <Fade in={show} timeout={350}>
+                <Paper elevation={3}
+                    sx={{
+                        width: '100%',
+                        maxWidth: 340,
+                        mx: 'auto',
+                        mt: 2,
+                        p: 2,
+                        borderRadius: 2,
+                        textAlign: 'center',
+                        background: 'rgba(30, 34, 44, 0.85)',
+                        backdropFilter: 'blur(4px)',
+                        boxShadow: '0 4px 16px 0 rgba(0,0,0,0.18)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                        <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 600, letterSpacing: 0.5 }}>
+                            {score}
+                        </Typography>
+                        {gameResultInfo.resultDetail && (
+                            <Typography variant="subtitle1" sx={{ color: '#ffd700', fontWeight: 400, ml: 1 }}>
+                                {gameResultInfo.resultDetail}
+                            </Typography>
+                        )}
+                    </Box>
+                    <Typography variant="body2" sx={{ color: 'white', mb: 1, opacity: 0.92 }}>
+                        Game between {playerUsernames.white} and {playerUsernames.black} has ended.
+                    </Typography>
+                    <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            onClick={resetGame}
+                            sx={{ textTransform: 'none', minWidth: 0 }}
+                        >
+                            Home
+                        </Button>
+                    </Stack>
+                </Paper>
+            </Fade>
+        );
+    }
+
     // Choose icon
     let icon = <HandshakeIcon sx={{ fontSize: 32, color: '#ffd700', mr: 1 }} />;
     if (gameResultInfo.resultType === 'win') icon = <EmojiEventsIcon sx={{ fontSize: 36, color: '#ffd700', mr: 1 }} />;

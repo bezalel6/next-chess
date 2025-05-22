@@ -8,15 +8,9 @@ import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { EventType, recordEvent } from "./event-utils.ts";
 import type { Json } from "./database-types.ts";
+import { DEFAULT_TIME_CONTROL, INITIAL_FEN } from "./constants.ts";
 
-const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const logger = createLogger("DB_TRIGGER");
-
-// Add a fixed default time control
-const DEFAULT_TIME_CONTROL = {
-  initialTime: 600000, // 10 minutes in ms
-  increment: 0, // No increment
-};
 
 interface MatchedPlayer {
   player_id: string;

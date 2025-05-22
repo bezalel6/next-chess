@@ -18,6 +18,7 @@ import {
 import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";
 import { createRouter, defineRoute } from "../_shared/router-utils.ts";
+import { DEFAULT_TIME_CONTROL, INITIAL_FEN } from "../_shared/constants.ts";
 
 const logger = createLogger("MATCHMAKING");
 
@@ -33,12 +34,6 @@ const MatchmakingSchemas = {
   CheckStatusParams: z.object({
     queueId: z.string().uuid().optional(),
   }),
-};
-
-// Add a fixed default time control
-const DEFAULT_TIME_CONTROL = {
-  initialTime: 600000, // 10 minutes in ms
-  increment: 0, // No increment
 };
 
 // Define matchmaking operations
@@ -354,8 +349,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
           white_player_id: player1,
           black_player_id: player2,
           status: "active",
-          current_fen:
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          current_fen: INITIAL_FEN,
           pgn: "",
           turn: "white",
           banning_player: "black",

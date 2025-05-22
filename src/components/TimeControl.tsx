@@ -3,9 +3,7 @@ import { Box, Typography } from '@mui/material';
 import { useGame } from '@/contexts/GameContext';
 import { formatTime } from '@/utils/timeUtils';
 import type { PlayerColor } from '@/types/game';
-
-// Default time control is 10 minutes with no increment
-const DEFAULT_TIME = 10 * 60 * 1000;
+import { DEFAULT_INITIAL_TIME } from '@/constants/timeControl';
 
 interface TimeControlProps {
     playerColor: PlayerColor;
@@ -13,7 +11,7 @@ interface TimeControlProps {
 
 const TimeControl = ({ playerColor }: TimeControlProps) => {
     const { game } = useGame();
-    const [timeLeft, setTimeLeft] = useState<number>(DEFAULT_TIME);
+    const [timeLeft, setTimeLeft] = useState<number>(DEFAULT_INITIAL_TIME);
     const [lastTick, setLastTick] = useState<number>(Date.now());
 
     // Initialize time from game data
@@ -29,16 +27,29 @@ const TimeControl = ({ playerColor }: TimeControlProps) => {
         if (serverTime !== undefined) {
             setTimeLeft(serverTime);
         } else {
-            setTimeLeft(DEFAULT_TIME);
+            setTimeLeft(DEFAULT_INITIAL_TIME);
         }
     }, [game, playerColor]);
+
+    // Determine if this player's clock should be running
+    const isActivePlayer = () => {
+        if (!game || game.status !== 'active') return false;
+
+        // If a player is banning a move, their clock runs
+        if (game.banningPlayer) {
+            return game.banningPlayer === playerColor;
+        }
+
+        // Otherwise, the player whose turn it is has their clock running
+        return game.turn === playerColor;
+    };
 
     // Timer logic
     useEffect(() => {
         if (!game || game.status !== 'active') return;
 
-        // Only run timer for active player
-        if (game.turn === playerColor) {
+        // Only run timer for active player (considering banning phase)
+        if (isActivePlayer()) {
             const timer = setInterval(() => {
                 const now = Date.now();
                 const elapsed = now - lastTick;
@@ -50,11 +61,11 @@ const TimeControl = ({ playerColor }: TimeControlProps) => {
         } else {
             setLastTick(Date.now());
         }
-    }, [game?.turn, game?.status, lastTick, playerColor]);
+    }, [game?.turn, game?.banningPlayer, game?.status, lastTick, playerColor]);
 
     // Determine text color based on time remaining
     const getTimeColor = () => {
-        if (!game || game.turn !== playerColor) return 'text.secondary';
+        if (!game || !isActivePlayer()) return 'text.secondary';
         if (timeLeft < 10000) return 'error.main';
         if (timeLeft < 30000) return 'warning.main';
         return 'success.main';

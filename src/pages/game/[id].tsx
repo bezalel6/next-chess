@@ -14,59 +14,9 @@ import { GameService } from "@/services/gameService";
 
 export default function GamePage() {
     const { game, loading, myColor } = useGame();
-    const { user } = useAuth();
     const router = useRouter();
     const { id } = router.query;
-    const [accessChecked, setAccessChecked] = useState(false);
     const [accessError, setAccessError] = useState<string | null>(null);
-
-    // Verify the user has permission to view this game
-    useEffect(() => {
-        async function checkGameAccess() {
-            // Don't check if we don't have a user or game ID yet
-            if (!user || !id || typeof id !== 'string') return;
-
-            // Don't check again if the game is already loaded
-            if (game) {
-                setAccessChecked(true);
-                return;
-            }
-
-            try {
-                const gameData = await GameService.getGame(id);
-
-                if (!gameData) {
-                    console.error('Game not found');
-                    setAccessError('Game not found');
-                    // Wait a bit before redirecting to show the error
-                    setTimeout(() => router.replace('/'), 2000);
-                    return;
-                }
-
-                // Check if user is a player in this game
-                const isPlayerInGame =
-                    gameData.whitePlayer === user.id ||
-                    gameData.blackPlayer === user.id;
-
-                if (!isPlayerInGame) {
-                    console.error('User is not authorized to view this game');
-                    setAccessError('You are not authorized to view this game');
-                    // Wait a bit before redirecting to show the error
-                    setTimeout(() => router.replace('/'), 2000);
-                    return;
-                }
-
-                setAccessChecked(true);
-            } catch (error) {
-                console.error('Error checking game access:', error);
-                setAccessError('Error loading game');
-                // Wait a bit before redirecting to show the error
-                setTimeout(() => router.replace('/'), 2000);
-            }
-        }
-
-        checkGameAccess();
-    }, [user, id, game, router]);
 
     // Title based on game state
     const pageTitle = game

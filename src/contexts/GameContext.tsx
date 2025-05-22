@@ -38,7 +38,7 @@ export function GameProvider({ children }: GameProviderProps) {
 
     // Load game when the game ID is in the URL
     useEffect(() => {
-        if (!gameId || !user || typeof gameId !== 'string') return;
+        if (!gameId || typeof gameId !== 'string') return;
 
         const loadGame = async () => {
             try {
@@ -61,7 +61,7 @@ export function GameProvider({ children }: GameProviderProps) {
         };
 
         loadGame();
-    }, [gameId, user, router]);
+    }, [gameId, router]);
 
     // Clean up subscription when component unmounts or when game changes
     const cleanupSubscription = useCallback(() => {

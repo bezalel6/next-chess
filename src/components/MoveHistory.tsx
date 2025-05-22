@@ -9,6 +9,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
 import LastPageIcon from '@mui/icons-material/LastPage';
 import { useSingleKeys, Keys } from "@/hooks/useKeys";
+import { useMagicalObjectMap } from "@/utils/magicalMap";
 
 type Ply = {
   move?: string;
@@ -30,7 +31,7 @@ const MoveHistory = () => {
   const [currentPlyIndex, setCurrentPlyIndex] = useState<number>(-1);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
   const prevGameIdRef = useRef<string | null>(null);
-
+  const magicalMoves = useMagicalObjectMap(() => ({ index: -1 } as Ply), [])
   // Convert plies to paired moves for display
   const moves = useMemo<Move[]>(() => {
     const result: Move[] = [];
@@ -76,7 +77,10 @@ const MoveHistory = () => {
 
       // Get all banned moves
       const bannedMoves = getAllBannedMoves(game.pgn);
-
+      bannedMoves.forEach((m, i) => {
+        magicalMoves[i].banned = m;
+        magicalMoves[i].index = i;
+      })
       // Process move history
       const moveHistory = refGame.history({ verbose: true });
       const runningGame = new Chess();
@@ -88,7 +92,9 @@ const MoveHistory = () => {
         const comment = refGame.getComment(fen) || '';
         runningGame.setComment(comment, fen);
         const pgn = runningGame.pgn();
-
+        magicalMoves[index].fen = fen;
+        magicalMoves[index].pgn = pgn;
+        magicalMoves[index].move = move.san;
         newPlies.push({
           move: move.san,
           banned: bannedMoves[index],
@@ -301,6 +307,14 @@ const MoveHistory = () => {
             </IconButton>
           </span>
         </Tooltip>
+        <div>
+          <h3>Magical Moves:</h3>
+          {magicalMoves.keys().map(key => (
+            <div key={key}>
+              {key}: {JSON.stringify(magicalMoves[key])}
+            </div>
+          ))}
+        </div>
       </Box>
     </Box>
   );

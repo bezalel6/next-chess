@@ -1,23 +1,41 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import type { ComponentType } from 'react';
 import { Box, Typography } from '@mui/material';
 import { useGame } from '@/contexts/GameContext';
 import { formatTime } from '@/utils/timeUtils';
-import type { PlayerColor } from '@/types/game';
-import { DEFAULT_INITIAL_TIME } from '@/constants/timeControl';
+import type { PlayerColor, Game } from '@/types/game';
+// import { DEFAULT_INITIAL_TIME } from '@/constants/timeControl';
 
 interface TimeControlProps {
     playerColor: PlayerColor;
 }
 
-const TimeControl = ({ playerColor }: TimeControlProps) => {
-    const { game } = useGame();
-    const [timeLeft, setTimeLeft] = useState<number>(DEFAULT_INITIAL_TIME);
+// HOC that ensures components only render when a game is defined and in progress
+const withGame = <P extends object>(Component: ComponentType<P>) => {
+    const WithGameComponent = (props: P) => {
+        const { game } = useGame();
+
+        // Only render when game exists and is in active status
+        if (!game || game.status !== 'active') {
+            return null;
+        }
+
+        return <Component {...props} />;
+    };
+
+    WithGameComponent.displayName = `WithGame(${Component.displayName || Component.name || 'Component'})`;
+    return WithGameComponent;
+};
+
+// Custom hook to manage timer state and logic
+// Since we're using withGame HOC, we can assume game is defined and active
+const usePlayerTimer = (playerColor: PlayerColor) => {
+    const { game } = useGame() as { game: Game }; // Assert game is defined
+    const [timeLeft, setTimeLeft] = useState<number>(game.timeControl!.initialTime);
     const [lastTick, setLastTick] = useState<number>(Date.now());
 
     // Initialize time from game data
     useEffect(() => {
-        if (!game) return;
-
         // Use server-provided time values or default
         const serverTime = playerColor === 'white'
             ? game.whiteTimeRemaining
@@ -27,14 +45,12 @@ const TimeControl = ({ playerColor }: TimeControlProps) => {
         if (serverTime !== undefined) {
             setTimeLeft(serverTime);
         } else {
-            setTimeLeft(DEFAULT_INITIAL_TIME);
+            setTimeLeft(game.timeControl!.initialTime);
         }
     }, [game, playerColor]);
 
     // Determine if this player's clock should be running
-    const isActivePlayer = () => {
-        if (!game || game.status !== 'active') return false;
-
+    const isActivePlayer = useCallback(() => {
         // If a player is banning a move, their clock runs
         if (game.banningPlayer) {
             return game.banningPlayer === playerColor;
@@ -42,12 +58,10 @@ const TimeControl = ({ playerColor }: TimeControlProps) => {
 
         // Otherwise, the player whose turn it is has their clock running
         return game.turn === playerColor;
-    };
+    }, [game.banningPlayer, game.turn, playerColor]);
 
     // Timer logic
     useEffect(() => {
-        if (!game || game.status !== 'active') return;
-
         // Only run timer for active player (considering banning phase)
         if (isActivePlayer()) {
             const timer = setInterval(() => {
@@ -61,15 +75,21 @@ const TimeControl = ({ playerColor }: TimeControlProps) => {
         } else {
             setLastTick(Date.now());
         }
-    }, [game?.turn, game?.banningPlayer, game?.status, lastTick, playerColor]);
+    }, [game.turn, game.banningPlayer, lastTick, playerColor, isActivePlayer]);
 
     // Determine text color based on time remaining
-    const getTimeColor = () => {
-        if (!game || !isActivePlayer()) return 'text.secondary';
+    const getTimeColor = useCallback(() => {
+        if (!isActivePlayer()) return 'text.secondary';
         if (timeLeft < 10000) return 'error.main';
         if (timeLeft < 30000) return 'warning.main';
         return 'success.main';
-    };
+    }, [isActivePlayer, timeLeft]);
+
+    return { timeLeft, getTimeColor };
+};
+
+const TimeControlBase = ({ playerColor }: TimeControlProps) => {
+    const { timeLeft, getTimeColor } = usePlayerTimer(playerColor);
 
     return (
         <Box
@@ -98,5 +118,11 @@ const TimeControl = ({ playerColor }: TimeControlProps) => {
         </Box>
     );
 };
+
+// Set display name for the base component
+TimeControlBase.displayName = 'TimeControlBase';
+
+// Apply the HOC to the TimeControl component
+const TimeControl = withGame(TimeControlBase);
 
 export default TimeControl; 

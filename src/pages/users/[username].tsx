@@ -14,7 +14,8 @@ import {
     ListItem,
     ListItemText,
     Divider,
-    Chip
+    Chip,
+    Stack
 } from "@mui/material";
 import Link from "next/link";
 import Image from "next/image";
@@ -50,16 +51,33 @@ export default function UserProfile() {
         });
     };
 
-    const getResultDisplay = (result: string, gameId: string) => {
-        switch (result) {
-            case 'white':
-                return <Chip label="Won as White" color="success" size="small" />;
-            case 'black':
-                return <Chip label="Won as Black" color="success" size="small" />;
-            case 'draw':
-                return <Chip label="Draw" color="info" size="small" />;
-            default:
-                return <Chip label="Unknown" color="default" size="small" />;
+    const getResultDisplay = (game: UserGameStats['games'][0]) => {
+        const playerColorLabel = game.playerColor === 'white' ? 'White' : 'Black';
+
+        if (game.result === "draw") {
+            return (
+                <Stack direction="row" spacing={1}>
+                    <Chip label={`Played as ${playerColorLabel}`} variant="outlined" size="small" />
+                    <Chip label="Draw" color="info" size="small" />
+                </Stack>
+            );
+        } else if (
+            (game.result === "white" && game.playerColor === "white") ||
+            (game.result === "black" && game.playerColor === "black")
+        ) {
+            return (
+                <Stack direction="row" spacing={1}>
+                    <Chip label={`Played as ${playerColorLabel}`} variant="outlined" size="small" />
+                    <Chip label="Won" color="success" size="small" />
+                </Stack>
+            );
+        } else {
+            return (
+                <Stack direction="row" spacing={1}>
+                    <Chip label={`Played as ${playerColorLabel}`} variant="outlined" size="small" />
+                    <Chip label="Lost" color="error" size="small" />
+                </Stack>
+            );
         }
     };
 
@@ -156,7 +174,7 @@ export default function UserProfile() {
                                             />
                                         </Box>
                                         <Box>
-                                            {getResultDisplay(game.result, game.id)}
+                                            {getResultDisplay(game)}
                                         </Box>
                                     </Box>
                                 </ListItem>

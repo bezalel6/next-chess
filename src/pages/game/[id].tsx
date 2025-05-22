@@ -1,26 +1,24 @@
-import { useEffect, useState } from "react";
-import Head from "next/head";
-import { Box } from "@mui/material";
 import { useGame } from "@/contexts/GameContext";
+import { Box } from "@mui/material";
 import { useRouter } from 'next/compat/router';
+import Head from "next/head";
+import { useState } from "react";
 
-import { useAuth } from "@/contexts/AuthContext";
 import GameBoard from "@/components/GameBoard";
-import MoveHistory from "@/components/MoveHistory";
-import LoadingScreen from "@/components/LoadingScreen";
-import NotFoundScreen from "@/components/NotFoundScreen";
 import GameLoading from "@/components/GameLoading";
-import { GameService } from "@/services/gameService";
+import LoadingScreen from "@/components/LoadingScreen";
+import MoveHistory from "@/components/MoveHistory";
+import NotFoundScreen from "@/components/NotFoundScreen";
 
 export default function GamePage() {
-    const { game, loading, myColor } = useGame();
+    const { game, loading, myColor, playerUsernames } = useGame();
     const router = useRouter();
     const { id } = router.query;
     const [accessError, setAccessError] = useState<string | null>(null);
 
     // Title based on game state
     const pageTitle = game
-        ? `Chess Game: ${game.whitePlayer.substring(0, 6)} vs ${game.blackPlayer.substring(0, 6)}`
+        ? `${playerUsernames.white} vs ${playerUsernames.black}`
         : 'Chess Game';
 
     return (

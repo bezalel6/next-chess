@@ -12,7 +12,11 @@ const usernameSchema = z
     .max(20, "Username cannot exceed 20 characters")
     .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens");
 
-export default function AuthForm() {
+export type AuthFormProps = {
+    redirectOnSuccess?: boolean;
+};
+
+export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     const { signIn, signUp, signInAsGuest, checkUsernameExists } = useAuth();
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState("");
@@ -106,13 +110,13 @@ export default function AuthForm() {
                 } else {
                     setSuccess(result.message);
                     // Only redirect if no email confirmation is required
-                    setTimeout(() => router.push("/"), 1500);
+                    redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
                 }
             } else {
                 await signIn(email, password);
                 setSuccess("Sign in successful! Redirecting...");
                 // Redirect after successful signin
-                setTimeout(() => router.push("/"), 1500);
+                redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
             }
         } catch (err) {
             if (err instanceof UsernameExistsError) {
@@ -135,7 +139,7 @@ export default function AuthForm() {
             await signInAsGuest();
             setSuccess("Signed in as guest! Redirecting...");
             // Redirect after successful guest signin
-            setTimeout(() => router.push("/"), 1500);
+            redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
         } catch (err) {
             setError(err instanceof Error ? err.message : "An error occurred");
         } finally {

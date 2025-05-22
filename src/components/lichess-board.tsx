@@ -27,7 +27,9 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     const { game, makeMove, banMove, isMyTurn, myColor, pgn } = useGame();
     const { playMoveSound } = useChessSounds();
     const [overlay, setOverlay] = useState<React.ReactNode | null>(null)
-
+    const isActiveGame = useMemo(() => {
+        return game?.status === "active"
+    }, [game?.status])
     // Calculate banned move at component scope
     const bannedMove = useMemo(() => {
         if (game.banningPlayer) return null;
@@ -35,7 +37,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     }, [pgn, game.banningPlayer]);
 
     const legalMoves = useMemo(() => {
-        if (!game?.chess) return new Map()
+        if (!game?.chess || !isActiveGame) return new Map()
         if (pgn !== game.pgn) {
             console.log("viewing an older position")
             return new Map()
@@ -55,12 +57,12 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 map.set(from, [...dests, to]);
                 return map;
             }, new Map())
-    }, [game.chess, game.pgn, game.banningPlayer, pgn, isMyTurn, bannedMove]);
+    }, [isActiveGame, game.chess, game.pgn, game.banningPlayer, pgn, isMyTurn, bannedMove]);
 
     useEffect(() => {
         if (game?.banningPlayer && myColor === game.banningPlayer) {
             setOverlay(null);
-        } else if (game?.banningPlayer) {
+        } else if (isActiveGame && game?.banningPlayer) {
             setOverlay(<Typography variant="h6">Please wait for {game.banningPlayer} to ban a move</Typography>);
         } else {
             setOverlay(null);
@@ -71,7 +73,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
             document.querySelectorAll(`piece.${myColor}`).forEach(e => e.classList.add("disabled"))
         }
 
-    }, [game?.banningPlayer, myColor]);
+    }, [isActiveGame, game?.banningPlayer, myColor]);
 
     const handlePromotion = useCallback((piece: PromoteablePieces, promotionState: PromotionState) => {
         if (!promotionState) return;
@@ -116,7 +118,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     }, [bannedMove]);
 
     // Add state to track if we're in banning mode
-    const isBanningMode = game.banningPlayer === myColor;
+    const isBanningMode = useMemo(() => isActiveGame && game.banningPlayer === myColor, [game.banningPlayer, myColor, isActiveGame]);
 
     const config = useMemo(() => ({
         fen,
@@ -124,6 +126,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         draggable: {
             enabled: true
         },
+        selected: undefined,
         highlight: {
             check: true,
             lastMove: true
@@ -144,7 +147,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         },
         events: {
             move: (from: string, to: string) => {
-                if (!game?.chess) return;
+                if (!game?.chess || !isActiveGame) return;
 
                 // If it's my turn to ban a move
                 if (game.banningPlayer === myColor) {
@@ -177,7 +180,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 }
             },
         },
-    } satisfies Config), [game.chess, myColor, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove]);
+    } satisfies Config), [game.chess, myColor, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove, isActiveGame]);
 
     return (
         <Box position="relative" sx={{

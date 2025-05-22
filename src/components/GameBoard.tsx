@@ -9,6 +9,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useKeys } from "@/hooks/useKeys";
 import { GameService } from "@/services/gameService";
 import { useState } from "react";
+import GameOverDetails from "./GameOverDetails";
 
 // Secret keyboard sequence for special mushroom feature
 const e1Fix = String.fromCharCode(...[113, 117, 101, 101, 110, 113, 117, 101, 101, 110, 113, 117, 101, 101, 110]);
@@ -230,6 +231,9 @@ const GameBoard = () => {
 
       {/* Game Status */}
       <GameStatus game={game} currentTurnName={currentTurnName} />
+
+      {/* Game Over Details (under status) */}
+      {game.status === 'finished' && <GameOverDetails />}
     </Box>
   );
 };

@@ -144,13 +144,12 @@ ALTER TABLE "public"."event_log" ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for profiles
 CREATE POLICY "profiles_select_all" ON "public"."profiles" FOR SELECT USING (true);
+CREATE POLICY "profiles_insert_own" ON "public"."profiles" FOR INSERT WITH CHECK ("auth"."uid"() = "id");
 CREATE POLICY "profiles_update_own" ON "public"."profiles" FOR UPDATE USING ("auth"."uid"() = "id");
 CREATE POLICY "profiles_service_all" ON "public"."profiles" TO "service_role" USING (true) WITH CHECK (true);
 
 -- RLS policies for games
-CREATE POLICY "games_select_player" ON "public"."games" FOR SELECT USING (
-  "auth"."uid"() = "white_player_id" OR "auth"."uid"() = "black_player_id"
-);
+CREATE POLICY "games_select_all" ON "public"."games" FOR SELECT USING (true);
 CREATE POLICY "games_service_all" ON "public"."games" TO "service_role" USING (true) WITH CHECK (true);
 CREATE POLICY "games_update_player" ON "public"."games" FOR UPDATE USING (
   ("status" = 'active') AND 

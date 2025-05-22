@@ -193,6 +193,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         if (error) throw error;
+        await supabase
+            .from('profiles')
+            .insert({ id: data.user.id, username })
+            .select('username')
+            .single();
 
         // Check if email confirmation is required
         const confirmEmail = data?.user?.identities?.length === 0 ||
@@ -263,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isGuest,
         updateUsername,
         checkUsernameExists
-    };
+    } satisfies AuthContextType;
 
     return (
         <AuthContext.Provider value={value}>

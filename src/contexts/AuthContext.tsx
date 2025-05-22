@@ -46,20 +46,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
 
     // Function to fetch user profile
-    const fetchProfile = async (userId: string) => {
+    const fetchProfile = async (userId: string, createUsername?: string) => {
         console.log('[AuthContext] Fetching profile for userId:', userId);
         const { data, error } = await supabase
             .from('profiles')
             .select('username')
             .eq('id', userId)
-            .maybeSingle();
+            .single();
 
         if (error) {
             console.error('[AuthContext] Error fetching profile:', error);
 
             // If profile doesn't exist, create it with a random username
             if (error.code === 'PGRST116') {
-                const username = `user_${Math.random().toString(36).substring(2, 8)}`;
+                const username = createUsername || `user_${Math.random().toString(36).substring(2, 8)}`;
                 console.log('[AuthContext] Profile not found, creating with username:', username);
 
                 const { error: insertError } = await supabase
@@ -241,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
             }
         });
-
+        const profile = await fetchProfile(data.user.id, randomUsername)
         if (error) {
             console.error('[AuthContext] signInAsGuest error:', error);
             throw error;

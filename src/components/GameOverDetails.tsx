@@ -19,7 +19,7 @@ const GameOverDetails = () => {
     // Animate in on mount
     const [show, setShow] = useState(false);
     useEffect(() => {
-        if (game && game.status === 'finished') setShow(true);
+        if (game?.status === 'finished') setShow(true);
         else setShow(false);
     }, [game?.status]);
 
@@ -160,7 +160,7 @@ const GameOverDetails = () => {
                         {gameResultInfo.resultHeader}
                     </Typography>
                     {gameResultInfo.resultDetail && (
-                        <Typography variant="caption" sx={{ color: '#ffd700', fontWeight: 400, ml: 1 }}>
+                        <Typography variant="subtitle1" sx={{ color: '#ffd700', fontWeight: 400, ml: 1 }}>
                             {gameResultInfo.resultDetail}
                         </Typography>
                     )}

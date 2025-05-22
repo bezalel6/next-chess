@@ -263,7 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isGuest,
         updateUsername,
         checkUsernameExists
-    };
+    } satisfies AuthContextType;
 
     return (
         <AuthContext.Provider value={value}>

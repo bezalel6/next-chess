@@ -69,20 +69,26 @@ export interface GameContextType {
   setGame: (game: Game | null) => void;
   pgn: string;
   setPgn: (pgn: string) => void;
-  makeMove: (from: string, to: string, promotion?: PromoteablePieces) => void;
-  banMove: (from: string, to: string) => void;
-  resetGame: () => void;
   isMyTurn: boolean;
   myColor: PlayerColor | null;
   loading: boolean;
   playerUsernames: { white: string; black: string };
-  offerDraw: () => Promise<void>;
-  acceptDraw: () => Promise<void>;
-  declineDraw: () => Promise<void>;
-  resign: () => Promise<void>;
-  offerRematch: () => Promise<void>;
-  acceptRematch: () => Promise<void>;
-  declineRematch: () => Promise<void>;
+  actions: {
+    makeMove: (
+      from: string,
+      to: string,
+      promotion?: PromoteablePieces,
+    ) => Promise<void>;
+    banMove: (from: string, to: string) => Promise<void>;
+    resetGame: () => void;
+    offerDraw: () => Promise<void>;
+    acceptDraw: () => Promise<void>;
+    declineDraw: () => Promise<void>;
+    resign: () => Promise<void>;
+    offerRematch: () => Promise<void>;
+    acceptRematch: () => Promise<void>;
+    declineRematch: () => Promise<void>;
+  };
 }
 
 /**

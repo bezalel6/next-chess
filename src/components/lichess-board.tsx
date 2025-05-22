@@ -124,6 +124,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         draggable: {
             enabled: true
         },
+        selected: undefined,
         highlight: {
             check: true,
             lastMove: true

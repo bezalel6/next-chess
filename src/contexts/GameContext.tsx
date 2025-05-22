@@ -270,15 +270,13 @@ export function GameProvider({ children }: GameProviderProps) {
     const resign = useCallback(async () => {
         if (!game || game.status !== 'active' || !myColor || !user || !session) return;
 
-        if (window.confirm('Are you sure you want to resign?')) {
-            try {
-                const updatedGame = await GameService.resign(game.id, myColor);
-                setGame(updatedGame);
-                setPgn(updatedGame.pgn || '');
-                playGameEnd();
-            } catch (error) {
-                console.error('Error resigning:', error);
-            }
+        try {
+            const updatedGame = await GameService.resign(game.id, myColor);
+            setGame(updatedGame);
+            setPgn(updatedGame.pgn || '');
+            playGameEnd();
+        } catch (error) {
+            console.error('Error resigning:', error);
         }
     }, [game, myColor, user, session, playGameEnd]);
 

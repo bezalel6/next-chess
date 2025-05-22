@@ -1,6 +1,14 @@
 import { supabase, invokeWithAuth } from "../utils/supabase";
 import type { Game, ChessMove, PlayerColor } from "@/types/game";
 import { Chess } from "chess.ts";
+import type { Database } from "@/types/database";
+
+// Define type aliases for better readability
+type GameRow = Database["public"]["Tables"]["games"]["Row"];
+type PlayerColorEnum = Database["public"]["Enums"]["player_color"];
+type GameStatusEnum = Database["public"]["Enums"]["game_status"];
+type GameResultEnum = Database["public"]["Enums"]["game_result"];
+type EndReasonEnum = Database["public"]["Enums"]["end_reason"];
 
 export class GameService {
   // Core game operations
@@ -15,14 +23,17 @@ export class GameService {
     return this.performGameOperation("banMove", gameId, { move });
   }
 
-  static async resign(gameId: string, playerColor: PlayerColor): Promise<Game> {
+  static async resign(
+    gameId: string,
+    playerColor: PlayerColorEnum,
+  ): Promise<Game> {
     return this.performGameOperation("resign", gameId, { playerColor });
   }
 
   // Offer management (draw, rematch)
   static async offerDraw(
     gameId: string,
-    playerColor: PlayerColor,
+    playerColor: PlayerColorEnum,
   ): Promise<Game> {
     return this.performGameOperation("offerDraw", gameId, { playerColor });
   }
@@ -37,7 +48,7 @@ export class GameService {
 
   static async offerRematch(
     gameId: string,
-    playerColor: PlayerColor,
+    playerColor: PlayerColorEnum,
   ): Promise<Game> {
     return this.performGameOperation("offerRematch", gameId, { playerColor });
   }
@@ -64,7 +75,7 @@ export class GameService {
         throw error;
       }
 
-      return this.mapGameFromDB(game);
+      return this.mapGameFromDB(game as GameRow);
     } catch (error) {
       console.error(`[GameService] Error fetching game: ${error.message}`);
       throw error;
@@ -88,7 +99,7 @@ export class GameService {
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
       );
 
-      return allGames.map(this.mapGameFromDB);
+      return allGames.map((game) => this.mapGameFromDB(game as GameRow));
     } catch (error) {
       console.error(
         `[GameService] Error getting active games: ${error.message}`,
@@ -108,7 +119,7 @@ export class GameService {
           table: "games",
           filter: `id=eq.${gameId}`,
         },
-        (payload) => callback(this.mapGameFromDB(payload.new)),
+        (payload) => callback(this.mapGameFromDB(payload.new as GameRow)),
       )
       .subscribe();
 
@@ -137,14 +148,14 @@ export class GameService {
         throw error;
       }
 
-      return this.mapGameFromResponse(data.data);
+      return this.mapGameFromResponse(data.data as GameRow);
     } catch (error) {
       console.error(`[GameService] Error in ${operation}: ${error.message}`);
       throw error;
     }
   }
 
-  static mapGameFromDB(dbGame: any): Game {
+  static mapGameFromDB(dbGame: GameRow): Game {
     const chess = new Chess(dbGame.current_fen);
     return {
       id: dbGame.id,
@@ -155,7 +166,9 @@ export class GameService {
       currentFen: dbGame.current_fen,
       pgn: dbGame.pgn || "",
       chess,
-      lastMove: dbGame.last_move,
+      lastMove: dbGame.last_move
+        ? (dbGame.last_move as unknown as ChessMove)
+        : null,
       turn: dbGame.turn,
       banningPlayer: dbGame.banning_player,
       startTime: new Date(dbGame.created_at).getTime(),
@@ -168,14 +181,15 @@ export class GameService {
       blackTimeRemaining: dbGame.black_time_remaining || null,
       timeControl: dbGame.time_control
         ? {
-            initialTime: dbGame.time_control.initial_time || 10 * 60 * 1000,
-            increment: dbGame.time_control.increment || 0,
+            initialTime:
+              (dbGame.time_control as any)?.initial_time || 10 * 60 * 1000,
+            increment: (dbGame.time_control as any)?.increment || 0,
           }
         : null,
     };
   }
 
-  private static mapGameFromResponse(game: any): Game {
+  private static mapGameFromResponse(game: GameRow): Game {
     if (!game) throw new Error("Game data is missing from response");
     return this.mapGameFromDB(game);
   }

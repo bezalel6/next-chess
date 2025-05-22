@@ -14,10 +14,6 @@ const logger = createLogger("MATCHMAKING");
 interface CreateMatchParams {
   player1Id: string;
   player2Id: string;
-  timeControl?: {
-    initialTime: number;
-    increment: number;
-  };
 }
 
 interface QueueParams {
@@ -30,12 +26,6 @@ const MatchmakingSchemas = {
   CreateMatchParams: z.object({
     player1Id: uuidSchema,
     player2Id: uuidSchema,
-    timeControl: z
-      .object({
-        initialTime: z.number().default(600000), // 10 minutes in ms by default
-        increment: z.number().default(0), // No increment by default
-      })
-      .optional(),
   }),
 
   QueueParams: z.object({
@@ -134,9 +124,6 @@ export async function handleCreateMatch(
         403,
       );
     }
-
-    // Set default time control if not provided
-    const timeControl = params.timeControl || DEFAULT_TIME_CONTROL;
 
     // Create the new game
     const { data: game, error: createError } = await getTable(supabase, "games")

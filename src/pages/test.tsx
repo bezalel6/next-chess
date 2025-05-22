@@ -1,10 +1,10 @@
 import { useMagicalArrayMap, useMagicalObjectMap } from "@/utils/magicalMap";
 
-function ExampleComponent() {
-    const arrayMap = useMagicalArrayMap();
+export default function ExampleComponent() {
+    const arrayMap = useMagicalArrayMap<string>();
     const userMap = useMagicalObjectMap(() => ({ name: '', age: 0 }));
 
-    const addItem = (category: string, item: any) => {
+    const addItem = (category: string, item: string) => {
         arrayMap[category].push(item);
     };
 
@@ -47,4 +47,3 @@ function ExampleComponent() {
         </div>
     );
 }
-export default ExampleComponent

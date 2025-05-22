@@ -10,6 +10,7 @@ type MagicalMap<T> = {
   delete(key: string): boolean;
   keys(): string[];
   size(): number;
+  triggerUpdate(): void;
 };
 
 /**
@@ -43,6 +44,9 @@ function createMagicalMap<T>(initializer: () => T): MagicalMap<T> {
     },
     size(): number {
       return Object.keys(store).length;
+    },
+    triggerUpdate(): void {
+      // This will be overridden by the hook
     },
   } as MagicalMap<T>;
 
@@ -83,7 +87,7 @@ export function useMagicalMap<T>(
   const mapRef = useRef<MagicalMap<T> | null>(null);
 
   // Force re-render when the map changes
-  const [, forceUpdate] = useReducer((x) => x + 1, 0);
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   // Create the map only once or when dependencies change
   const magicalMap = useMemo(() => {
@@ -127,9 +131,8 @@ export function useMagicalMap<T>(
         // For arrays, wrap mutating methods to trigger updates
         if (Array.isArray(value)) {
           return new Proxy(value, {
-            get(arrayTarget, arrayProp) {
-              const arrayValue =
-                arrayTarget[arrayProp as keyof typeof arrayTarget];
+            get(arrayTarget: T[], arrayProp: string | symbol) {
+              const arrayValue = arrayTarget[arrayProp as keyof T[]];
 
               // Wrap array mutating methods
               if (typeof arrayValue === "function") {
@@ -144,9 +147,9 @@ export function useMagicalMap<T>(
                   "fill",
                 ];
                 if (mutatingMethods.includes(arrayProp as string)) {
-                  return function (...args: any[]) {
+                  return function <U extends unknown[]>(...args: U) {
                     const result = (
-                      arrayValue as (...args: any[]) => any
+                      arrayValue as (...args: U) => unknown
                     ).apply(arrayTarget, args);
                     forceUpdate();
                     return result;
@@ -156,7 +159,11 @@ export function useMagicalMap<T>(
 
               return arrayValue;
             },
-            set(arrayTarget, arrayProp, arrayValue) {
+            set(
+              arrayTarget: T[],
+              arrayProp: string | symbol,
+              arrayValue: unknown,
+            ) {
               const result = Reflect.set(arrayTarget, arrayProp, arrayValue);
               forceUpdate();
               return result;
@@ -180,12 +187,14 @@ export function useMagicalMap<T>(
 }
 
 // Helper hook for common use case of arrays
-export function useMagicalArrayMap(dependencies: React.DependencyList = []) {
-  return useMagicalMap<any[]>(() => [], dependencies);
+export function useMagicalArrayMap<T = unknown>(
+  dependencies: React.DependencyList = [],
+) {
+  return useMagicalMap<T[]>(() => [], dependencies);
 }
 
 // Helper hook for common use case of objects
-export function useMagicalObjectMap<T extends Record<string, any>>(
+export function useMagicalObjectMap<T extends Record<string, unknown>>(
   defaultObject: () => T,
   dependencies: React.DependencyList = [],
 ) {
@@ -204,9 +213,11 @@ export function useMagicalObjectMap<T extends Record<string, any>>(
         !(prop in target)
       ) {
         return new Proxy(value, {
-          set(objTarget, objProp, objValue) {
+          set(objTarget: T, objProp: string | symbol, objValue: unknown) {
             const result = Reflect.set(objTarget, objProp, objValue);
-            (target as any).triggerUpdate();
+            (
+              target as MagicalMap<T> & { triggerUpdate(): void }
+            ).triggerUpdate();
             return result;
           },
         });
@@ -223,10 +234,10 @@ import React from 'react';
 import { useMagicalArrayMap, useMagicalObjectMap } from './useMagicalMap';
 
 function ExampleComponent() {
-  const arrayMap = useMagicalArrayMap();
+  const arrayMap = useMagicalArrayMap<string>();
   const userMap = useMagicalObjectMap(() => ({ name: '', age: 0 }));
 
-  const addItem = (category: string, item: any) => {
+  const addItem = (category: string, item: string) => {
     arrayMap[category].push(item);
   };
 

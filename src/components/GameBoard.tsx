@@ -10,12 +10,25 @@ import { useKeys } from "@/hooks/useKeys";
 import { GameService } from "@/services/gameService";
 import { useState } from "react";
 import GameOverDetails from "./GameOverDetails";
+import UserLink from "./user-link";
+import type { Game, PlayerColor, GameContextType } from "@/types/game";
 
 // Secret keyboard sequence for special mushroom feature
 const e1Fix = String.fromCharCode(...[113, 117, 101, 101, 110, 113, 117, 101, 101, 110, 113, 117, 101, 101, 110]);
 
+// Types
+interface PlayerInfoProps {
+  username: string;
+  isOpponent?: boolean;
+}
+
+interface GameStatusProps {
+  game: Game;
+  currentTurnName: string;
+}
+
 // Player information display component
-const PlayerInfo = ({ name, isOpponent = false }) => (
+const PlayerInfo = ({ username, isOpponent = false }: PlayerInfoProps) => (
   <Box sx={{
     width: '100%',
     maxWidth: 800,
@@ -25,12 +38,12 @@ const PlayerInfo = ({ name, isOpponent = false }) => (
     justifyContent: 'center',
     alignItems: 'center'
   }}>
-    <Typography sx={{ color: 'white' }}>{name}</Typography>
+    <UserLink username={username} />
   </Box>
 );
 
 // Game status component
-const GameStatus = ({ game, currentTurnName }) => (
+const GameStatus = ({ game, currentTurnName }: GameStatusProps) => (
   <Box sx={{
     width: '100%',
     maxWidth: 800,
@@ -50,7 +63,11 @@ const GameStatus = ({ game, currentTurnName }) => (
 );
 
 // Draw offer buttons component
-const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
+const DrawButtons = () => {
+  const { game, myColor, actions } = useGame();
+
+  if (!game || !myColor) return null;
+
   const opponentColor = myColor === 'white' ? 'black' : 'white';
 
   if (game.drawOfferedBy === myColor) {
@@ -69,7 +86,7 @@ const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
             variant="outlined"
             color="success"
             size="small"
-            onClick={acceptDraw}
+            onClick={actions.acceptDraw}
             startIcon={<CheckCircleIcon />}
           >
             Accept Draw
@@ -80,7 +97,7 @@ const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
             variant="outlined"
             color="warning"
             size="small"
-            onClick={declineDraw}
+            onClick={actions.declineDraw}
             startIcon={<CancelIcon />}
           >
             Decline
@@ -96,7 +113,7 @@ const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
         variant="outlined"
         color="info"
         size="small"
-        onClick={offerDraw}
+        onClick={actions.offerDraw}
         startIcon={<HandshakeIcon />}
       >
         Offer Draw
@@ -106,14 +123,15 @@ const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
 };
 
 // Game actions component
-const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw }) => {
+const GameActions = () => {
   const [showResignConfirm, setShowResignConfirm] = useState(false);
+  const { game, myColor, actions } = useGame();
 
   if (!game || game.status !== 'active' || !myColor) return null;
 
   const handleResignClick = () => {
     if (showResignConfirm) {
-      resign();
+      actions.resign();
       setShowResignConfirm(false);
     } else {
       setShowResignConfirm(true);
@@ -135,13 +153,7 @@ const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw
     }}>
       <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
         {/* Draw buttons */}
-        <DrawButtons
-          game={game}
-          myColor={myColor}
-          offerDraw={offerDraw}
-          acceptDraw={acceptDraw}
-          declineDraw={declineDraw}
-        />
+        <DrawButtons />
         {/* Resignation button with confirmation */}
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Tooltip title={showResignConfirm ? "Click again to confirm" : "Resign Game"} arrow>
@@ -171,7 +183,6 @@ const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw
             </Tooltip>
           )}
         </Box>
-
       </Stack>
     </Box>
   );
@@ -179,15 +190,7 @@ const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw
 
 // Main GameBoard component
 const GameBoard = () => {
-  const {
-    game,
-    myColor,
-    playerUsernames,
-    resign,
-    offerDraw,
-    acceptDraw,
-    declineDraw
-  } = useGame();
+  const { game, myColor, playerUsernames } = useGame();
 
   if (!game) return <Typography sx={{ color: 'white' }}>Loading game...</Typography>;
 
@@ -205,7 +208,7 @@ const GameBoard = () => {
       flex: 1
     }}>
       {/* Opponent info */}
-      <PlayerInfo name={opponentName} isOpponent={true} />
+      <PlayerInfo username={opponentName} isOpponent={true} />
 
       {/* Chess board */}
       <Box sx={{
@@ -217,17 +220,10 @@ const GameBoard = () => {
       </Box>
 
       {/* Player info */}
-      <PlayerInfo name={myName} />
+      <PlayerInfo username={myName} />
 
       {/* Game actions */}
-      <GameActions
-        game={game}
-        myColor={myColor}
-        resign={resign}
-        offerDraw={offerDraw}
-        acceptDraw={acceptDraw}
-        declineDraw={declineDraw}
-      />
+      <GameActions />
 
       {/* Game Status */}
       <GameStatus game={game} currentTurnName={currentTurnName} />

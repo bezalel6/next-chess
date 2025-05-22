@@ -9,11 +9,8 @@ const GameOverDetails = () => {
     const {
         game,
         myColor,
-        resetGame,
         playerUsernames,
-        offerRematch,
-        acceptRematch,
-        declineRematch
+        actions
     } = useGame();
 
     // Animate in on mount
@@ -89,7 +86,7 @@ const GameOverDetails = () => {
                     variant="contained"
                     color="secondary"
                     size="small"
-                    onClick={offerRematch}
+                    onClick={actions.offerRematch}
                     sx={{ textTransform: 'none', minWidth: 0 }}
                 >
                     Rematch
@@ -110,7 +107,7 @@ const GameOverDetails = () => {
                         variant="contained"
                         color="success"
                         size="small"
-                        onClick={acceptRematch}
+                        onClick={actions.acceptRematch}
                         sx={{ textTransform: 'none', minWidth: 0 }}
                     >
                         Accept
@@ -119,7 +116,7 @@ const GameOverDetails = () => {
                         variant="outlined"
                         color="error"
                         size="small"
-                        onClick={declineRematch}
+                        onClick={actions.declineRematch}
                         sx={{ textTransform: 'none', minWidth: 0 }}
                     >
                         Decline
@@ -173,7 +170,7 @@ const GameOverDetails = () => {
                             variant="contained"
                             color="primary"
                             size="small"
-                            onClick={resetGame}
+                            onClick={actions.resetGame}
                             sx={{ textTransform: 'none', minWidth: 0 }}
                         >
                             Home
@@ -226,7 +223,7 @@ const GameOverDetails = () => {
                         variant="contained"
                         color="primary"
                         size="small"
-                        onClick={resetGame}
+                        onClick={actions.resetGame}
                         sx={{ textTransform: 'none', minWidth: 0 }}
                     >
                         Home

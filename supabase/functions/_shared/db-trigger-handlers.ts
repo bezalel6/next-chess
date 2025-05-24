@@ -9,6 +9,7 @@ import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { EventType, recordEvent } from "./event-utils.ts";
 import type { Json } from "./database-types.ts";
 import { INITIAL_FEN } from "./constants.ts";
+import { getDefaultTimeControl } from "./time-control-utils.ts";
 
 const logger = createLogger("DB_TRIGGER");
 
@@ -43,45 +44,10 @@ function generateShortId(length = 8): string {
 
 /**
  * Gets default time control from the database
+ * @deprecated Use getDefaultTimeControl from time-control-utils.ts instead
  */
 async function getTimeControlFromDB(supabase: TypedSupabaseClient) {
-  try {
-    // Call directly using SQL query to avoid TypeScript issues with RPC
-    const { data, error } = await supabase
-      .from("games")
-      .select("*")
-      .limit(1)
-      .maybeSingle()
-      .then(async () => {
-        return await supabase.rpc("get_default_time_control");
-      });
-
-    if (error) {
-      logger.error("Error fetching default time control:", error);
-      // Use fallback only if database call fails
-      return { initialTime: 600000, increment: 0 };
-    }
-
-    // Parse database response
-    if (data) {
-      try {
-        // Handle both string and object responses
-        const parsed = typeof data === "string" ? JSON.parse(data) : data;
-        return {
-          initialTime: parsed.initial_time || 600000,
-          increment: parsed.increment || 0,
-        };
-      } catch (e) {
-        logger.error("Error parsing time control:", e);
-      }
-    }
-
-    // Fallback
-    return { initialTime: 600000, increment: 0 };
-  } catch (err) {
-    logger.error("Exception fetching time control:", err);
-    return { initialTime: 600000, increment: 0 };
-  }
+  return await getDefaultTimeControl(supabase);
 }
 
 /**
@@ -230,7 +196,7 @@ export async function createGameFromMatchedPlayers(
     const gameId = generateShortId();
 
     // Get time control from database (single source of truth)
-    const timeControl = await getTimeControlFromDB(supabase);
+    const timeControl = await getDefaultTimeControl(supabase);
 
     // Create the game directly in the database
     const { data: game, error: gameError } = await getTable(supabase, "games")
@@ -243,7 +209,10 @@ export async function createGameFromMatchedPlayers(
         pgn: "",
         turn: "white",
         banning_player: "black",
-        time_control: timeControl,
+        time_control: {
+          initial_time: timeControl.initialTime,
+          increment: timeControl.increment,
+        },
         white_time_remaining: timeControl.initialTime,
         black_time_remaining: timeControl.initialTime,
       })

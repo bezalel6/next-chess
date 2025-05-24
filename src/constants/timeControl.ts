@@ -2,7 +2,7 @@
  * Time control utilities
  *
  * IMPORTANT: This file no longer defines the time control values.
- * The single source of truth is now the database function get_default_time_control().
+ * The single source of truth is now the settings table in the database.
  * This file only provides utilities to fetch those values.
  */
 
@@ -15,24 +15,28 @@ export interface TimeControl {
 }
 
 /**
- * Fetches the default time control values from the database
+ * Fetches the default time control values from the database settings
  */
 export async function getDefaultTimeControl(): Promise<TimeControl> {
   try {
-    // Use the supabase client to call the RPC function
-    const { data, error } = await supabase.rpc("get_default_time_control");
+    // Query settings table directly - more efficient than using RPC
+    const { data, error } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "default_time_control")
+      .single();
 
     if (error) {
-      console.error("Error fetching default time control:", error);
-      // Fallback only if database call fails
+      console.error("Error fetching time control from settings:", error);
+      // Fallback if settings table access fails
       return { initialTime: 600000, increment: 0 };
     }
 
-    // Parse response
-    if (data) {
+    if (data?.value) {
       try {
-        // Handle both string and object responses
-        const parsed = typeof data === "string" ? JSON.parse(data) : data;
+        // Parse response
+        const parsed =
+          typeof data.value === "string" ? JSON.parse(data.value) : data.value;
         return {
           initialTime: parsed.initial_time || 600000,
           increment: parsed.increment || 0,

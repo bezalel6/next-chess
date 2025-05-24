@@ -27,6 +27,9 @@ export type Database = {
           turn: string;
           updated_at: string;
           white_player_id: string | null;
+          black_time_remaining: number | null;
+          white_time_remaining: number | null;
+          time_control: Json | null;
         };
         Insert: {
           banningPlayer?: string | null;
@@ -45,6 +48,9 @@ export type Database = {
           turn: string;
           updated_at?: string;
           white_player_id?: string | null;
+          black_time_remaining?: number | null;
+          white_time_remaining?: number | null;
+          time_control?: Json | null;
         };
         Update: {
           banningPlayer?: string | null;
@@ -63,6 +69,9 @@ export type Database = {
           turn?: string;
           updated_at?: string;
           white_player_id?: string | null;
+          black_time_remaining?: number | null;
+          white_time_remaining?: number | null;
+          time_control?: Json | null;
         };
         Relationships: [
           {
@@ -185,6 +194,30 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      settings: {
+        Row: {
+          key: string;
+          value: Json;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          value: Json;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          key?: string;
+          value?: Json;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
     };
     Views: {

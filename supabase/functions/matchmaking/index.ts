@@ -18,7 +18,8 @@ import {
 import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";
 import { createRouter, defineRoute } from "../_shared/router-utils.ts";
-import { DEFAULT_TIME_CONTROL, INITIAL_FEN } from "../_shared/constants.ts";
+import { INITIAL_FEN } from "../_shared/constants.ts";
+import { getDefaultTimeControl } from "../_shared/time-control-utils.ts";
 
 const logger = createLogger("MATCHMAKING");
 
@@ -78,6 +79,14 @@ function generateShortId(length = 8): string {
   }
 
   return result;
+}
+
+/**
+ * Gets default time control from the database
+ * @deprecated Use getDefaultTimeControl from time-control-utils.ts instead
+ */
+async function getTimeControlFromDB(supabase: TypedSupabaseClient) {
+  return await getDefaultTimeControl(supabase);
 }
 
 /**
@@ -342,7 +351,10 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       // Generate a unique game ID
       const gameId = generateShortId();
 
-      // Create a new game with default time control
+      // Get time control from database
+      const timeControl = await getDefaultTimeControl(supabase);
+
+      // Create a new game with dynamic time control
       const { data: game, error: gameError } = await getTable(supabase, "games")
         .insert({
           id: gameId,
@@ -353,9 +365,12 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
           pgn: "",
           turn: "white",
           banning_player: "black",
-          time_control: DEFAULT_TIME_CONTROL,
-          white_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
-          black_time_remaining: DEFAULT_TIME_CONTROL.initialTime,
+          time_control: {
+            initial_time: timeControl.initialTime,
+            increment: timeControl.increment,
+          },
+          white_time_remaining: timeControl.initialTime,
+          black_time_remaining: timeControl.initialTime,
         })
         .select("*")
         .maybeSingle();

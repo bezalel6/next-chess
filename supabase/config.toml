@@ -16,4 +16,7 @@ enable_anonymous_sign_ins = true
 # Realtime configuration
 [realtime]
 enabled = true
-    
+
+# Studio configuration
+[studio]
+port = 3010

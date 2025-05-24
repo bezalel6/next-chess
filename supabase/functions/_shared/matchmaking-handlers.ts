@@ -8,6 +8,8 @@ import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTable, logOperation, ensureSingle } from "./db-utils.ts";
 import type { TypedSupabaseClient } from "./db-utils.ts";
 import { INITIAL_FEN } from "./constants.ts";
+import { getDefaultTimeControl, toJson } from "./time-control-utils.ts";
+import type { Json } from "https://esm.sh/@supabase/postgrest-js@1.19.4/dist/cjs/select-query-parser/types.d.ts";
 
 const logger = createLogger("MATCHMAKING");
 
@@ -61,45 +63,10 @@ function generateShortId(length = 8): string {
 
 /**
  * Gets default time control from the database
+ * @deprecated Use getDefaultTimeControl from time-control-utils.ts instead
  */
 async function getTimeControlFromDB(supabase: TypedSupabaseClient) {
-  try {
-    // Call directly using SQL query to avoid TypeScript issues with RPC
-    const { data, error } = await supabase
-      .from("games")
-      .select("*")
-      .limit(1)
-      .maybeSingle()
-      .then(async () => {
-        return await supabase.rpc("get_default_time_control");
-      });
-
-    if (error) {
-      logger.error("Error fetching default time control:", error);
-      // Use fallback only if database call fails
-      return { initialTime: 600000, increment: 0 };
-    }
-
-    // Parse database response
-    if (data) {
-      try {
-        // Handle both string and object responses
-        const parsed = typeof data === "string" ? JSON.parse(data) : data;
-        return {
-          initialTime: parsed.initial_time || 600000,
-          increment: parsed.increment || 0,
-        };
-      } catch (e) {
-        logger.error("Error parsing time control:", e);
-      }
-    }
-
-    // Fallback
-    return { initialTime: 600000, increment: 0 };
-  } catch (err) {
-    logger.error("Exception fetching time control:", err);
-    return { initialTime: 600000, increment: 0 };
-  }
+  return await getDefaultTimeControl(supabase);
 }
 
 /**
@@ -169,7 +136,7 @@ export async function handleCreateMatch(
     }
 
     // Get time control from database (single source of truth)
-    const timeControl = await getTimeControlFromDB(supabase);
+    const timeControl = await getDefaultTimeControl(supabase);
 
     // Create the new game
     const { data: game, error: createError } = await getTable(supabase, "games")
@@ -182,7 +149,10 @@ export async function handleCreateMatch(
         pgn: "",
         turn: "white",
         banning_player: "black",
-        time_control: timeControl,
+        time_control: {
+          initial_time: timeControl.initialTime,
+          increment: timeControl.increment,
+        },
         white_time_remaining: timeControl.initialTime,
         black_time_remaining: timeControl.initialTime,
       })
@@ -291,7 +261,7 @@ export async function handleJoinQueue(
     logger.info(`Adding user ${user.id} to queue`);
 
     // Get time control from database (single source of truth)
-    const timeControl = await getTimeControlFromDB(supabase);
+    const timeControl = await getDefaultTimeControl(supabase);
 
     const { data: newEntry, error: insertError } = await getTable(
       supabase,
@@ -588,7 +558,7 @@ export async function handleAutoMatch(
     logger.info(`Matching ${player1.player_id} with ${player2.player_id}`);
 
     // Get time control from database (single source of truth)
-    const timeControl = await getTimeControlFromDB(supabase);
+    const timeControl = await getDefaultTimeControl(supabase);
 
     // Create a new game
     const { data: game, error: createError } = await getTable(supabase, "games")
@@ -601,7 +571,7 @@ export async function handleAutoMatch(
         pgn: "",
         turn: "white",
         banning_player: "black",
-        time_control: timeControl,
+        time_control: toJson(timeControl),
         white_time_remaining: timeControl.initialTime,
         black_time_remaining: timeControl.initialTime,
       })

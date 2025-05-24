@@ -4,16 +4,56 @@ ALTER TABLE public.games
   ADD COLUMN IF NOT EXISTS black_time_remaining BIGINT,
   ADD COLUMN IF NOT EXISTS time_control JSONB;
 
--- Centralized time control configuration function
+-- Create settings table if it doesn't exist
+CREATE TABLE IF NOT EXISTS public.settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Add RLS policies for the settings table
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+
+-- Only allow admins to modify settings
+CREATE POLICY "Allow admins to manage settings" ON public.settings
+  FOR ALL USING (auth.role() = 'service_role');
+  
+-- Allow anyone to read settings
+CREATE POLICY "Allow anyone to read settings" ON public.settings
+  FOR SELECT USING (true);
+
+-- Insert default time control settings if they don't exist
+INSERT INTO public.settings (key, value, description)
+VALUES (
+  'default_time_control',
+  '{"initial_time": 600000, "increment": 0}'::jsonb,
+  'Default time control settings for chess games (initial_time in milliseconds)'
+) ON CONFLICT (key) DO NOTHING;
+
+-- Centralized time control configuration function (now fetches from settings table)
 CREATE OR REPLACE FUNCTION public.get_default_time_control()
 RETURNS JSONB AS $$
+DECLARE
+  settings_value JSONB;
 BEGIN
-  -- Single place to configure default time control values
-  -- initial_time: 10 minutes (600000 milliseconds)
-  -- increment: 0 seconds
-  RETURN '{"initial_time": 600000, "increment": 0}'::jsonb;
+  -- Get time control settings from the settings table
+  SELECT value INTO settings_value
+  FROM public.settings
+  WHERE key = 'default_time_control';
+  
+  -- Return default value if not found in settings table
+  IF settings_value IS NULL THEN
+    RETURN '{"initial_time": 600000, "increment": 0}'::jsonb;
+  END IF;
+  
+  RETURN settings_value;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE; -- Changed to STABLE since it reads from DB
+
+-- Grant access to the function via REST API
+GRANT EXECUTE ON FUNCTION public.get_default_time_control() TO postgres, anon, authenticated, service_role;
 
 -- Helper function to get the initial time value
 CREATE OR REPLACE FUNCTION public.get_default_initial_time()
@@ -21,12 +61,45 @@ RETURNS BIGINT AS $$
 BEGIN
   RETURN (public.get_default_time_control()->>'initial_time')::BIGINT;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE; -- Changed to STABLE since it reads from DB
+
+-- Grant access to the helper function via REST API
+GRANT EXECUTE ON FUNCTION public.get_default_initial_time() TO postgres, anon, authenticated, service_role;
 
 -- Update existing games to have a default time control
 UPDATE public.games
 SET time_control = public.get_default_time_control()
 WHERE time_control IS NULL; 
+
+-- Add trigger to update time_control column whenever settings change
+CREATE OR REPLACE FUNCTION public.sync_time_control_settings()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- If the default time control setting was updated, log the event
+  IF NEW.key = 'default_time_control' AND 
+     (OLD.value IS NULL OR OLD.value IS DISTINCT FROM NEW.value) THEN
+    
+    -- Log the change
+    INSERT INTO public.event_log 
+      (event_type, entity_type, entity_id, data)
+    VALUES 
+      ('settings_updated', 'time_control', 'default', json_build_object(
+        'old_value', OLD.value,
+        'new_value', NEW.value
+      ));
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create or replace the trigger
+DROP TRIGGER IF EXISTS sync_time_control_settings_trigger ON public.settings;
+CREATE TRIGGER sync_time_control_settings_trigger
+AFTER UPDATE OR INSERT ON public.settings
+FOR EACH ROW
+WHEN (NEW.key = 'default_time_control')
+EXECUTE FUNCTION public.sync_time_control_settings();
 
 -- Time control utility functions for chess game
 

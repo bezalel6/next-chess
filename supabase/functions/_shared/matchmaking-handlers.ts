@@ -29,19 +29,6 @@ const MatchmakingSchemas = {
     player1Id: uuidSchema,
     player2Id: uuidSchema,
   }),
-
-  QueueParams: z.object({
-    preferences: z
-      .object({
-        timeControl: z
-          .object({
-            initialTime: z.number().default(600000), // 10 minutes in ms by default
-            increment: z.number().default(0), // No increment by default
-          })
-          .optional(),
-      })
-      .optional(),
-  }),
 };
 
 /**

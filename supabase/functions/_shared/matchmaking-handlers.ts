@@ -7,9 +7,11 @@ import { uuidSchema } from "./validation-utils.ts";
 import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTable, logOperation, ensureSingle } from "./db-utils.ts";
 import type { TypedSupabaseClient } from "./db-utils.ts";
+import { INITIAL_FEN } from "./constants.ts";
+import { getDefaultTimeControl, toJson } from "./time-control-utils.ts";
+import type { Json } from "https://esm.sh/@supabase/postgrest-js@1.19.4/dist/cjs/select-query-parser/types.d.ts";
 
 const logger = createLogger("MATCHMAKING");
-const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 interface CreateMatchParams {
   player1Id: string;
@@ -26,10 +28,6 @@ const MatchmakingSchemas = {
   CreateMatchParams: z.object({
     player1Id: uuidSchema,
     player2Id: uuidSchema,
-  }),
-
-  QueueParams: z.object({
-    preferences: z.record(z.any()).optional(),
   }),
 };
 
@@ -48,6 +46,14 @@ function generateShortId(length = 8): string {
   }
 
   return result;
+}
+
+/**
+ * Gets default time control from the database
+ * @deprecated Use getDefaultTimeControl from time-control-utils.ts instead
+ */
+async function getTimeControlFromDB(supabase: TypedSupabaseClient) {
+  return await getDefaultTimeControl(supabase);
 }
 
 /**
@@ -116,6 +122,9 @@ export async function handleCreateMatch(
       );
     }
 
+    // Get time control from database (single source of truth)
+    const timeControl = await getDefaultTimeControl(supabase);
+
     // Create the new game
     const { data: game, error: createError } = await getTable(supabase, "games")
       .insert({
@@ -127,6 +136,12 @@ export async function handleCreateMatch(
         pgn: "",
         turn: "white",
         banning_player: "black",
+        time_control: {
+          initial_time: timeControl.initialTime,
+          increment: timeControl.increment,
+        },
+        white_time_remaining: timeControl.initialTime,
+        black_time_remaining: timeControl.initialTime,
       })
       .select("*")
       .single();
@@ -180,20 +195,20 @@ export async function handleJoinQueue(
     //   );
     // }
 
-    // if (activeGames && activeGames.length > 0) {
-    //   console.log(
-    //     `[MATCHMAKING] User ${user.id} already has active game: ${activeGames[0].id}`,
-    //   );
-    //   return buildResponse(
-    //     {
-    //       success: false,
-    //       message: "Already in an active game",
-    //       game: activeGames[0],
-    //     },
-    //     400,
-    //     corsHeaders,
-    //   );
-    // }
+    // // if (activeGames && activeGames.length > 0) {
+    // //   console.log(
+    // //     `[MATCHMAKING] User ${user.id} already has active game: ${activeGames[0].id}`,
+    // //   );
+    // //   return buildResponse(
+    // //     {
+    // //       success: false,
+    // //       message: "Already in an active game",
+    // //       game: activeGames[0],
+    // //     },
+    // //     400,
+    // //     corsHeaders,
+    // //   );
+    // // }
 
     // 2. Check if already in queue
     const { data: existingEntry, error: queueError } = await getTable(
@@ -231,6 +246,10 @@ export async function handleJoinQueue(
 
     // 4. Add to queue
     logger.info(`Adding user ${user.id} to queue`);
+
+    // Get time control from database (single source of truth)
+    const timeControl = await getDefaultTimeControl(supabase);
+
     const { data: newEntry, error: insertError } = await getTable(
       supabase,
       "matchmaking",
@@ -238,7 +257,7 @@ export async function handleJoinQueue(
       .insert({
         player_id: user.id,
         status: "waiting",
-        preferences: params.preferences || {},
+        preferences: params?.preferences || { timeControl },
       })
       .select("*")
       .single();
@@ -525,6 +544,9 @@ export async function handleAutoMatch(
 
     logger.info(`Matching ${player1.player_id} with ${player2.player_id}`);
 
+    // Get time control from database (single source of truth)
+    const timeControl = await getDefaultTimeControl(supabase);
+
     // Create a new game
     const { data: game, error: createError } = await getTable(supabase, "games")
       .insert({
@@ -536,6 +558,9 @@ export async function handleAutoMatch(
         pgn: "",
         turn: "white",
         banning_player: "black",
+        time_control: toJson(timeControl),
+        white_time_remaining: timeControl.initialTime,
+        black_time_remaining: timeControl.initialTime,
       })
       .select("*")
       .single();

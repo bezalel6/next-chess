@@ -45,78 +45,122 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isGuest, setIsGuest] = useState(false);
     const [profile, setProfile] = useState<UserProfile | null>(null);
 
-    // Function to fetch user profile
-    const fetchProfile = async (userId: string) => {
-        console.log('[AuthContext] Fetching profile for userId:', userId);
+    // Check if username already exists
+    const checkUsernameExists = async (username: string): Promise<boolean> => {
         const { data, error } = await supabase
             .from('profiles')
             .select('username')
-            .eq('id', userId)
-            .maybeSingle();
+            .eq('username', username)
+            .limit(1);
 
-        if (error) {
-            console.error('[AuthContext] Error fetching profile:', error);
+        if (error) throw error;
+        return !!(data && data.length > 0);
+    };
 
-            // If profile doesn't exist, create it with a random username
-            if (error.code === 'PGRST116') {
-                const username = `user_${Math.random().toString(36).substring(2, 8)}`;
-                console.log('[AuthContext] Profile not found, creating with username:', username);
+    // Generate unique guest username
+    const generateUniqueUsername = async (prefix = 'user_'): Promise<string> => {
+        let username = `${prefix}${Math.random().toString(36).substring(2, 8)}`;
+        let exists = await checkUsernameExists(username);
 
-                const { error: insertError } = await supabase
-                    .from('profiles')
-                    .insert({
-                        id: userId,
-                        username
-                    });
-
-                if (insertError) {
-                    console.error('[AuthContext] Error creating profile:', insertError);
-                    return;
-                }
-
-                setProfile({ username });
-            }
-            return;
+        let attempts = 0;
+        while (exists && attempts < 5) {
+            username = `${prefix}${Math.random().toString(36).substring(2, 10)}`;
+            exists = await checkUsernameExists(username);
+            attempts++;
         }
 
-        setProfile({
-            username: data?.username
-        });
-        console.log('[AuthContext] Profile set:', data?.username);
+        return username;
+    };
+
+    // Function to fetch or create user profile
+    const fetchProfile = async (userId: string, createUsername?: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('username')
+                .eq('id', userId)
+                .single();
+
+            if (error) {
+                // If profile doesn't exist, create it
+                if (error.code === 'PGRST116') {
+                    const username = createUsername || await generateUniqueUsername();
+
+                    // First check if profile exists again to avoid race conditions
+                    const { data: existingProfile } = await supabase
+                        .from('profiles')
+                        .select('username')
+                        .eq('id', userId)
+                        .maybeSingle();
+
+                    if (existingProfile) {
+                        setProfile({ username: existingProfile.username });
+                        return existingProfile;
+                    }
+
+                    const { error: insertError, data: insertedData } = await supabase
+                        .from('profiles')
+                        .insert({ id: userId, username })
+                        .select('username')
+                        .single();
+
+                    if (insertError) {
+                        // If insert fails due to duplicate key, the profile was likely created
+                        // in a race condition - try to fetch it again
+                        if (insertError.code === '23505') {
+                            const { data: existingProfile, error: fetchError } = await supabase
+                                .from('profiles')
+                                .select('username')
+                                .eq('id', userId)
+                                .single();
+
+                            if (!fetchError && existingProfile) {
+                                setProfile({ username: existingProfile.username });
+                                return existingProfile;
+                            }
+                        }
+                        throw insertError;
+                    }
+
+                    setProfile({ username });
+                    return insertedData || { username };
+                }
+                throw error;
+            }
+
+            setProfile({ username: data.username });
+            return data;
+        } catch (error) {
+            console.error('Error in fetchProfile:', error);
+            throw error;
+        }
+    };
+
+    // Handle session and user state update
+    const updateUserState = (session: Session | null) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+            setIsGuest(session.user.app_metadata.provider === 'anonymous');
+            fetchProfile(session.user.id).catch(console.error);
+        } else {
+            setIsGuest(false);
+            setProfile(null);
+        }
+
+        setIsLoading(false);
     };
 
     useEffect(() => {
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
-            console.log('[AuthContext] Initial session:', session);
-            setSession(session);
-            setUser(session?.user ?? null);
-
-            // Check if user is anonymous
-            if (session?.user) {
-                setIsGuest(session.user.app_metadata.provider === 'anonymous');
-                fetchProfile(session.user.id);
-            }
-
-            setIsLoading(false);
+            updateUserState(session);
         });
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            console.log('[AuthContext] Auth state changed. New session:', session);
-            setSession(session);
-            setUser(session?.user ?? null);
-
-            // Check if user is anonymous
-            if (session?.user) {
-                setIsGuest(session.user.app_metadata.provider === 'anonymous');
-                fetchProfile(session.user.id);
-            } else {
-                setIsGuest(false);
-                setProfile(null);
-            }
-
-            setIsLoading(false);
+            updateUserState(session);
         });
 
         return () => {
@@ -125,43 +169,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const signIn = async (email: string, password: string) => {
-        console.log('[AuthContext] signIn called with email:', email);
         const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
-        if (error) {
-            console.error('[AuthContext] signIn error:', error);
-            throw error;
-        }
-        console.log('[AuthContext] signIn successful');
-    };
-
-    // Check if username already exists
-    const checkUsernameExists = async (username: string): Promise<boolean> => {
-        console.log('[AuthContext] Checking if username exists:', username);
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('username', username)
-            .limit(1);
-
-        if (error) {
-            console.error('[AuthContext] Error checking username:', error);
-            throw error;
-        }
-
-        const exists = data && data.length > 0;
-        console.log(`[AuthContext] Username "${username}" exists:`, exists);
-        return exists;
+        if (error) throw error;
     };
 
     const signUp = async (email: string, password: string, username: string): Promise<SignUpStatus> => {
-        console.log('[AuthContext] signUp called with email:', email, 'username:', username);
         // First check if username is already taken
         const usernameExists = await checkUsernameExists(username);
         if (usernameExists) {
-            console.warn('[AuthContext] Username already taken:', username);
             throw new UsernameExistsError("Username already taken. Please choose another username.");
         }
 
@@ -170,95 +188,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email,
             password,
             options: {
-                data: {
-                    username: username
-                }
+                data: { username }
             }
         });
-        console.log('[AuthContext] signUp result:', data);
-        if (error) {
-            console.error('[AuthContext] signUp error:', error);
-            throw error;
-        }
+
+        if (error) throw error;
+        await supabase
+            .from('profiles')
+            .insert({ id: data.user.id, username })
+            .select('username')
+            .single();
 
         // Check if email confirmation is required
         const confirmEmail = data?.user?.identities?.length === 0 ||
             data?.user?.confirmed_at === null ||
             (!!data.user.confirmation_sent_at && !data?.user?.confirmed_at);
 
-        // Return meaningful status
-        if (confirmEmail) {
-            console.log('[AuthContext] signUp requires email confirmation');
-            return {
-                success: true,
-                confirmEmail: true,
-                user: data?.user || null,
-                message: "Please check your email for a confirmation link to complete the signup process."
-            };
-        } else {
-            // Auto-confirmed or already confirmed
-            console.log('[AuthContext] signUp auto-confirmed or already confirmed');
-            return {
-                success: true,
-                confirmEmail: false,
-                user: data?.user || null,
-                message: "Account created successfully. You can now sign in."
-            };
-        }
+        return {
+            success: true,
+            confirmEmail,
+            user: data?.user || null,
+            message: confirmEmail
+                ? "Please check your email for a confirmation link to complete the signup process."
+                : "Account created successfully. You can now sign in."
+        };
     };
 
     const signOut = async () => {
-        console.log('[AuthContext] signOut called');
         const { error } = await supabase.auth.signOut();
-        if (error) {
-            console.error('[AuthContext] signOut error:', error);
-            throw error;
-        }
+        if (error) throw error;
         setProfile(null);
-        console.log('[AuthContext] signOut successful, profile cleared');
     };
 
     const signInAsGuest = async () => {
-        console.log('[AuthContext] signInAsGuest called');
-        // Generate a random username and ensure it's unique
-        let randomUsername = `guest_${Math.random().toString(36).substring(2, 10)}`;
-        let exists = await checkUsernameExists(randomUsername);
+        const randomUsername = await generateUniqueUsername('guest_');
 
-        // If by rare chance the random username exists, try again
-        let attempts = 0;
-        while (exists && attempts < 5) {
-            randomUsername = `guest_${Math.random().toString(36).substring(2, 10)}`;
-            exists = await checkUsernameExists(randomUsername);
-            attempts++;
-            console.log(`[AuthContext] Retrying guest username, attempt ${attempts}:`, randomUsername);
-        }
-
-        // Sign in anonymously with username in metadata
         const { data, error } = await supabase.auth.signInAnonymously({
             options: {
-                data: {
-                    username: randomUsername
-                }
+                data: { username: randomUsername }
             }
         });
 
-        if (error) {
-            console.error('[AuthContext] signInAsGuest error:', error);
-            throw error;
-        }
-        console.log('[AuthContext] signInAsGuest successful:', data);
-        // No need to manually create profile - database trigger will handle it
+        if (error) throw error;
+
+        // Ensure profile exists
+        await fetchProfile(data.user.id, randomUsername);
     };
 
     const updateUsername = async (username: string) => {
         if (!user) throw new Error("User not authenticated");
-        console.log('[AuthContext] updateUsername called. New username:', username);
 
-        // First check if the new username is already taken (unless it's the user's current username)
+        // Skip check if username isn't changing
         if (username !== profile?.username) {
             const usernameExists = await checkUsernameExists(username);
             if (usernameExists) {
-                console.warn('[AuthContext] Username already taken (updateUsername):', username);
                 throw new UsernameExistsError("Username already taken. Please choose another username.");
             }
         }
@@ -268,21 +251,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .update({ username })
             .eq('id', user.id);
 
-        if (error) {
-            console.error('[AuthContext] updateUsername error:', error);
-            throw error;
-        }
+        if (error) throw error;
 
-        setProfile(prev => ({
-            ...prev!,
-            username
-        }));
-        console.log('[AuthContext] Username updated to:', username);
+        setProfile(prev => ({ ...prev!, username }));
     };
-
-    useEffect(() => {
-        console.log('[AuthContext] State changed:', { user, session, isGuest, profile, isLoading });
-    }, [user, session, isGuest, profile, isLoading]);
 
     const value = {
         user,
@@ -296,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isGuest,
         updateUsername,
         checkUsernameExists
-    };
+    } satisfies AuthContextType;
 
     return (
         <AuthContext.Provider value={value}>

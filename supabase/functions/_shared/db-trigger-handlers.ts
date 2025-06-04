@@ -8,8 +8,9 @@ import type { User } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { EventType, recordEvent } from "./event-utils.ts";
 import type { Json } from "./database-types.ts";
+import { INITIAL_FEN } from "./constants.ts";
+import { getDefaultTimeControl } from "./time-control-utils.ts";
 
-const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const logger = createLogger("DB_TRIGGER");
 
 interface MatchedPlayer {
@@ -39,6 +40,14 @@ function generateShortId(length = 8): string {
   }
 
   return result;
+}
+
+/**
+ * Gets default time control from the database
+ * @deprecated Use getDefaultTimeControl from time-control-utils.ts instead
+ */
+async function getTimeControlFromDB(supabase: TypedSupabaseClient) {
+  return await getDefaultTimeControl(supabase);
 }
 
 /**
@@ -147,7 +156,7 @@ export async function createGameFromMatchedPlayers(
       supabase,
       "matchmaking",
     )
-      .select("player_id, joined_at")
+      .select("player_id, joined_at, preferences")
       .eq("status", "matched")
       .order("joined_at", { ascending: true })
       .limit(2);
@@ -179,10 +188,15 @@ export async function createGameFromMatchedPlayers(
     const whiteId = isPlayer1White ? player1Id : player2Id;
     const blackId = isPlayer1White ? player2Id : player1Id;
 
-    logger.info(`Creating game: White=${whiteId}, Black=${blackId}`);
+    logger.info(
+      `Creating game: White=${whiteId}, Black=${blackId} with default time control`,
+    );
 
     // Generate a short game ID
     const gameId = generateShortId();
+
+    // Get time control from database (single source of truth)
+    const timeControl = await getDefaultTimeControl(supabase);
 
     // Create the game directly in the database
     const { data: game, error: gameError } = await getTable(supabase, "games")
@@ -195,6 +209,12 @@ export async function createGameFromMatchedPlayers(
         pgn: "",
         turn: "white",
         banning_player: "black",
+        time_control: {
+          initial_time: timeControl.initialTime,
+          increment: timeControl.increment,
+        },
+        white_time_remaining: timeControl.initialTime,
+        black_time_remaining: timeControl.initialTime,
       })
       .select("*")
       .single();

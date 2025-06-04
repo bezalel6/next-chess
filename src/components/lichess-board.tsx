@@ -24,10 +24,12 @@ interface PromotionState {
 type Config = ComponentProps<typeof Chessground>['config']
 
 const LichessBoard = ({ }: LichessBoardProps) => {
-    const { game, makeMove, banMove, isMyTurn, myColor, pgn } = useGame();
+    const { game, actions, isMyTurn, myColor, pgn } = useGame();
     const { playMoveSound } = useChessSounds();
     const [overlay, setOverlay] = useState<React.ReactNode | null>(null)
-
+    const isActiveGame = useMemo(() => {
+        return game?.status === "active"
+    }, [game?.status])
     // Calculate banned move at component scope
     const bannedMove = useMemo(() => {
         if (game.banningPlayer) return null;
@@ -35,7 +37,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     }, [pgn, game.banningPlayer]);
 
     const legalMoves = useMemo(() => {
-        if (!game?.chess) return new Map()
+        if (!game?.chess || !isActiveGame) return new Map()
         if (pgn !== game.pgn) {
             console.log("viewing an older position")
             return new Map()
@@ -55,12 +57,12 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 map.set(from, [...dests, to]);
                 return map;
             }, new Map())
-    }, [game.chess, game.pgn, game.banningPlayer, pgn, isMyTurn, bannedMove]);
+    }, [isActiveGame, game.chess, game.pgn, game.banningPlayer, pgn, isMyTurn, bannedMove]);
 
     useEffect(() => {
         if (game?.banningPlayer && myColor === game.banningPlayer) {
             setOverlay(null);
-        } else if (game?.banningPlayer) {
+        } else if (isActiveGame && game?.banningPlayer) {
             setOverlay(<Typography variant="h6">Please wait for {game.banningPlayer} to ban a move</Typography>);
         } else {
             setOverlay(null);
@@ -71,14 +73,14 @@ const LichessBoard = ({ }: LichessBoardProps) => {
             document.querySelectorAll(`piece.${myColor}`).forEach(e => e.classList.add("disabled"))
         }
 
-    }, [game?.banningPlayer, myColor]);
+    }, [isActiveGame, game?.banningPlayer, myColor]);
 
     const handlePromotion = useCallback((piece: PromoteablePieces, promotionState: PromotionState) => {
         if (!promotionState) return;
 
-        makeMove(promotionState.from, promotionState.to, piece);
+        actions.makeMove(promotionState.from, promotionState.to, piece);
         setOverlay(null);
-    }, [makeMove])
+    }, [actions]);
 
     const [fen, lastMove, check] = useMemo(() => {
         const chess = new Chess(game.currentFen)
@@ -116,7 +118,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
     }, [bannedMove]);
 
     // Add state to track if we're in banning mode
-    const isBanningMode = game.banningPlayer === myColor;
+    const isBanningMode = useMemo(() => isActiveGame && game.banningPlayer === myColor, [game.banningPlayer, myColor, isActiveGame]);
 
     const config = useMemo(() => ({
         fen,
@@ -124,6 +126,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         draggable: {
             enabled: true
         },
+        selected: undefined,
         highlight: {
             check: true,
             lastMove: true
@@ -145,11 +148,11 @@ const LichessBoard = ({ }: LichessBoardProps) => {
         },
         events: {
             move: (from: string, to: string) => {
-                if (!game?.chess) return;
+                if (!game?.chess || !isActiveGame) return;
 
                 // If it's my turn to ban a move
                 if (game.banningPlayer === myColor) {
-                    banMove(from, to);
+                    actions.banMove(from, to);
                     return;
                 }
 
@@ -170,7 +173,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                             return;
                         }
                         playMoveSound(move, game.chess);
-                        makeMove(from, to);
+                        actions.makeMove(from, to);
                     }
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 } catch (error) {
@@ -178,18 +181,24 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                 }
             },
         },
-    } satisfies Config), [game.chess, myColor, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, makeMove, banMove, handlePromotion, drawableShapes, fen, check, lastMove]);
+    } satisfies Config), [game.chess, myColor, legalMoves, isMyTurn, game.banningPlayer, playMoveSound, actions, handlePromotion, drawableShapes, fen, check, lastMove, isActiveGame]);
 
     return (
-        <>
-            <Chessground contained config={config} />
+        <Box position="relative" sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: '100%',
+        }}>
             {isBanningMode && (
                 <Box
                     sx={{
                         position: 'absolute',
-                        top: '10px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
+                        bottom: '-50px',
+                        left: '0',
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
                         zIndex: 20,
                     }}
                 >
@@ -197,11 +206,37 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                         label="BAN MODE - SELECT OPPONENT'S MOVE TO BAN"
                         color="warning"
                         sx={{
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
+                            padding: '10px',
+                            animation: 'pulse 1.5s infinite',
+                            '@keyframes pulse': {
+                                '0%': { boxShadow: '0 0 0 0 rgba(255, 152, 0, 0.4)' },
+                                '70%': { boxShadow: '0 0 0 10px rgba(255, 152, 0, 0)' },
+                                '100%': { boxShadow: '0 0 0 0 rgba(255, 152, 0, 0)' },
+                            },
+                            height: 'auto',
+                            minHeight: '32px',
+                            '& .MuiChip-label': {
+                                whiteSpace: 'normal',
+                                textAlign: 'center',
+                                lineHeight: 1.2,
+                                padding: '6px 0',
+                                display: 'block',
+                                maxWidth: '100%',
+                            }
                         }}
                     />
                 </Box>
             )}
+            <Box sx={{
+                width: '80%',
+                maxWidth: 600,
+                aspectRatio: '1/1',
+                margin: '0 auto',
+                position: 'relative',
+            }}>
+                <Chessground contained config={config} />
+            </Box>
             {overlay && (
                 <Box
                     sx={{
@@ -231,7 +266,7 @@ const LichessBoard = ({ }: LichessBoardProps) => {
                     </Paper>
                 </Box>
             )}
-        </>
+        </Box>
     );
 };
 

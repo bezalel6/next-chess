@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef } f
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/compat/router';
 ;
-import type { Game, GameContextType, PromoteablePieces } from '@/types/game';
+import type { Game, PromoteablePieces, PlayerColor, GameEndReason, GameResult, GameStatus, GameContextType } from '@/types/game';
 import type { GameMatch } from '@/types/realtime';
 import { useChessSounds } from '@/hooks/useChessSounds';
 import { GameService } from '@/services/gameService';
@@ -19,6 +19,7 @@ interface GameProviderProps {
 
 // Create the context with a proper initial null value
 const GameContext = createContext<GameContextType | null>(null);
+
 
 export function GameProvider({ children }: GameProviderProps) {
     const [game, setGame] = useState<Game | null>(null);
@@ -38,7 +39,7 @@ export function GameProvider({ children }: GameProviderProps) {
 
     // Load game when the game ID is in the URL
     useEffect(() => {
-        if (!gameId || !user || typeof gameId !== 'string') return;
+        if (!gameId || typeof gameId !== 'string') return;
 
         const loadGame = async () => {
             try {
@@ -61,7 +62,7 @@ export function GameProvider({ children }: GameProviderProps) {
         };
 
         loadGame();
-    }, [gameId, user, router]);
+    }, [gameId, router]);
 
     // Clean up subscription when component unmounts or when game changes
     const cleanupSubscription = useCallback(() => {
@@ -270,15 +271,13 @@ export function GameProvider({ children }: GameProviderProps) {
     const resign = useCallback(async () => {
         if (!game || game.status !== 'active' || !myColor || !user || !session) return;
 
-        if (window.confirm('Are you sure you want to resign?')) {
-            try {
-                const updatedGame = await GameService.resign(game.id, myColor);
-                setGame(updatedGame);
-                setPgn(updatedGame.pgn || '');
-                playGameEnd();
-            } catch (error) {
-                console.error('Error resigning:', error);
-            }
+        try {
+            const updatedGame = await GameService.resign(game.id, myColor);
+            setGame(updatedGame);
+            setPgn(updatedGame.pgn || '');
+            playGameEnd();
+        } catch (error) {
+            console.error('Error resigning:', error);
         }
     }, [game, myColor, user, session, playGameEnd]);
 
@@ -370,20 +369,22 @@ export function GameProvider({ children }: GameProviderProps) {
         setGame,
         pgn,
         setPgn,
-        makeMove,
-        banMove,
-        resetGame,
         isMyTurn: game?.status === 'active' && game?.turn === myColor,
         myColor,
         loading,
         playerUsernames,
-        offerDraw,
-        acceptDraw,
-        declineDraw,
-        resign,
-        offerRematch,
-        acceptRematch,
-        declineRematch
+        actions: {
+            makeMove,
+            banMove,
+            resetGame,
+            offerDraw,
+            acceptDraw,
+            declineDraw,
+            resign,
+            offerRematch,
+            acceptRematch,
+            declineRematch
+        }
     };
 
     return (

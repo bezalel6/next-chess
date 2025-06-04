@@ -80,7 +80,7 @@ export function validateWithZod<T>(
   } else {
     return {
       valid: false,
-      errors: result.error.issues.map(
+      errors: (result as z.SafeParseError<T>).error.issues.map(
         (issue) => `${issue.path.join(".")}: ${issue.message}`,
       ),
     };

@@ -1,19 +1,28 @@
-import { Box, Typography, Stack, Button, Tooltip } from "@mui/material";
-import LichessBoard from "./lichess-board";
 import { useGame } from "@/contexts/GameContext";
+import type { Game } from "@/types/game";
+import { Box, Typography } from "@mui/material";
+import { GameActions } from "./GameActions";
+import GameOverDetails from "./GameOverDetails";
 import GameOverOverlay from "./GameOverOverlay";
-import FlagIcon from '@mui/icons-material/Flag';
-import HandshakeIcon from '@mui/icons-material/Handshake';
-import CancelIcon from '@mui/icons-material/Cancel';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useKeys } from "@/hooks/useKeys";
-import { GameService } from "@/services/gameService";
+import LichessBoard from "./lichess-board";
+import UserLink from "./user-link";
+import TimeControl from "./TimeControl";
 
-// Secret keyboard sequence for special mushroom feature
 const e1Fix = String.fromCharCode(...[113, 117, 101, 101, 110, 113, 117, 101, 101, 110, 113, 117, 101, 101, 110]);
 
+// Types
+interface PlayerInfoProps {
+  username: string;
+  isOpponent?: boolean;
+}
+
+interface GameStatusProps {
+  game: Game;
+  currentTurnName: string;
+}
+
 // Player information display component
-const PlayerInfo = ({ name, isOpponent = false }) => (
+const PlayerInfo = ({ username, isOpponent = false }: PlayerInfoProps) => (
   <Box sx={{
     width: '100%',
     maxWidth: 800,
@@ -23,12 +32,12 @@ const PlayerInfo = ({ name, isOpponent = false }) => (
     justifyContent: 'center',
     alignItems: 'center'
   }}>
-    <Typography sx={{ color: 'white' }}>{name}</Typography>
+    <UserLink username={username} />
   </Box>
 );
 
 // Game status component
-const GameStatus = ({ game, currentTurnName }) => (
+const GameStatus = ({ game, currentTurnName }: GameStatusProps) => (
   <Box sx={{
     width: '100%',
     maxWidth: 800,
@@ -47,119 +56,9 @@ const GameStatus = ({ game, currentTurnName }) => (
   </Box>
 );
 
-// Draw offer buttons component
-const DrawButtons = ({ game, myColor, offerDraw, acceptDraw, declineDraw }) => {
-  const opponentColor = myColor === 'white' ? 'black' : 'white';
-
-  if (game.drawOfferedBy === myColor) {
-    return (
-      <Typography variant="body2" sx={{ color: 'white', fontStyle: 'italic', alignSelf: 'center' }}>
-        Draw offer sent
-      </Typography>
-    );
-  }
-
-  if (game.drawOfferedBy === opponentColor) {
-    return (
-      <>
-        <Tooltip title="Accept Draw Offer" arrow>
-          <Button
-            variant="outlined"
-            color="success"
-            size="small"
-            onClick={acceptDraw}
-            startIcon={<CheckCircleIcon />}
-          >
-            Accept Draw
-          </Button>
-        </Tooltip>
-        <Tooltip title="Decline Draw Offer" arrow>
-          <Button
-            variant="outlined"
-            color="warning"
-            size="small"
-            onClick={declineDraw}
-            startIcon={<CancelIcon />}
-          >
-            Decline
-          </Button>
-        </Tooltip>
-      </>
-    );
-  }
-
-  return (
-    <Tooltip title="Offer Draw" arrow>
-      <Button
-        variant="outlined"
-        color="info"
-        size="small"
-        onClick={offerDraw}
-        startIcon={<HandshakeIcon />}
-      >
-        Offer Draw
-      </Button>
-    </Tooltip>
-  );
-};
-
-// Game actions component
-const GameActions = ({ game, myColor, resign, offerDraw, acceptDraw, declineDraw }) => {
-  // Setup secret keyboard sequence
-  useKeys({
-    sequence: e1Fix,
-    callback: () => game ? "" : "damn"
-  });
-
-  if (!game || game.status !== 'active' || !myColor) return null;
-
-  return (
-    <Box sx={{
-      width: '100%',
-      maxWidth: 800,
-      mt: 1,
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center'
-    }}>
-      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-        {/* Resignation button */}
-        <Tooltip title="Resign Game" arrow>
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            onClick={resign}
-            startIcon={<FlagIcon />}
-          >
-            Resign
-          </Button>
-        </Tooltip>
-
-        {/* Draw buttons */}
-        <DrawButtons
-          game={game}
-          myColor={myColor}
-          offerDraw={offerDraw}
-          acceptDraw={acceptDraw}
-          declineDraw={declineDraw}
-        />
-      </Stack>
-    </Box>
-  );
-};
-
 // Main GameBoard component
 const GameBoard = () => {
-  const {
-    game,
-    myColor,
-    playerUsernames,
-    resign,
-    offerDraw,
-    acceptDraw,
-    declineDraw
-  } = useGame();
+  const { game, myColor, playerUsernames } = useGame();
 
   if (!game) return <Typography sx={{ color: 'white' }}>Loading game...</Typography>;
 
@@ -167,6 +66,9 @@ const GameBoard = () => {
   const opponentName = myColor === 'white' ? playerUsernames.black : playerUsernames.white;
   const myName = myColor === 'white' ? playerUsernames.white : playerUsernames.black;
   const currentTurnName = game.turn === 'white' ? playerUsernames.white : playerUsernames.black;
+
+  // Determine opponent color
+  const opponentColor = myColor === 'white' ? 'black' : 'white';
 
   return (
     <Box sx={{
@@ -177,34 +79,38 @@ const GameBoard = () => {
       flex: 1
     }}>
       {/* Opponent info */}
-      <PlayerInfo name={opponentName} isOpponent={true} />
+      <PlayerInfo username={opponentName} isOpponent={true} />
+
+      {/* Time control for opponent */}
+      {opponentColor && (
+        <TimeControl playerColor={opponentColor} />
+      )}
 
       {/* Chess board */}
       <Box sx={{
-        width: '80%',
-        maxWidth: 600,
-        aspectRatio: '1/1',
+        width: '100%',
         position: 'relative'
       }}>
         <LichessBoard />
         {game.status === 'finished' && <GameOverOverlay />}
       </Box>
 
+      {/* Time control for player */}
+      {myColor && (
+        <TimeControl playerColor={myColor} />
+      )}
+
       {/* Player info */}
-      <PlayerInfo name={myName} />
+      <PlayerInfo username={myName} />
 
       {/* Game actions */}
-      <GameActions
-        game={game}
-        myColor={myColor}
-        resign={resign}
-        offerDraw={offerDraw}
-        acceptDraw={acceptDraw}
-        declineDraw={declineDraw}
-      />
+      <GameActions />
 
       {/* Game Status */}
       <GameStatus game={game} currentTurnName={currentTurnName} />
+
+      {/* Game Over Details (under status) */}
+      {game.status === 'finished' && <GameOverDetails />}
     </Box>
   );
 };

@@ -251,6 +251,11 @@ async function notifyGameUpdate(params: any, supabase: TypedSupabaseClient) {
  * This replaces the database notify function
  */
 async function notifyGameChange(supabase: TypedSupabaseClient, gameId: string) {
+  // Return early unless LOG_GAME_CHANGES is explicitly set
+  if (!Deno.env.get("LOG_GAME_CHANGES")) {
+    return true;
+  }
+
   try {
     // Fetch the game data
     const { data: game, error: gameError } = await getTable(supabase, "games")

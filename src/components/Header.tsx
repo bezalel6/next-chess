@@ -1,12 +1,12 @@
 import { Box, Typography, Link, Tabs, Tab } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGame } from "@/contexts/GameContext";
 import Image from "next/image";
 import React, { useEffect } from "react";
 import { useRouter } from 'next/compat/router';
 import TabDialog, { type TitledComponent } from './TabDialog';
 
 const tabLabels = ["How To Play", "About", 'Contact Us'];
+import UserLink from "./user-link";
 
 const Header = () => {
     const { profile } = useAuth();
@@ -63,6 +63,7 @@ const Header = () => {
             flexDirection: { xs: 'column', sm: 'column', md: 'row' },
             justifyContent: { xs: 'center', sm: 'center', md: 'space-between' },
             alignItems: 'center',
+            gap: { xs: 2, sm: 0 },
             bgcolor: 'background.paper',
             gap: { xs: 1, sm: 1, md: 0 },
             textAlign: { xs: 'center', sm: 'center', md: 'left' },

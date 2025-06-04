@@ -1,42 +1,31 @@
 /// <reference lib="deno.ns" />
 // matchmaking/index.ts
-import { serve } from "std/http/server.ts";
-import {
-  handleAuthenticatedRequest,
-  corsHeaders,
-  initSupabaseAdmin,
-} from "../_shared/auth-utils.ts";
-import { createLogger } from "../_shared/logger.ts";
-import { errorResponse, successResponse } from "../_shared/response-utils.ts";
-import {
-  ensureSingle,
-  ensureArray,
-  formatOrConditions,
-  logOperation,
-  getTable,
-} from "../_shared/db-utils.ts";
-import type { TypedSupabaseClient } from "../_shared/db-utils.ts";
-import { validateWithZod, Schemas } from "../_shared/validation-utils.ts";
-import { createRouter, defineRoute } from "../_shared/router-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import type { User } from "https://esm.sh/@supabase/supabase-js@2";
-import type { Database, Tables } from "../_shared/database-types.ts";
+import { serve } from "std/http/server.ts";
+import {
+  corsHeaders,
+  handleAuthenticatedRequest,
+  initSupabaseAdmin,
+} from "../_shared/auth-utils.ts";
+import type { Tables } from "../_shared/database-types.ts";
+import type { TypedSupabaseClient } from "../_shared/db-utils.ts";
+import {
+  formatOrConditions,
+  getTable,
+  logOperation,
+} from "../_shared/db-utils.ts";
+import { createLogger } from "../_shared/logger.ts";
+import { errorResponse, successResponse } from "../_shared/response-utils.ts";
+import { createRouter, defineRoute } from "../_shared/router-utils.ts";
+import { INITIAL_FEN } from "../_shared/constants.ts";
+import { getDefaultTimeControl } from "../_shared/time-control-utils.ts";
 
 const logger = createLogger("MATCHMAKING");
 
 // Type helpers for database tables
 type GameRecord = Tables<"games">;
 type MatchmakingRecord = Tables<"matchmaking">;
-
-// Matchmaking-specific schemas
-const MatchmakingSchemas = {
-  QueueParams: z.object({
-    preferences: z.record(z.any()).optional(),
-  }),
-  CheckStatusParams: z.object({
-    queueId: z.string().uuid().optional(),
-  }),
-};
 
 // Define matchmaking operations
 const matchmakingRouter = createRouter([
@@ -80,6 +69,14 @@ function generateShortId(length = 8): string {
   }
 
   return result;
+}
+
+/**
+ * Gets default time control from the database
+ * @deprecated Use getDefaultTimeControl from time-control-utils.ts instead
+ */
+async function getTimeControlFromDB(supabase: TypedSupabaseClient) {
+  return await getDefaultTimeControl(supabase);
 }
 
 /**
@@ -135,7 +132,7 @@ async function handleJoinQueue(user: User, supabase: TypedSupabaseClient) {
       .insert({
         player_id: user.id,
         status: "waiting",
-        preferences: {},
+        preferences: {}, // Empty preferences object (required by schema)
       })
       .select("*")
       .maybeSingle();
@@ -156,7 +153,7 @@ async function handleJoinQueue(user: User, supabase: TypedSupabaseClient) {
       entityType: "matchmaking",
       entityId: queueEntry.id,
       userId: user.id,
-      data: { preferences: queueEntry.preferences },
+      data: {}, // No preferences data
     });
 
     // Try to find a match immediately
@@ -317,6 +314,13 @@ async function checkQueueStatus(user: User, supabase: TypedSupabaseClient) {
  */
 async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
   try {
+    // Log start of queue processing
+    await debugLog(supabase, {
+      eventType: "queue_processing_started",
+      entityType: "matchmaking",
+      entityId: "system",
+    });
+
     // Find waiting players
     const { data: waitingPlayers, error: waitingPlayersError } = await getTable(
       supabase,
@@ -330,11 +334,31 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
     logOperation("find waiting players", waitingPlayersError);
 
     if (waitingPlayersError) {
+      await debugLog(supabase, {
+        eventType: "queue_processing_error",
+        entityType: "matchmaking",
+        entityId: "system",
+        data: {
+          error: waitingPlayersError.message,
+          step: "find_waiting_players",
+        },
+      });
       return errorResponse(
         `Failed to find waiting players: ${waitingPlayersError.message}`,
         500,
       );
     }
+
+    // Log number of waiting players found
+    await debugLog(supabase, {
+      eventType: "waiting_players_found",
+      entityType: "matchmaking",
+      entityId: "system",
+      data: {
+        count: waitingPlayers?.length || 0,
+        playerIds: waitingPlayers?.map((p) => p.player_id) || [],
+      },
+    });
 
     // If we have at least 2 waiting players, create a game
     if (waitingPlayers && waitingPlayers.length >= 2) {
@@ -344,18 +368,45 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       // Generate a unique game ID
       const gameId = generateShortId();
 
-      // Create a new game
+      // Log match attempt
+      await debugLog(supabase, {
+        eventType: "match_attempt_started",
+        entityType: "matchmaking",
+        entityId: gameId,
+        data: {
+          player1,
+          player2,
+        },
+      });
+
+      // Get time control from database
+      const timeControl = await getDefaultTimeControl(supabase);
+
+      // Log time control retrieved
+      await debugLog(supabase, {
+        eventType: "time_control_retrieved",
+        entityType: "matchmaking",
+        entityId: gameId,
+        data: { timeControl },
+      });
+
+      // Create a new game with dynamic time control
       const { data: game, error: gameError } = await getTable(supabase, "games")
         .insert({
           id: gameId,
           white_player_id: player1,
           black_player_id: player2,
           status: "active",
-          current_fen:
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          current_fen: INITIAL_FEN,
           pgn: "",
           turn: "white",
           banning_player: "black",
+          time_control: {
+            initial_time: timeControl.initialTime,
+            increment: timeControl.increment,
+          },
+          white_time_remaining: timeControl.initialTime,
+          black_time_remaining: timeControl.initialTime,
         })
         .select("*")
         .maybeSingle();
@@ -363,6 +414,16 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       logOperation("create game", gameError);
 
       if (gameError) {
+        await debugLog(supabase, {
+          eventType: "game_creation_failed",
+          entityType: "matchmaking",
+          entityId: gameId,
+          data: {
+            error: gameError.message,
+            player1,
+            player2,
+          },
+        });
         return errorResponse(
           `Failed to create game: ${gameError.message}`,
           500,
@@ -370,8 +431,30 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       }
 
       if (!game) {
+        await debugLog(supabase, {
+          eventType: "game_creation_failed",
+          entityType: "matchmaking",
+          entityId: gameId,
+          data: {
+            error: "No game returned from insert",
+            player1,
+            player2,
+          },
+        });
         return errorResponse("Failed to create game", 500);
       }
+
+      // Log successful game creation
+      await debugLog(supabase, {
+        eventType: "game_created_successfully",
+        entityType: "game",
+        entityId: gameId,
+        data: {
+          white_player_id: player1,
+          black_player_id: player2,
+          timeControl,
+        },
+      });
 
       const { error } = await getTable(supabase, "matchmaking")
         .delete()
@@ -380,11 +463,31 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       logOperation("remove both players from queue", error);
 
       if (error) {
+        await debugLog(supabase, {
+          eventType: "queue_cleanup_failed",
+          entityType: "matchmaking",
+          entityId: gameId,
+          data: {
+            error: error.message,
+            player1,
+            player2,
+          },
+        });
         return errorResponse(
           `Failed to remove players from matchmaking queue: ${error.message}`,
           500,
         );
       }
+
+      // Log successful queue cleanup
+      await debugLog(supabase, {
+        eventType: "queue_cleanup_successful",
+        entityType: "matchmaking",
+        entityId: gameId,
+        data: {
+          removedPlayers: [player1, player2],
+        },
+      });
 
       // Log the event
       await logEvent(supabase, {
@@ -399,14 +502,47 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
 
       // Notify the game update (replacing the database notify function)
       try {
-        await notifyGameChange(supabase, game);
+        const notifySuccess = await notifyGameChange(supabase, game);
+        await debugLog(supabase, {
+          eventType: "notification_attempt",
+          entityType: "game",
+          entityId: gameId,
+          data: {
+            success: notifySuccess,
+            white_player_id: player1,
+            black_player_id: player2,
+          },
+        });
       } catch (notifyError) {
         logger.warn(`Failed to notify game change: ${notifyError.message}`);
+        await debugLog(supabase, {
+          eventType: "notification_failed",
+          entityType: "game",
+          entityId: gameId,
+          data: {
+            error: notifyError.message,
+            white_player_id: player1,
+            black_player_id: player2,
+          },
+        });
       }
 
       logger.info(
         `Created game ${gameId} for players ${player1} and ${player2}`,
       );
+
+      // Log successful completion
+      await debugLog(supabase, {
+        eventType: "queue_processing_completed",
+        entityType: "matchmaking",
+        entityId: gameId,
+        data: {
+          matchCreated: true,
+          gameId,
+          white_player_id: player1,
+          black_player_id: player2,
+        },
+      });
 
       return successResponse({
         matchCreated: true,
@@ -416,12 +552,37 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       });
     }
 
+    // Log when not enough players are found
+    await debugLog(supabase, {
+      eventType: "queue_processing_completed",
+      entityType: "matchmaking",
+      entityId: "system",
+      data: {
+        matchCreated: false,
+        waitingPlayerCount: waitingPlayers?.length || 0,
+        reason: "insufficient_players",
+      },
+    });
+
     return successResponse({
       matchCreated: false,
       waitingPlayerCount: waitingPlayers?.length || 0,
     });
   } catch (error) {
     logger.error("Error processing matchmaking queue:", error);
+
+    // Log unexpected errors
+    await debugLog(supabase, {
+      eventType: "queue_processing_error",
+      entityType: "matchmaking",
+      entityId: "system",
+      data: {
+        error: error.message,
+        step: "unexpected_error",
+        stack: error.stack,
+      },
+    });
+
     return errorResponse(`Internal server error: ${error.message}`, 500);
   }
 }
@@ -456,6 +617,36 @@ async function notifyGameChange(
   } catch (error) {
     logger.warn(`Failed to notify game change: ${error.message}`);
     return false;
+  }
+}
+
+/**
+ * Helper function to log events conditionally based on DEBUG_MATCHMAKING environment variable
+ */
+async function debugLog(
+  supabase: TypedSupabaseClient,
+  {
+    eventType,
+    entityType,
+    entityId,
+    userId,
+    data,
+  }: {
+    eventType: string;
+    entityType: string;
+    entityId: string;
+    userId?: string;
+    data?: Record<string, any>;
+  },
+) {
+  if (Deno.env.get("DEBUG_MATCHMAKING")) {
+    await logEvent(supabase, {
+      eventType,
+      entityType,
+      entityId,
+      userId,
+      data,
+    });
   }
 }
 

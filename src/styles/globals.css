@@ -4,8 +4,10 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-  background-color: #121212;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #121212 100%);
+  background-attachment: fixed;
   color: white;
+  scroll-behavior: smooth;
 }
 
 a {
@@ -86,6 +88,98 @@ piece.disabled {
   background: #555;
 }
 
+/* Modern UI enhancements */
+.modern-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.1));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.modern-button:hover::before {
+  opacity: 1;
+}
+
+.modern-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(168, 85, 247, 0.15);
+}
+
+/* Enhanced focus states for accessibility */
+.modern-button:focus-visible {
+  outline: 2px solid rgba(168, 85, 247, 0.5);
+  outline-offset: 2px;
+}
+
+/* Glassmorphism utilities */
+.glass-effect {
+  backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-effect-strong {
+  backdrop-filter: blur(24px);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Custom animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out;
+}
+
+/* Enhanced shadow system */
+.shadow-glow {
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.15),
+    0 0 40px rgba(168, 85, 247, 0.1);
+}
+
+.shadow-glow-hover:hover {
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 0 60px rgba(168, 85, 247, 0.15);
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .app-title {
@@ -95,5 +189,17 @@ piece.disabled {
   .chess-container {
     padding: 1rem;
     width: min(95vw, 400px);
+  }
+}
+
+/* Improved mobile interactions */
+@media (hover: none) and (pointer: coarse) {
+  .modern-button:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .modern-button:active {
+    transform: scale(0.98);
   }
 }

@@ -5,17 +5,12 @@ import {
     Button,
     useTheme,
     useMediaQuery,
-    IconButton,
-    Drawer,
     Fade,
     Slide,
     useScrollTrigger,
-    AppBar,
-    Toolbar
+    AppBar
 } from "@mui/material";
 import {
-    Menu as MenuIcon,
-    Close as CloseIcon,
     PersonOutline as PersonIcon
 } from "@mui/icons-material";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,110 +30,7 @@ function useScrollEffect() {
     return trigger;
 }
 
-// Mobile Navigation Component
-const MobileNavigation = ({ open, onClose, items }: {
-    open: boolean;
-    onClose: () => void;
-    items: React.ReactNode[];
-}) => {
-    const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
 
-    const toggleExpanded = (index: number) => {
-        const newExpanded = new Set(expandedItems);
-        if (newExpanded.has(index)) {
-            newExpanded.delete(index);
-        } else {
-            newExpanded.add(index);
-        }
-        setExpandedItems(newExpanded);
-    };
-
-    return (
-        <Drawer
-            anchor="right"
-            open={open}
-            onClose={onClose}
-            PaperProps={{
-                sx: {
-                    width: '100vw',
-                    maxWidth: 400,
-                    bgcolor: 'rgba(18, 18, 18, 0.98)',
-                    backdropFilter: 'blur(24px)',
-                    borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-                    backgroundImage: 'none',
-                }
-            }}
-            transitionDuration={{
-                enter: 350,
-                exit: 280
-            }}
-        >
-            <Box
-                sx={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    position: 'relative',
-                }}
-            >
-                {/* Header */}
-                <Box
-                    sx={{
-                        p: 3,
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                    }}
-                >
-                    <Logo size="medium" href="/" />
-                    <IconButton
-                        onClick={onClose}
-                        sx={{
-                            color: 'rgba(255, 255, 255, 0.7)',
-                            '&:hover': {
-                                bgcolor: 'rgba(255, 255, 255, 0.08)',
-                                color: 'white',
-                            },
-                        }}
-                    >
-                        <CloseIcon />
-                    </IconButton>
-                </Box>
-
-                {/* Navigation Items */}
-                <Box
-                    sx={{
-                        flex: 1,
-                        py: 2,
-                        px: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 1,
-                    }}
-                >
-                    {items.map((item, index) => (
-                        <Box
-                            key={index}
-                            sx={{
-                                borderRadius: 2,
-                                overflow: 'hidden',
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                    bgcolor: 'rgba(255, 255, 255, 0.05)',
-                                },
-                            }}
-                        >
-                            <Box sx={{ p: 2 }}>
-                                {item}
-                            </Box>
-                        </Box>
-                    ))}
-                </Box>
-            </Box>
-        </Drawer>
-    );
-};
 
 
 
@@ -149,7 +41,6 @@ const Header = () => {
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const isScrolled = useScrollEffect();
 
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -166,10 +57,6 @@ const Header = () => {
             }
         }
         return profile?.username || '';
-    };
-
-    const handleMobileMenuToggle = () => {
-        setMobileMenuOpen(!mobileMenuOpen);
     };
 
     const navigationItems = [
@@ -200,155 +87,230 @@ const Header = () => {
                         : 'none',
                 }}
             >
-                <Toolbar
+                <Box
                     sx={{
-                        minHeight: { xs: 64, md: 72 },
-                        px: { xs: 2, sm: 3, md: 4 },
                         maxWidth: '1400px',
                         mx: 'auto',
                         width: '100%',
-                        display: 'grid',
-                        gridTemplateColumns: isMobile
-                            ? '1fr auto'
-                            : '1fr 2fr 1fr',
-                        alignItems: 'center',
-                        gap: 2,
+                        px: { xs: 2, sm: 3, md: 4 },
                     }}
                 >
-                    {/* Left Section - Logo */}
-                    <Fade in={mounted} timeout={600}>
+                    {isMobile ? (
+                        // Mobile Column Layout
                         <Box
                             sx={{
                                 display: 'flex',
-                                justifyContent: 'flex-start',
+                                flexDirection: 'column',
                                 alignItems: 'center',
-                                transition: 'transform 0.3s ease',
-                                '&:hover': {
-                                    transform: 'scale(1.02)',
-                                },
+                                gap: 2,
+                                py: 2,
                             }}
                         >
-                            <Logo size={isMobile ? "small" : "medium"} />
-                        </Box>
-                    </Fade>
+                            {/* Mobile Header Row */}
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    width: '100%',
+                                }}
+                            >
+                                <Fade in={mounted} timeout={600}>
+                                    <Box
+                                        sx={{
+                                            transition: 'transform 0.3s ease',
+                                            '&:hover': {
+                                                transform: 'scale(1.02)',
+                                            },
+                                        }}
+                                    >
+                                        <Logo size="small" />
+                                    </Box>
+                                </Fade>
 
-                    {/* Center Section - Navigation (Desktop Only, Always Perfectly Centered) */}
-                    {!isMobile && (
-                        <Slide direction="down" in={mounted} timeout={800}>
+                                {/* Mobile User Info */}
+                                {displayUserInfo() && (
+                                    <Fade in={mounted} timeout={1000}>
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                                px: 2,
+                                                py: 1,
+                                                borderRadius: 2,
+                                                bgcolor: 'rgba(255, 255, 255, 0.05)',
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                backdropFilter: 'blur(8px)',
+                                                transition: 'all 0.3s ease',
+                                                '&:hover': {
+                                                    bgcolor: 'rgba(255, 255, 255, 0.08)',
+                                                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                                                },
+                                            }}
+                                        >
+                                            {profile?.username && myColor ? (
+                                                <UserLink username={profile.username} />
+                                            ) : (
+                                                <>
+                                                    <PersonIcon
+                                                        sx={{
+                                                            fontSize: '1rem',
+                                                            color: 'rgba(255, 255, 255, 0.6)'
+                                                        }}
+                                                    />
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            fontWeight: 500,
+                                                            fontSize: '0.8rem',
+                                                            color: 'rgba(255, 255, 255, 0.9)',
+                                                        }}
+                                                    >
+                                                        {displayUserInfo()}
+                                                    </Typography>
+                                                </>
+                                            )}
+                                        </Box>
+                                    </Fade>
+                                )}
+                            </Box>
+
+                            {/* Mobile Navigation Row */}
+                            <Slide direction="down" in={mounted} timeout={800}>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 1,
+                                        flexWrap: 'wrap',
+                                        width: '100%',
+                                    }}
+                                >
+                                    {navigationItems.map((item, index) => (
+                                        <Fade
+                                            key={index}
+                                            in={mounted}
+                                            timeout={900 + index * 100}
+                                        >
+                                            <Box>{item}</Box>
+                                        </Fade>
+                                    ))}
+                                </Box>
+                            </Slide>
+                        </Box>
+                    ) : (
+                        // Desktop Grid Layout
+                        <Box
+                            sx={{
+                                minHeight: 72,
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 2fr 1fr',
+                                alignItems: 'center',
+                                gap: 2,
+                            }}
+                        >
+                            {/* Desktop Left - Logo */}
+                            <Fade in={mounted} timeout={600}>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        justifyContent: 'flex-start',
+                                        alignItems: 'center',
+                                        transition: 'transform 0.3s ease',
+                                        '&:hover': {
+                                            transform: 'scale(1.02)',
+                                        },
+                                    }}
+                                >
+                                    <Logo size="medium" />
+                                </Box>
+                            </Fade>
+
+                            {/* Desktop Center - Navigation */}
+                            <Slide direction="down" in={mounted} timeout={800}>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 1,
+                                        width: '100%',
+                                    }}
+                                >
+                                    {navigationItems.map((item, index) => (
+                                        <Fade
+                                            key={index}
+                                            in={mounted}
+                                            timeout={900 + index * 100}
+                                        >
+                                            <Box>{item}</Box>
+                                        </Fade>
+                                    ))}
+                                </Box>
+                            </Slide>
+
+                            {/* Desktop Right - User Info */}
                             <Box
                                 sx={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 1,
-                                    width: '100%',
+                                    justifyContent: 'flex-end',
+                                    gap: 2,
                                 }}
                             >
-                                {navigationItems.map((item, index) => (
-                                    <Fade
-                                        key={index}
-                                        in={mounted}
-                                        timeout={900 + index * 100}
-                                    >
-                                        <Box>{item}</Box>
+                                {/* Desktop User Info */}
+                                {displayUserInfo() && (
+                                    <Fade in={mounted} timeout={1000}>
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                                px: 2,
+                                                py: 1,
+                                                borderRadius: 2,
+                                                bgcolor: 'rgba(255, 255, 255, 0.05)',
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                backdropFilter: 'blur(8px)',
+                                                transition: 'all 0.3s ease',
+                                                '&:hover': {
+                                                    bgcolor: 'rgba(255, 255, 255, 0.08)',
+                                                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                                                },
+                                            }}
+                                        >
+                                            {profile?.username && myColor ? (
+                                                <UserLink username={profile.username} />
+                                            ) : (
+                                                <>
+                                                    <PersonIcon
+                                                        sx={{
+                                                            fontSize: '1.1rem',
+                                                            color: 'rgba(255, 255, 255, 0.6)'
+                                                        }}
+                                                    />
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            fontWeight: 500,
+                                                            fontSize: '0.875rem',
+                                                            color: 'rgba(255, 255, 255, 0.9)',
+                                                        }}
+                                                    >
+                                                        {displayUserInfo()}
+                                                    </Typography>
+                                                </>
+                                            )}
+                                        </Box>
                                     </Fade>
-                                ))}
+                                )}
                             </Box>
-                        </Slide>
+                        </Box>
                     )}
-
-                    {/* Right Section - User Info & Mobile Menu */}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'flex-end',
-                            gap: 2,
-                        }}
-                    >
-                        {/* User Info */}
-                        {displayUserInfo() && (
-                            <Fade in={mounted} timeout={1000}>
-                                <Box
-                                    sx={{
-                                        display: { xs: myColor ? 'none' : 'flex', sm: 'flex' },
-                                        alignItems: 'center',
-                                        gap: 1,
-                                        px: { xs: 1.5, sm: 2 },
-                                        py: 1,
-                                        borderRadius: 2,
-                                        bgcolor: 'rgba(255, 255, 255, 0.05)',
-                                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                                        backdropFilter: 'blur(8px)',
-                                        transition: 'all 0.3s ease',
-                                        '&:hover': {
-                                            bgcolor: 'rgba(255, 255, 255, 0.08)',
-                                            borderColor: 'rgba(255, 255, 255, 0.15)',
-                                        },
-                                    }}
-                                >
-                                    {profile?.username && myColor ? (
-                                        <UserLink username={profile.username} />
-                                    ) : (
-                                        <>
-                                            <PersonIcon
-                                                sx={{
-                                                    fontSize: '1.1rem',
-                                                    color: 'rgba(255, 255, 255, 0.6)'
-                                                }}
-                                            />
-                                            <Typography
-                                                variant="body2"
-                                                sx={{
-                                                    fontWeight: 500,
-                                                    fontSize: '0.875rem',
-                                                    color: 'rgba(255, 255, 255, 0.9)',
-                                                }}
-                                            >
-                                                {displayUserInfo()}
-                                            </Typography>
-                                        </>
-                                    )}
-                                </Box>
-                            </Fade>
-                        )}
-
-                        {/* Mobile Menu Button */}
-                        {isMobile && (
-                            <Fade in={mounted} timeout={1100}>
-                                <IconButton
-                                    onClick={handleMobileMenuToggle}
-                                    sx={{
-                                        color: 'rgba(255, 255, 255, 0.8)',
-                                        bgcolor: 'rgba(255, 255, 255, 0.05)',
-                                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                                        borderRadius: 2,
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        '&:hover': {
-                                            bgcolor: 'rgba(255, 255, 255, 0.1)',
-                                            borderColor: 'rgba(255, 255, 255, 0.15)',
-                                            color: 'white',
-                                            transform: 'scale(1.05)',
-                                        },
-                                        '&:active': {
-                                            transform: 'scale(0.98)',
-                                        },
-                                    }}
-                                >
-                                    <MenuIcon />
-                                </IconButton>
-                            </Fade>
-                        )}
-                    </Box>
-                </Toolbar>
+                </Box>
             </AppBar>
-
-            {/* Mobile Navigation Drawer */}
-            <MobileNavigation
-                open={mobileMenuOpen}
-                onClose={() => setMobileMenuOpen(false)}
-                items={navigationItems}
-            />
         </>
     );
 };

@@ -13,6 +13,10 @@ RUN npm ci
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Build arguments for required environment variables
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 # Copy package files and install all dependencies
 COPY package*.json ./
 RUN npm ci
@@ -20,9 +24,11 @@ RUN npm ci
 # Copy application code
 COPY . .
 
-# Set environment variable to skip validation during build if needed
-ENV SKIP_ENV_VALIDATION 1
-ENV NEXT_TELEMETRY_DISABLED 1
+# Set environment variables for build
+ENV SKIP_ENV_VALIDATION=1
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
 # Build the Next.js application
 RUN npm run build
@@ -31,8 +37,8 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install tsx for running TypeScript server
 RUN npm install -g tsx
@@ -63,8 +69,8 @@ USER nextjs
 # Expose the port Next.js runs on
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Start the application using the custom server
 CMD ["tsx", "src/server/server.ts"]

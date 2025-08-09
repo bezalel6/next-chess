@@ -1,0 +1,174 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with persistent volume
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      POSTGRES_DB: ${POSTGRES_DB:-next_chess}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Supabase Auth Service
+  auth:
+    image: supabase/gotrue:v2.143.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:54321}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-next_chess}?sslmode=disable&search_path=auth
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:3000}
+      GOTRUE_URI_ALLOW_LIST: ${SITE_URL:-http://localhost:3000}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
+      GOTRUE_MAILER_AUTOCONFIRM: ${EMAIL_AUTOCONFIRM:-true}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@example.com}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-mailhog}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-1025}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS:-}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-next-chess}
+    restart: unless-stopped
+
+  # PostgREST for REST API
+  rest:
+    image: postgrest/postgrest:v11.2.2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-next_chess}
+      PGRST_DB_SCHEMAS: public,storage,auth
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    restart: unless-stopped
+
+  # Realtime Service for WebSockets
+  realtime:
+    image: supabase/realtime:v2.25.50
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      DB_NAME: ${POSTGRES_DB:-next_chess}
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO realtime'
+      DB_ENC_KEY: ${DB_ENC_KEY:-supabaserealtime}
+      API_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-UpNVntn3cDxHJpq99YMc1T1AQgQpc8kfYTuRgBiYa15BLrx8etQoXz3gZv1/u2oq}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      ENABLE_TAILSCALE: "false"
+      DNS_NODES: "''"
+    command: >
+      sh -c "/app/bin/migrate && /app/bin/realtime eval 'Realtime.Release.seeds(Realtime.Repo)' && /app/bin/server"
+    restart: unless-stopped
+
+  # Storage Service
+  storage:
+    image: supabase/storage-api:v0.43.11
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+      AUTH_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-next_chess}
+      FILE_SIZE_LIMIT: 52428800
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
+    volumes:
+      - storage_data:/var/lib/storage
+    restart: unless-stopped
+
+  # Kong API Gateway
+  kong:
+    image: kong:2.8.1
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,jwt
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+    volumes:
+      - ./docker/kong.yml:/var/lib/kong/kong.yml:ro
+    ports:
+      - "${KONG_PORT:-54321}:8000"
+    depends_on:
+      - auth
+      - rest
+      - realtime
+      - storage
+    restart: unless-stopped
+
+  # Optional: Local mail server for development
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_WEB_PORT:-8025}:8025"
+    restart: unless-stopped
+    profiles:
+      - development
+
+  # Main Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://kong:8000}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://kong:8000}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-next_chess}
+      SKIP_ENV_VALIDATION: ${SKIP_ENV_VALIDATION:-true}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      - kong
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  storage_data:
+    driver: local

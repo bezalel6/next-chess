@@ -168,7 +168,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    const signIn = async (email: string, password: string) => {
+    const signIn = async (usernameOrEmail: string, password: string) => {
+        let email = usernameOrEmail;
+        
+        // Check if the input looks like a username (no @ symbol)
+        if (!usernameOrEmail.includes('@')) {
+            // Call API to get email by username
+            const response = await fetch('/api/auth/get-email-by-username', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username: usernameOrEmail }),
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Username not found');
+            }
+            
+            const data = await response.json();
+            email = data.email;
+        }
+        
         const { error } = await supabase.auth.signInWithPassword({
             email,
             password,

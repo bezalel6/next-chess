@@ -22,6 +22,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [username, setUsername] = useState("");
+    const [loginUsername, setLoginUsername] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -113,7 +114,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
                     redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
                 }
             } else {
-                await signIn(email, password);
+                await signIn(loginUsername, password);
                 setSuccess("Sign in successful! Redirecting...");
                 // Redirect after successful signin
                 redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
@@ -174,7 +175,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
         if (isSignUp) {
             return email && password && username && !usernameError && !checkingUsername;
         }
-        return email && password;
+        return loginUsername && password;
     };
 
     return (
@@ -235,15 +236,28 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
                             }}
                         />
                     )}
-                    <TextField
-                        label="Email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        fullWidth
-                        disabled={isLoading}
-                    />
+                    {isSignUp ? (
+                        <TextField
+                            label="Email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            fullWidth
+                            disabled={isLoading}
+                        />
+                    ) : (
+                        <TextField
+                            label="Username"
+                            type="text"
+                            value={loginUsername}
+                            onChange={(e) => setLoginUsername(e.target.value)}
+                            required
+                            fullWidth
+                            disabled={isLoading}
+                            helperText="Enter your username to sign in"
+                        />
+                    )}
                     <TextField
                         label="Password"
                         type="password"

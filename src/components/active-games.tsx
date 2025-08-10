@@ -6,6 +6,7 @@ import { UserService } from '@/services/userService';
 import type { Game } from '@/types/game';
 import { useRouter } from 'next/compat/router';
 import { GameService } from '@/services/gameService';
+import UserLink from '@/components/user-link';
 
 interface ActiveGamesProps {
   fullHeight?: boolean;
@@ -122,9 +123,12 @@ function ActiveGames({ fullHeight = false }: ActiveGamesProps) {
                 }}
               >
                 <Box>
-                  <Typography variant={fullHeight ? "body1" : "body2"} fontWeight={500}>
-                    vs. {game.opponentName}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Typography variant={fullHeight ? "body1" : "body2"} fontWeight={500}>
+                      vs.
+                    </Typography>
+                    <UserLink username={game.opponentName} />
+                  </Box>
                   <Typography
                     variant={fullHeight ? "body2" : "caption"}
                     color={opponentTurn ? "text.secondary" : "primary"}

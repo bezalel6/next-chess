@@ -4,6 +4,7 @@ import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import { useGame } from "@/contexts/GameContext";
 import { useMemo, useState, useEffect } from "react";
+import UserLink from '@/components/user-link';
 
 const GameOverDetails = () => {
     const {
@@ -174,9 +175,13 @@ const GameOverDetails = () => {
                             </Typography>
                         )}
                     </Box>
-                    <Typography variant="body2" sx={{ color: 'white', mb: 1, opacity: 0.92 }}>
-                        Game between {playerUsernames.white} and {playerUsernames.black} has ended.
-                    </Typography>
+                    <Box sx={{ color: 'white', mb: 1, opacity: 0.92, display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <Typography variant="body2" component="span">Game between</Typography>
+                        <UserLink username={playerUsernames.white} />
+                        <Typography variant="body2" component="span">and</Typography>
+                        <UserLink username={playerUsernames.black} />
+                        <Typography variant="body2" component="span">has ended.</Typography>
+                    </Box>
                     <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
                         <Button
                             variant="contained"

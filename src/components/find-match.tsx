@@ -8,6 +8,7 @@ import { MatchmakingService } from "@/services/matchmakingService";
 import { useRouter } from "next/router";
 import { UserService } from "@/services/userService";
 import type { Game } from "@/types/game";
+import UserLink from "@/components/user-link";
 
 interface GameWithOpponent extends Game {
     opponentName: string;
@@ -110,7 +111,7 @@ function FindMatch() {
 
     // Listen for game_matched custom event
     useEffect(() => {
-        const handleGameMatched = (event: CustomEvent<{ gameId: string, isWhite?: boolean }>) => {
+        const handleGameMatched = () => {
             setCheckingMatch(true);
             // The ConnectionContext will handle the redirection
         };
@@ -228,9 +229,12 @@ function FindMatch() {
                                         }}
                                     >
                                         <Box>
-                                            <Typography variant="body2" fontWeight={500}>
-                                                vs. {game.opponentName}
-                                            </Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <Typography variant="body2" fontWeight={500}>
+                                                    vs.
+                                                </Typography>
+                                                <UserLink username={game.opponentName} />
+                                            </Box>
                                             <Typography
                                                 variant="caption"
                                                 color={opponentTurn ? "text.secondary" : "primary"}

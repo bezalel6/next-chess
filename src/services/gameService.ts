@@ -182,10 +182,10 @@ export class GameService {
       blackTimeRemaining: dbGame.black_time_remaining || null,
       timeControl: dbGame.time_control
         ? {
-            initialTime: (dbGame.time_control as any)?.initial_time,
+            initialTime: (dbGame.time_control as any)?.initial_time || 600000,
             increment: (dbGame.time_control as any)?.increment || 0,
           }
-        : null,
+        : { initialTime: 600000, increment: 0 },
     };
   }
 

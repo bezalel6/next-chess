@@ -9,6 +9,7 @@ interface FollowButtonProps {
   username: string;
   size?: "small" | "medium" | "large";
   showIcon?: boolean;
+  onFollowChange?: (isFollowing: boolean) => void;
 }
 
 const FollowButton: React.FC<FollowButtonProps> = ({
@@ -16,6 +17,7 @@ const FollowButton: React.FC<FollowButtonProps> = ({
   username,
   size = "medium",
   showIcon = true,
+  onFollowChange,
 }) => {
   const { user } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
@@ -50,9 +52,11 @@ const FollowButton: React.FC<FollowButtonProps> = ({
       if (isFollowing) {
         await FollowService.unfollowUser(userId);
         setIsFollowing(false);
+        onFollowChange?.(false);
       } else {
         await FollowService.followUser(userId);
         setIsFollowing(true);
+        onFollowChange?.(true);
       }
     } catch (error) {
       console.error("Error toggling follow:", error);

@@ -46,6 +46,18 @@ export default function UserProfile() {
     const [userData, setUserData] = useState<"loading" | { error: string } | UserGameStats>("loading");
     const [followStats, setFollowStats] = useState<{ followers_count: number; following_count: number } | null>(null);
 
+    const handleFollowChange = (isFollowing: boolean) => {
+        // Update follower count immediately
+        if (followStats && userData !== "loading" && !('error' in userData)) {
+            setFollowStats({
+                ...followStats,
+                followers_count: isFollowing 
+                    ? followStats.followers_count + 1 
+                    : Math.max(0, followStats.followers_count - 1)
+            });
+        }
+    };
+
     useEffect(() => {
         if (username) {
             // Load user profile
@@ -211,6 +223,7 @@ export default function UserProfile() {
                             userId={userData.userId}
                             username={username as string}
                             size="large"
+                            onFollowChange={handleFollowChange}
                         />
                     )}
                 </Box>

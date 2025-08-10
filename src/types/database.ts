@@ -264,7 +264,6 @@ export type Database = {
           following_id: string
           followed_at: string
           username: string
-          rating: number
           active_game: Json | null
         }
       }

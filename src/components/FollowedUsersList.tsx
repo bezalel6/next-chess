@@ -121,11 +121,6 @@ const FollowedUsersList: React.FC = () => {
                 primary={
                   <Box display="flex" alignItems="center" gap={1}>
                     <UserLink username={user.username} />
-                    <Chip
-                      label={`Rating: ${user.rating}`}
-                      size="small"
-                      variant="outlined"
-                    />
                   </Box>
                 }
                 secondary={

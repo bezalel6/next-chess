@@ -6,7 +6,6 @@ type FollowRow = Database["public"]["Tables"]["follows"]["Row"];
 export interface FollowedUser {
   following_id: string;
   username: string;
-  rating: number;
   followed_at: string;
   active_game?: {
     game_id: string;
@@ -133,8 +132,7 @@ export class FollowService {
           follower_id,
           created_at,
           profiles!follows_follower_id_fkey (
-            username,
-            rating
+            username
           )
         `)
         .eq("following_id", user.id)

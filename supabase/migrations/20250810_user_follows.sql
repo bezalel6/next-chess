@@ -51,7 +51,6 @@ SELECT
     f.following_id,
     f.created_at as followed_at,
     u.username,
-    u.rating,
     -- Get active game info if exists
     CASE 
         WHEN g.id IS NOT NULL THEN 

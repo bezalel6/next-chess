@@ -31,6 +31,7 @@ interface AuthContextType {
     signUp: (email: string, password: string, username: string) => Promise<SignUpStatus>;
     signOut: () => Promise<void>;
     signInAsGuest: () => Promise<void>;
+    signInWithGoogle: () => Promise<void>;
     isGuest: boolean;
     updateUsername: (username: string) => Promise<void>;
     checkUsernameExists: (username: string) => Promise<boolean>;
@@ -257,6 +258,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await fetchProfile(data.user.id, randomUsername);
     };
 
+    const signInWithGoogle = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/auth`,
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent',
+                }
+            }
+        });
+
+        if (error) throw error;
+    };
+
     const updateUsername = async (username: string) => {
         if (!user) throw new Error("User not authenticated");
 
@@ -287,6 +303,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signOut,
         signInAsGuest,
+        signInWithGoogle,
         isGuest,
         updateUsername,
         checkUsernameExists

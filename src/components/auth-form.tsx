@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Box, Paper, TextField, Button, Typography, Alert, Divider, CircularProgress } from "@mui/material";
+import { Google } from "@mui/icons-material";
 import { useAuth, type SignUpStatus, UsernameExistsError } from "@/contexts/AuthContext";
 import { useRouter } from "next/router";
 import { z } from "zod";
@@ -17,7 +18,7 @@ export type AuthFormProps = {
 };
 
 export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
-    const { signIn, signUp, signInAsGuest, checkUsernameExists } = useAuth();
+    const { signIn, signUp, signInAsGuest, signInWithGoogle, checkUsernameExists } = useAuth();
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -144,6 +145,20 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
         } catch (err) {
             setError(err instanceof Error ? err.message : "An error occurred");
         } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setError(null);
+        setSuccess(null);
+        setIsLoading(true);
+
+        try {
+            await signInWithGoogle();
+            // Google OAuth will redirect, so no need to handle success here
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "An error occurred");
             setIsLoading(false);
         }
     };
@@ -286,6 +301,17 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
                     </Button>
 
                     <Divider sx={{ my: 1 }}>or</Divider>
+
+                    <Button
+                        variant="outlined"
+                        fullWidth
+                        onClick={handleGoogleSignIn}
+                        disabled={isLoading}
+                        startIcon={<Google />}
+                        sx={{ mb: 1 }}
+                    >
+                        Continue with Google
+                    </Button>
 
                     <Button
                         variant="outlined"

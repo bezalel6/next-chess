@@ -1,8 +1,8 @@
 -- Create follows table for user following relationships
 CREATE TABLE IF NOT EXISTS public.follows (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    follower_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    following_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    follower_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    following_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     
     -- Ensure a user cannot follow themselves
@@ -61,12 +61,12 @@ SELECT
                 'white_player_id', g.white_player_id,
                 'black_player_id', g.black_player_id,
                 'created_at', g.created_at,
-                'current_position', g.current_position
+                'current_fen', g.current_fen
             )
         ELSE NULL
     END as active_game
 FROM public.follows f
-JOIN public.users u ON u.id = f.following_id
+JOIN public.profiles u ON u.id = f.following_id
 LEFT JOIN LATERAL (
     SELECT * FROM public.games
     WHERE status = 'active'

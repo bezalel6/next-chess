@@ -132,7 +132,7 @@ export class FollowService {
         .select(`
           follower_id,
           created_at,
-          users!follows_follower_id_fkey (
+          profiles!follows_follower_id_fkey (
             username,
             rating
           )

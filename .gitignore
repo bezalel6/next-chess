@@ -50,6 +50,7 @@ yarn-error.log*
 # Docker and deployment files
 docker-compose*.yml
 !docker-compose.example.yml
+!docker-compose.coolify-full.yml
 Dockerfile*
 !Dockerfile.example
 .dockerignore
@@ -58,6 +59,7 @@ docker/
 # Deployment and hosting configurations
 *coolify*
 *COOLIFY*
+!docker-compose.coolify-full.yml
 *deployment*
 *DEPLOYMENT*
 *DEPLOY*

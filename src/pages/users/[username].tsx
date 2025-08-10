@@ -19,7 +19,10 @@ import {
     Stack,
     Avatar,
     IconButton,
-    Tooltip
+    Tooltip,
+    TextField,
+    Button,
+    Alert
 } from "@mui/material";
 import Link from "next/link";
 import Image from "next/image";
@@ -33,6 +36,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import SportsScoreIcon from '@mui/icons-material/SportsScore';
 import TimelineIcon from '@mui/icons-material/Timeline';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 // Dynamically import Chessground to avoid SSR issues
 const Chessground = dynamic(() => import('@react-chess/chessground'), {
@@ -42,9 +48,14 @@ const Chessground = dynamic(() => import('@react-chess/chessground'), {
 export default function UserProfile() {
     const router = useRouter();
     const { username } = router.query;
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, profile: currentUserProfile, updateUsername } = useAuth();
     const [userData, setUserData] = useState<"loading" | { error: string } | UserGameStats>("loading");
     const [followStats, setFollowStats] = useState<{ followers_count: number; following_count: number } | null>(null);
+    const [isEditingUsername, setIsEditingUsername] = useState(false);
+    const [newUsername, setNewUsername] = useState("");
+    const [usernameError, setUsernameError] = useState<string | null>(null);
+    const [usernameSuccess, setUsernameSuccess] = useState<string | null>(null);
+    const [isSavingUsername, setIsSavingUsername] = useState(false);
 
     const handleFollowChange = (isFollowing: boolean) => {
         // Update follower count immediately
@@ -55,6 +66,46 @@ export default function UserProfile() {
                     ? followStats.followers_count + 1 
                     : Math.max(0, followStats.followers_count - 1)
             });
+        }
+    };
+
+    const isOwnProfile = currentUser && currentUserProfile?.username === username;
+
+    const handleEditUsername = () => {
+        setIsEditingUsername(true);
+        setNewUsername(currentUserProfile?.username || "");
+        setUsernameError(null);
+        setUsernameSuccess(null);
+    };
+
+    const handleCancelEdit = () => {
+        setIsEditingUsername(false);
+        setNewUsername("");
+        setUsernameError(null);
+        setUsernameSuccess(null);
+    };
+
+    const handleSaveUsername = async () => {
+        if (!newUsername || newUsername === currentUserProfile?.username) {
+            handleCancelEdit();
+            return;
+        }
+
+        setIsSavingUsername(true);
+        setUsernameError(null);
+
+        try {
+            await updateUsername(newUsername);
+            setUsernameSuccess("Username updated successfully!");
+            setIsEditingUsername(false);
+            // Redirect to new profile URL
+            setTimeout(() => {
+                router.push(`/users/${newUsername}`);
+            }, 1000);
+        } catch (error) {
+            setUsernameError(error instanceof Error ? error.message : "Failed to update username");
+        } finally {
+            setIsSavingUsername(false);
         }
     };
 
@@ -200,9 +251,43 @@ export default function UserProfile() {
             <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Box>
-                        <Typography variant="h4" gutterBottom>
-                            {username}&apos;s Profile
-                        </Typography>
+                        {isEditingUsername ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                                <TextField
+                                    value={newUsername}
+                                    onChange={(e) => setNewUsername(e.target.value)}
+                                    size="small"
+                                    label="New username"
+                                    error={!!usernameError}
+                                    helperText={usernameError}
+                                    disabled={isSavingUsername}
+                                />
+                                <IconButton 
+                                    onClick={handleSaveUsername} 
+                                    color="primary"
+                                    disabled={isSavingUsername}
+                                >
+                                    <SaveIcon />
+                                </IconButton>
+                                <IconButton 
+                                    onClick={handleCancelEdit}
+                                    disabled={isSavingUsername}
+                                >
+                                    <CancelIcon />
+                                </IconButton>
+                            </Box>
+                        ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="h4" gutterBottom>
+                                    {username}&apos;s Profile
+                                </Typography>
+                                {isOwnProfile && (
+                                    <IconButton onClick={handleEditUsername} size="small">
+                                        <EditIcon fontSize="small" />
+                                    </IconButton>
+                                )}
+                            </Box>
+                        )}
                         {followStats && (
                             <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
                                 <Chip 
@@ -218,7 +303,7 @@ export default function UserProfile() {
                             </Box>
                         )}
                     </Box>
-                    {'userId' in userData && (
+                    {'userId' in userData && !isOwnProfile && (
                         <FollowButton 
                             userId={userData.userId}
                             username={username as string}
@@ -227,6 +312,12 @@ export default function UserProfile() {
                         />
                     )}
                 </Box>
+
+                {usernameSuccess && (
+                    <Alert severity="success" sx={{ mb: 2 }} onClose={() => setUsernameSuccess(null)}>
+                        {usernameSuccess}
+                    </Alert>
+                )}
 
                 <Grid container spacing={3} sx={{ mt: 2 }}>
                     <Grid item xs={12} sm={3}>

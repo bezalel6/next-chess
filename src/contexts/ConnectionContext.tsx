@@ -17,6 +17,7 @@ interface ConnectionState {
     queue: QueueState;
     matchDetails: GameMatch | null;
     stats: {
+        activeUsers: number;
         log: { timestamp: number, message: string }[];
     };
     handleQueueToggle: () => Promise<void>;
@@ -30,6 +31,7 @@ const initialConnectionState: ConnectionState = {
     },
     matchDetails: null,
     stats: {
+        activeUsers: 0,
         log: []
     },
     handleQueueToggle: async () => { }
@@ -49,6 +51,8 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
     // Channel management
     const [playerChannel, setPlayerChannel] = useState<RealtimeChannel | null>(null);
+    const [presenceChannel, setPresenceChannel] = useState<RealtimeChannel | null>(null);
+    const [activeUsers, setActiveUsers] = useState(0);
 
     // Debug logging
     const [log, setLog] = useState<ConnectionState['stats']['log']>([]);
@@ -59,6 +63,46 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         ]);
         console.log(`[ConnectionContext] ${entry}`);
     };
+
+    // Track active users with presence
+    useEffect(() => {
+        const channel = supabase.channel('online-users', {
+            config: {
+                presence: {
+                    key: session?.user?.id || 'anonymous-' + Math.random().toString(36).substr(2, 9),
+                },
+            },
+        });
+
+        channel
+            .on('presence', { event: 'sync' }, () => {
+                const state = channel.presenceState();
+                const userCount = Object.keys(state).length;
+                setActiveUsers(userCount);
+                addLogEntry(`Active users: ${userCount}`);
+            })
+            .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+                addLogEntry(`User joined: ${key}`);
+            })
+            .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+                addLogEntry(`User left: ${key}`);
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({
+                        user_id: session?.user?.id || 'anonymous',
+                        online_at: new Date().toISOString(),
+                    });
+                }
+            });
+
+        setPresenceChannel(channel);
+
+        return () => {
+            channel.unsubscribe();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session]);
 
     // Handle player authentication and channel setup
     useEffect(() => {
@@ -200,7 +244,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     const value = {
         queue,
         matchDetails,
-        stats: { log },
+        stats: { activeUsers, log },
         handleQueueToggle
     };
 

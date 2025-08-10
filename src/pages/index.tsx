@@ -71,9 +71,22 @@ export default function Home() {
             moves each turn
           </Typography>
 
-          <Grid container spacing={4} justifyContent="center">
-            {/* Left column - Game board */}
-            <Grid item xs={12} md={8}>
+          <Grid container spacing={4}>
+            {/* Left column - Server Status */}
+            <Grid item xs={12} md={3}>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3,
+                }}
+              >
+                <ServerStats />
+              </Box>
+            </Grid>
+
+            {/* Center column - Game board */}
+            <Grid item xs={12} md={6}>
               <Box
                 sx={{
                   display: "flex",
@@ -145,8 +158,8 @@ export default function Home() {
               </Box>
             </Grid>
 
-            {/* Right column - Stats and Login */}
-            <Grid item xs={12} md={4} minHeight={5000}>
+            {/* Right column - Login */}
+            <Grid item xs={12} md={3}>
               <Box
                 sx={{
                   display: "flex",
@@ -155,7 +168,6 @@ export default function Home() {
                   alignItems: "center",
                 }}
               >
-                <ServerStats />
                 <Login />
               </Box>
             </Grid>

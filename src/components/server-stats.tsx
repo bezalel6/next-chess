@@ -23,7 +23,6 @@ function ServerStats() {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 2,
-                maxWidth: '400px',
                 width: '100%',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
                 backdropFilter: 'blur(8px)',
@@ -34,20 +33,14 @@ function ServerStats() {
                 Server Status
             </Typography>
 
-            {/* <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Chip
                     icon={<People />}
                     label={`${stats.activeUsers} Active Users`}
                     color="primary"
                     sx={{ fontWeight: 'medium', px: 1 }}
                 />
-                <Chip
-                    icon={<SportsEsports />}
-                    label={`${stats.activeGames} Active Games`}
-                    color="secondary"
-                    sx={{ fontWeight: 'medium', px: 1 }}
-                />
-            </Box> */}
+            </Box>
 
             <Box
                 ref={logContainerRef}

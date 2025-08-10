@@ -54,9 +54,33 @@ const Header = () => {
   };
 
   const navigationItems = [
+    profile && (
+      <Button
+        key="following"
+        variant="outlined"
+        size="small"
+        href="/following"
+        sx={{
+          textTransform: "none",
+          fontWeight: 500,
+          fontSize: "0.95rem",
+          px: 2.5,
+          py: 0.9,
+          borderRadius: "8px",
+          borderColor: "rgba(168, 85, 247, 0.3)",
+          color: "rgba(255, 255, 255, 0.9)",
+          "&:hover": {
+            borderColor: "rgba(168, 85, 247, 0.5)",
+            bgcolor: "rgba(168, 85, 247, 0.08)",
+          },
+        }}
+      >
+        Following
+      </Button>
+    ),
     <HowToPlayDialog key="how-to-play" />,
     <AboutDialog key="about" />,
-  ];
+  ].filter(Boolean);
 
   if (!mounted) return null;
 

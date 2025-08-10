@@ -8,6 +8,7 @@ interface UserProfileData {
 }
 
 export interface UserGameStats {
+  userId: string;
   totalGames: number;
   wins: number;
   losses: number;
@@ -171,6 +172,7 @@ export class UserService {
       }
 
       const stats: UserGameStats = {
+        userId: userId,
         totalGames: data.length,
         wins: 0,
         losses: 0,

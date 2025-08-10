@@ -84,9 +84,10 @@ const LichessBoard = ({}: LichessBoardProps) => {
     if (game?.banningPlayer && myColor === game.banningPlayer) {
       setOverlay(null);
     } else if (isActiveGame && game?.banningPlayer) {
+      // Simple, non-intrusive message for waiting player
       setOverlay(
-        <Typography variant="h6">
-          Please wait for {game.banningPlayer} to ban a move
+        <Typography variant="body1" sx={{ opacity: 0.9 }}>
+          {game.banningPlayer === "white" ? "White" : "Black"} is banning a move...
         </Typography>,
       );
     } else {
@@ -193,6 +194,8 @@ const LichessBoard = ({}: LichessBoardProps) => {
 
             // If it's my turn to ban a move
             if (game.banningPlayer === myColor) {
+              // Add visual feedback when banning
+              playMoveSound(null, null); // Play a sound to indicate ban action
               actions.banMove(from, to);
               return;
             }
@@ -255,53 +258,41 @@ const LichessBoard = ({}: LichessBoardProps) => {
         width: "100%",
       }}
     >
-      {isBanningMode && (
-        <Box
-          sx={{
-            position: "absolute",
-            bottom: "-50px",
-            left: "0",
-            width: "100%",
-            display: "flex",
-            justifyContent: "center",
-            zIndex: 20,
-          }}
-        >
-          <Chip
-            label="BAN MODE - SELECT OPPONENT'S MOVE TO BAN"
-            color="warning"
-            sx={{
-              fontWeight: "bold",
-              padding: "10px",
-              animation: "pulse 1.5s infinite",
-              "@keyframes pulse": {
-                "0%": { boxShadow: "0 0 0 0 rgba(255, 152, 0, 0.4)" },
-                "70%": { boxShadow: "0 0 0 10px rgba(255, 152, 0, 0)" },
-                "100%": { boxShadow: "0 0 0 0 rgba(255, 152, 0, 0)" },
-              },
-              height: "auto",
-              minHeight: "32px",
-              "& .MuiChip-label": {
-                whiteSpace: "normal",
-                textAlign: "center",
-                lineHeight: 1.2,
-                padding: "6px 0",
-                display: "block",
-                maxWidth: "100%",
-              },
-            }}
-          />
-        </Box>
-      )}
       <Box
+        className={isBanningMode ? "ban-mode-active" : ""}
         sx={{
           width: "80%",
           maxWidth: 600,
           aspectRatio: "1/1",
           margin: "0 auto",
           position: "relative",
+          // Simple static border for banning player - no animations
+          ...(isBanningMode && {
+            border: "3px solid",
+            borderColor: "warning.main",
+            borderRadius: "8px",
+          }),
         }}
       >
+        {/* Ban mode indicator - static, no animations */}
+        {isBanningMode && (
+          <Chip
+            label="🚫 SELECT OPPONENT'S MOVE TO BAN"
+            color="warning"
+            sx={{
+              position: "absolute",
+              bottom: "10px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 10,
+              fontWeight: "bold",
+              fontSize: "0.85rem",
+              backgroundColor: "rgba(255, 152, 0, 0.95)",
+              color: "black",
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+            }}
+          />
+        )}
         <Chessground contained config={config} />
       </Box>
       {overlay && (

@@ -64,6 +64,40 @@ export type Database = {
         }
         Relationships: []
       }
+      follows: {
+        Row: {
+          id: string
+          follower_id: string
+          following_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          follower_id: string
+          following_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          follower_id?: string
+          following_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follows_follower_id_fkey"
+            columns: ["follower_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follows_following_id_fkey"
+            columns: ["following_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       games: {
         Row: {
           banning_player: Database["public"]["Enums"]["player_color"] | null
@@ -224,9 +258,31 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      followed_users_status: {
+        Row: {
+          follower_id: string
+          following_id: string
+          followed_at: string
+          username: string
+          rating: number
+          active_game: Json | null
+        }
+      }
     }
     Functions: {
+      get_follow_stats: {
+        Args: {
+          user_id: string
+        }
+        Returns: Json
+      }
+      is_following: {
+        Args: {
+          follower: string
+          following: string
+        }
+        Returns: boolean
+      }
       get_default_initial_time: {
         Args: Record<PropertyKey, never>
         Returns: number

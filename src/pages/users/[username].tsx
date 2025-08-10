@@ -1,5 +1,6 @@
 import { GameService } from "@/services/gameService";
 import { UserService, type UserGameStats } from "@/services/userService";
+import { FollowService } from "@/services/followService";
 import { useRouter } from "next/router";
 import { useEffect, useState, Fragment } from "react";
 import {
@@ -25,6 +26,8 @@ import Image from "next/image";
 import { Chess } from "chess.ts";
 import dynamic from "next/dynamic";
 import UserLink from "@/components/user-link";
+import FollowButton from "@/components/FollowButton";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Import icons for chess pieces
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
@@ -39,13 +42,22 @@ const Chessground = dynamic(() => import('@react-chess/chessground'), {
 export default function UserProfile() {
     const router = useRouter();
     const { username } = router.query;
+    const { user: currentUser } = useAuth();
     const [userData, setUserData] = useState<"loading" | { error: string } | UserGameStats>("loading");
+    const [followStats, setFollowStats] = useState<{ followers_count: number; following_count: number } | null>(null);
 
     useEffect(() => {
         if (username) {
+            // Load user profile
             UserService.getUserProfile(username as string)
                 .then(data => {
                     setUserData(data);
+                    // Load follow stats if we have user data
+                    if ('userId' in data) {
+                        FollowService.getFollowStats(data.userId).then(stats => {
+                            setFollowStats(stats);
+                        });
+                    }
                 }).catch(e => {
                     if (e instanceof Error)
                         setUserData({ error: e.message });
@@ -174,9 +186,34 @@ export default function UserProfile() {
     return (
         <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
             <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
-                <Typography variant="h4" gutterBottom>
-                    {username}&apos;s Profile
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Box>
+                        <Typography variant="h4" gutterBottom>
+                            {username}&apos;s Profile
+                        </Typography>
+                        {followStats && (
+                            <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                                <Chip 
+                                    label={`${followStats.followers_count} Followers`}
+                                    variant="outlined"
+                                    size="small"
+                                />
+                                <Chip 
+                                    label={`${followStats.following_count} Following`}
+                                    variant="outlined"
+                                    size="small"
+                                />
+                            </Box>
+                        )}
+                    </Box>
+                    {'userId' in userData && (
+                        <FollowButton 
+                            userId={userData.userId}
+                            username={username as string}
+                            size="large"
+                        />
+                    )}
+                </Box>
 
                 <Grid container spacing={3} sx={{ mt: 2 }}>
                     <Grid item xs={12} sm={3}>

@@ -67,7 +67,7 @@ export default function Home() {
             variant="h6"
             sx={{ color: "grey.500", mb: 2, textAlign: "center" }}
           >
-            A unique chess variant where you can ban one of your opponent&apos;s
+            A unique chess variant where you ban one of your opponent&apos;s
             moves each turn
           </Typography>
 

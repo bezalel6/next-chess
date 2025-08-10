@@ -15,7 +15,7 @@ SET
     WHEN black_time_remaining = 60000 THEN 600000 
     ELSE black_time_remaining 
   END
-WHERE status IN ('waiting', 'active')
+WHERE status = 'active'
   AND (
     (time_control->>'initial_time')::BIGINT = 60000
     OR white_time_remaining = 60000

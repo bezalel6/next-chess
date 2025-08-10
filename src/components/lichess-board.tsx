@@ -224,8 +224,7 @@ const LichessBoard = ({}: LichessBoardProps) => {
                 playMoveSound(move, game.chess);
                 actions.makeMove(from, to);
               }
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (error) {
+            } catch {
               game.chess.undo();
             }
           },

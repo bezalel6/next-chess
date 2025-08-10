@@ -1,14 +1,13 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database (optional - can use external Supabase instead)
   postgres:
     image: supabase/postgres:15.1.0.117
     restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations
-      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}

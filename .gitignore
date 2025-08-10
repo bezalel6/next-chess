@@ -52,8 +52,9 @@ docker-compose*.yml
 !docker-compose.example.yml
 !docker-compose.coolify-full.yml
 Dockerfile*
+!Dockerfile
 !Dockerfile.example
-.dockerignore
+!.dockerignore
 docker/
 
 # Deployment and hosting configurations

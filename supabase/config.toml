@@ -13,11 +13,6 @@ import_map = "./import_map.json"
 [auth]
 enable_anonymous_sign_ins = true
 
-[auth.external.turnstile]
-enabled = true
-site_key = "env(NEXT_PUBLIC_TURNSTILE_SITE_KEY)"
-secret = "env(TURNSTILE_SECRET_KEY)"
-
 # Realtime configuration
 [realtime]
 enabled = true

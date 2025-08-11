@@ -308,8 +308,6 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
       console.warn('Turnstile site key not configured');
-    } else {
-      console.log('Turnstile initialized with site key:', process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
     }
   }, []);
 

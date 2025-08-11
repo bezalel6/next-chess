@@ -250,13 +250,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 throw new Error(error.error || 'Sign up failed');
             }
             
-            const { session } = await response.json();
+            const result = await response.json();
             
             // Set the session in Supabase client
-            await supabaseBrowser().auth.setSession(session);
+            await supabaseBrowser().auth.setSession(result.session);
             
             return {
+                success: true,
                 confirmEmail: false,
+                user: result.user,
                 message: 'Account created successfully'
             };
         }

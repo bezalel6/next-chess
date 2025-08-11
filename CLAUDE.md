@@ -46,6 +46,24 @@ This is a real-time multiplayer chess application with a unique "ban move" mecha
 - Different sound effects for bans vs moves
 - Red outline on board during ban selection
 
+## Authentication System
+
+### Auth Routes
+- **Catch-all routing**: `/auth/[...mode].tsx` handles all auth routes
+- **Supported paths**: 
+  - `/auth/login` - Login page
+  - `/auth/signup` - Sign up page  
+  - `/auth/signin` - Legacy route, redirects to `/auth/login`
+  - `/auth` - Base route, redirects to `/auth/login`
+
+### AuthForm Component
+- Pure presentation component - no router dependency
+- Props:
+  - `mode`: 'login' | 'signup' - determines which form to show
+  - `onModeChange`: callback for when user toggles between login/signup
+  - `redirectOnSuccess`: boolean - whether to redirect after successful auth
+- Uses `window.location.href` for redirects instead of Next.js router
+
 ## Modern Architecture Stack
 
 ### Core Technologies

@@ -15,7 +15,6 @@ import {
   type SignUpStatus,
   UsernameExistsError,
 } from "@/contexts/AuthContext";
-import { useRouter } from "next/router";
 import { z } from "zod";
 import { debounce } from "lodash";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
@@ -33,10 +32,12 @@ const usernameSchema = z
 
 export type AuthFormProps = {
   redirectOnSuccess?: boolean;
+  mode?: 'login' | 'signup';
+  onModeChange?: (newMode: 'login' | 'signup') => void;
 };
 
 
-export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
+export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onModeChange }: AuthFormProps) {
   const {
     signIn,
     signUp,
@@ -45,7 +46,14 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     signInWithMagicLink,
     checkUsernameExists,
   } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  
+  // Use mode prop to determine if we're in signup or login mode
+  const [isSignUp, setIsSignUp] = useState(mode === 'signup');
+  
+  // Sync isSignUp state with mode prop changes
+  useEffect(() => {
+    setIsSignUp(mode === 'signup');
+  }, [mode]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -64,7 +72,6 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   const [showMagicLink, setShowMagicLink] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const turnstileRef = useRef<TurnstileInstance>(null);
-  const router = useRouter();
   
   // Refs for input elements to detect autofill
   const usernameInputRef = useRef<HTMLInputElement>(null);
@@ -213,7 +220,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
           setSuccess(result.message);
         } else {
           setSuccess(result.message);
-          redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
+          redirectOnSuccess && setTimeout(() => window.location.href = "/", 1500);
         }
       } else {
         if (!captchaToken && process.env.NEXT_PUBLIC_USE_TEST_AUTH !== 'true') {
@@ -224,7 +231,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
 
         await signIn(loginUsername, password, captchaToken);
         setSuccess("Sign in successful! Redirecting...");
-        redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
+        redirectOnSuccess && setTimeout(() => window.location.href = "/", 1500);
       }
     } catch (err) {
       if (err instanceof UsernameExistsError) {
@@ -260,7 +267,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
       await signInAsGuest(token);
       setSuccess("Signed in as guest! Redirecting...");
       // Redirect after successful guest signin
-      redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
+      redirectOnSuccess && setTimeout(() => window.location.href = "/", 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       // Reset captcha on error
@@ -316,7 +323,8 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   };
 
   const toggleSignUp = () => {
-    setIsSignUp(!isSignUp);
+    const newIsSignUp = !isSignUp;
+    setIsSignUp(newIsSignUp);
     setError(null);
     setSuccess(null);
     setUsernameError(null);
@@ -324,6 +332,11 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     // Clear username when switching to sign in
     if (isSignUp) {
       setUsername("");
+    }
+    
+    // Notify parent component of mode change if callback provided
+    if (onModeChange) {
+      onModeChange(newIsSignUp ? 'signup' : 'login');
     }
   };
 

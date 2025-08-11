@@ -40,6 +40,21 @@ export class AuthHelper {
     // Reload the page to apply the session
     await page.reload({ waitUntil: 'networkidle0' });
     
+    // Wait for authentication to take effect - user should see game interface
+    await page.waitForFunction(
+      () => {
+        // Check if we're authenticated by looking for game UI elements
+        const hasPlayButton = Array.from(document.querySelectorAll('button'))
+          .some(btn => btn.textContent?.includes('Play Now'));
+        const hasSignInButton = Array.from(document.querySelectorAll('button'))
+          .some(btn => btn.textContent?.includes('Sign In'));
+        
+        // We're authenticated if we have Play Now but not Sign In
+        return hasPlayButton || !hasSignInButton;
+      },
+      { timeout: 10000 }
+    );
+    
     return {
       userId: response.user.id,
       accessToken: response.session.access_token

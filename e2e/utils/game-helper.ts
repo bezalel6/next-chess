@@ -73,11 +73,11 @@ export class GameHelper {
     
     // Click on the piece at 'from' square
     await page.click(`[data-square="${from}"]`);
-    await page.waitForTimeout(500); // Small delay for animation
+    await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for animation
     
     // Click on the destination square
     await page.click(`[data-square="${to}"]`);
-    await page.waitForTimeout(500);
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     console.log(`[${playerName}] Banned move ${from}-${to}`);
   }
@@ -119,9 +119,9 @@ export class GameHelper {
     // Perform drag and drop
     await page.mouse.move(fromX, fromY);
     await page.mouse.down();
-    await page.waitForTimeout(100);
+    await new Promise(resolve => setTimeout(resolve, 100));
     await page.mouse.move(toX, toY, { steps: 10 });
-    await page.waitForTimeout(100);
+    await new Promise(resolve => setTimeout(resolve, 100));
     await page.mouse.up();
     
     console.log(`[${playerName}] Made move ${from}-${to}`);

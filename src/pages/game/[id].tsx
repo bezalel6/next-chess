@@ -16,8 +16,8 @@ const LeftSidebar = () => {
     
     // Calculate time ago
     const getTimeAgo = () => {
-        if (!game?.created_at) return 'just now';
-        const created = new Date(game.created_at);
+        if (!game?.startTime) return 'just now';
+        const created = new Date(game.startTime);
         const now = new Date();
         const diffMs = now.getTime() - created.getTime();
         const diffMins = Math.floor(diffMs / 60000);
@@ -40,13 +40,8 @@ const LeftSidebar = () => {
         if (!game) return '10+0';
         
         // Check for time control in game object
-        const initialTime = game.timeControl?.initialTime || 
-                          game.time_control?.initial_time || 
-                          600000; // Default 10 minutes
-        
-        const increment = game.timeControl?.increment || 
-                         game.time_control?.increment || 
-                         0;
+        const initialTime = game.timeControl?.initialTime || 600000; // Default 10 minutes
+        const increment = game.timeControl?.increment || 0;
         
         const minutes = Math.floor(initialTime / 60000);
         return `${minutes}+${increment}`;
@@ -77,7 +72,7 @@ const LeftSidebar = () => {
                 p: 2,
             }}>
                 <Typography sx={{ color: '#bababa', fontSize: '0.85rem', mb: 0.5 }}>
-                    {getTimeControl()} • {game?.is_rated ? 'Rated' : 'Casual'} • {getGameSpeed()}
+                    {getTimeControl()} • Casual • {getGameSpeed()}
                 </Typography>
                 <Typography sx={{ color: '#7a7a7a', fontSize: '0.8rem' }}>
                     {getTimeAgo()}

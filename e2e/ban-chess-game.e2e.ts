@@ -80,45 +80,45 @@ describe('Ban Chess E2E Test', () => {
     // Move 1: Black bans White's e2-e4
     console.log('\n--- Move 1 ---');
     await GameHelper.banMove(blackPage, 'e2', 'e4', blackName);
-    await player1Page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // White plays d2-d4 instead
     await GameHelper.makeMove(whitePage, 'd2', 'd4', whiteName);
-    await player1Page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // White bans Black's d7-d5
     await GameHelper.banMove(whitePage, 'd7', 'd5', whiteName);
-    await player1Page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Black plays e7-e6 instead
     await GameHelper.makeMove(blackPage, 'e7', 'e6', blackName);
-    await player1Page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Move 2: Black bans White's Ng1-f3
     console.log('\n--- Move 2 ---');
     await GameHelper.banMove(blackPage, 'g1', 'f3', blackName);
-    await player1Page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // White plays Nb1-c3 instead
     await GameHelper.makeMove(whitePage, 'b1', 'c3', whiteName);
-    await player1Page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // White bans Black's Ng8-f6
     await GameHelper.banMove(whitePage, 'g8', 'f6', whiteName);
-    await player1Page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Black plays Nb8-c6 instead
     await GameHelper.makeMove(blackPage, 'b8', 'c6', blackName);
-    await player1Page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Move 3: Black bans White's e2-e4 again (if still available)
     console.log('\n--- Move 3 ---');
     await GameHelper.banMove(blackPage, 'e2', 'e3', blackName);
-    await player1Page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // White plays Bc1-f4
     await GameHelper.makeMove(whitePage, 'c1', 'f4', whiteName);
-    await player1Page.waitForTimeout(1000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Continue for a few more moves to test the flow...
     

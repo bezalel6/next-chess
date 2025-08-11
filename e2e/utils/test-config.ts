@@ -47,8 +47,8 @@ export const TEST_CONFIG = {
     // Auth
     emailInput: 'input[type="email"]',
     passwordInput: 'input[type="password"]',
-    loginButton: 'button:has-text("Sign in")',
-    signupButton: 'button:has-text("Sign up")',
+    loginButton: 'button[type="submit"]',
+    signupButton: 'button[type="submit"]',
     
     // Game
     board: '.cg-wrap',
@@ -58,8 +58,8 @@ export const TEST_CONFIG = {
     gameStatus: '[data-testid="game-status"]',
     
     // Queue
-    joinQueueButton: 'button:has-text("Join Queue")',
-    leaveQueueButton: 'button:has-text("Leave Queue")',
+    joinQueueButton: '.join-queue-button',
+    leaveQueueButton: '.leave-queue-button',
     queueStatus: '[data-testid="queue-status"]',
   },
 };

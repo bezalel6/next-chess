@@ -241,6 +241,7 @@ const QueueSystem = () => {
               startIcon={<StopCircle />}
               onClick={handleQueueToggle}
               size="large"
+              data-testid="cancel-queue-button"
               sx={{
                 px: 4,
                 py: 1.5,
@@ -293,6 +294,7 @@ const QueueSystem = () => {
             onClick={handleQueueToggle}
             size="large"
             disabled={hasActiveGames || checking}
+            data-testid="play-now-button"
             sx={{
               px: 6,
               py: 2,

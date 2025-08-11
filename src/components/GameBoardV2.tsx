@@ -8,7 +8,7 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { useState, useEffect, useRef } from 'react';
 
 export default function GameBoardV2({ orientation }: { orientation?: 'white' | 'black' }) {
-  const { game, myColor, canBan } = useGame();
+  const { game, myColor, canBan, canMove } = useGame();
   const [boardSize, setBoardSize] = useState(560);
   const [isResizing, setIsResizing] = useState(false);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -70,6 +70,10 @@ export default function GameBoardV2({ orientation }: { orientation?: 'white' | '
         justifyContent: 'center',
       }}
       ref={boardRef}
+      data-testid="game-board"
+      data-game-phase={canBan ? 'ban' : canMove ? 'move' : 'waiting'}
+      data-my-color={myColor}
+      data-current-turn={game?.turn}
     >
       <BanPhaseOverlay 
         isMyTurnToBan={canBan}

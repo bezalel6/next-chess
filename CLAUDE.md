@@ -298,3 +298,4 @@ No test framework is currently configured. Verify changes by:
 - After each move, `banning_player` is set to the player who just moved
 - Banned moves should be stored in database, not PGN comments
 - Use the V2 components (`GameBoardV2`, `GameContextV2`) for the refactored version
+- use es module syntax when working with e2e tests

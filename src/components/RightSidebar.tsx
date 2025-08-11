@@ -121,9 +121,6 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
           <Typography sx={{ color: '#bababa', fontSize: '0.9rem' }}>
             {topUsername}
           </Typography>
-          <Typography sx={{ color: '#888', fontSize: '0.85rem', ml: 'auto' }}>
-            1956
-          </Typography>
         </Box>
       </Box>
 
@@ -208,9 +205,6 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
           }} />
           <Typography sx={{ color: '#bababa', fontSize: '0.9rem' }}>
             {bottomUsername}
-          </Typography>
-          <Typography sx={{ color: '#888', fontSize: '0.85rem', ml: 'auto' }}>
-            1970
           </Typography>
         </Box>
         

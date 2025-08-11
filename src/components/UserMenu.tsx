@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { MouseEvent } from "react";
 import {
   Box,
@@ -10,6 +10,7 @@ import {
   ListItemIcon,
   CircularProgress,
   Avatar,
+  Badge,
 } from "@mui/material";
 import {
   PersonOutline as PersonIcon,
@@ -20,12 +21,14 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/router";
+import { FollowService } from "@/services/followService";
 
 const UserMenu = () => {
   const { user, profile, signOut } = useAuth();
   const router = useRouter();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [followingCount, setFollowingCount] = useState<number>(0);
   const open = Boolean(anchorEl);
 
   const handleClick = (event: MouseEvent<HTMLElement>) => {
@@ -52,9 +55,25 @@ const UserMenu = () => {
   const handleProfile = () => {
     handleClose();
     if (profile?.username) {
-      router.push(`/user/${profile.username}`);
+      router.push(`/@${profile.username}`);
     }
   };
+
+  // Fetch following count
+  useEffect(() => {
+    const fetchFollowingCount = async () => {
+      if (user?.id) {
+        try {
+          const stats = await FollowService.getFollowStats(user.id);
+          setFollowingCount(stats.following_count);
+        } catch (error) {
+          console.error("Error fetching follow stats:", error);
+        }
+      }
+    };
+
+    fetchFollowingCount();
+  }, [user]);
 
   if (!user || !profile) return null;
 
@@ -155,7 +174,24 @@ const UserMenu = () => {
           <ListItemIcon>
             <AccountCircle fontSize="small" />
           </ListItemIcon>
-          <Typography variant="body2">Following</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
+            <Typography variant="body2">Following</Typography>
+            {followingCount > 0 && (
+              <Badge 
+                badgeContent={followingCount} 
+                color="primary" 
+                sx={{ 
+                  "& .MuiBadge-badge": { 
+                    position: "static",
+                    transform: "none",
+                    fontSize: "0.75rem",
+                    height: 18,
+                    minWidth: 18,
+                  } 
+                }}
+              />
+            )}
+          </Box>
         </MenuItem>
 
         <Divider sx={{ my: 1, borderColor: "rgba(255, 255, 255, 0.08)" }} />

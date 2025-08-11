@@ -32,6 +32,7 @@ interface AuthContextType {
     signOut: () => Promise<void>;
     signInAsGuest: () => Promise<void>;
     signInWithGoogle: () => Promise<void>;
+    signInWithMagicLink: (email: string, captchaToken?: string) => Promise<void>;
     isGuest: boolean;
     updateUsername: (username: string) => Promise<void>;
     checkUsernameExists: (username: string) => Promise<boolean>;
@@ -213,36 +214,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw new UsernameExistsError("Username already taken. Please choose another username.");
         }
 
-        // Create the user with username in metadata
-        const { data, error } = await supabase.auth.signUp({
-            email: normalizedEmail,
-            password,
-            options: {
-                data: { username: normalizedUsername },
-                ...(captchaToken ? { captchaToken } : {})
+        try {
+            // Create the user with username in metadata
+            const { data, error } = await supabase.auth.signUp({
+                email: normalizedEmail,
+                password,
+                options: {
+                    data: { username: normalizedUsername },
+                    ...(captchaToken ? { captchaToken } : {})
+                }
+            });
+
+            if (error) {
+                // Check if it's a captcha-related error
+                if (error.message?.includes('captcha') || error.status === 500) {
+                    throw new Error("Captcha verification failed. Please try again.");
+                }
+                throw error;
             }
-        });
+            
+            await supabase
+                .from('profiles')
+                .insert({ id: data.user.id, username: normalizedUsername })
+                .select('username')
+                .single();
 
-        if (error) throw error;
-        await supabase
-            .from('profiles')
-            .insert({ id: data.user.id, username: normalizedUsername })
-            .select('username')
-            .single();
+            // Check if email confirmation is required
+            const confirmEmail = data?.user?.identities?.length === 0 ||
+                data?.user?.confirmed_at === null ||
+                (!!data.user.confirmation_sent_at && !data?.user?.confirmed_at);
 
-        // Check if email confirmation is required
-        const confirmEmail = data?.user?.identities?.length === 0 ||
-            data?.user?.confirmed_at === null ||
-            (!!data.user.confirmation_sent_at && !data?.user?.confirmed_at);
-
-        return {
-            success: true,
-            confirmEmail,
-            user: data?.user || null,
-            message: confirmEmail
-                ? "Please check your email for a confirmation link to complete the signup process."
-                : "Account created successfully. You can now sign in."
-        };
+            return {
+                success: true,
+                confirmEmail,
+                user: data?.user || null,
+                message: confirmEmail
+                    ? "Please check your email for a confirmation link to complete the signup process."
+                    : "Account created successfully. You can now sign in."
+            };
+        } catch (error) {
+            throw error;
+        }
     };
 
     const signOut = async () => {
@@ -270,7 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/auth`,
+                redirectTo: `${window.location.origin}/auth/callback`,
                 queryParams: {
                     access_type: 'offline',
                     prompt: 'consent',
@@ -278,6 +290,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         });
 
+        if (error) throw error;
+    };
+
+    const signInWithMagicLink = async (email: string, captchaToken?: string) => {
+        const normalizedEmail = email.toLowerCase().trim();
+        
+        const { error } = await supabase.auth.signInWithOtp({
+            email: normalizedEmail,
+            options: {
+                emailRedirectTo: `${window.location.origin}/auth/callback`,
+                ...(captchaToken ? { captchaToken } : {})
+            }
+        });
+        
         if (error) throw error;
     };
 
@@ -314,6 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         signInAsGuest,
         signInWithGoogle,
+        signInWithMagicLink,
         isGuest,
         updateUsername,
         checkUsernameExists

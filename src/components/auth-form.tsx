@@ -40,6 +40,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     signUp,
     signInAsGuest,
     signInWithGoogle,
+    signInWithMagicLink,
     checkUsernameExists,
   } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
@@ -51,11 +52,13 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [submitAction, setSubmitAction] = useState<
-    "signin" | "signup" | "guest" | null
+    "signin" | "signup" | "guest" | "magiclink" | null
   >(null);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [showMagicLink, setShowMagicLink] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const captchaRef = useRef<HCaptcha>(null);
   const router = useRouter();
 
@@ -143,10 +146,8 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
 
         if (result.confirmEmail) {
           setSuccess(result.message);
-          // Do not redirect if email confirmation is required
         } else {
           setSuccess(result.message);
-          // Only redirect if no email confirmation is required
           redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
         }
       } else {
@@ -158,7 +159,6 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
 
         await signIn(loginUsername, password, captchaToken);
         setSuccess("Sign in successful! Redirecting...");
-        // Redirect after successful signin
         redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
       }
     } catch (err) {
@@ -203,6 +203,33 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setIsLoading(false);
+    }
+  };
+
+  const handleMagicLinkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
+    setSubmitAction("magiclink");
+    
+    try {
+      if (!captchaToken) {
+        setError("Please complete the captcha verification");
+        setIsLoading(false);
+        return;
+      }
+
+      await signInWithMagicLink(magicLinkEmail, captchaToken);
+      setSuccess("Magic link sent! Check your email to sign in.");
+      setShowMagicLink(false);
+      setMagicLinkEmail("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+      setCaptchaToken(null);
+      captchaRef.current?.resetCaptcha();
     }
   };
 
@@ -299,6 +326,63 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
           </Alert>
         )}
 
+        {showMagicLink && !isSignUp ? (
+          <Box
+            component="form"
+            onSubmit={handleMagicLinkSubmit}
+            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+          >
+            <TextField
+              label="Email"
+              type="email"
+              value={magicLinkEmail}
+              onChange={(e) => setMagicLinkEmail(e.target.value.toLowerCase())}
+              required
+              fullWidth
+              disabled={isLoading}
+              helperText="We'll send you a sign-in link to this email"
+            />
+            {process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
+              <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
+                <HCaptcha
+                  ref={captchaRef}
+                  sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
+                  onVerify={handleCaptchaVerify}
+                  onExpire={handleCaptchaExpire}
+                  onError={handleCaptchaError}
+                  size="compact"
+                />
+              </Box>
+            )}
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={isLoading || !magicLinkEmail || !captchaToken}
+              startIcon={
+                isLoading && submitAction === "magiclink" ? (
+                  <CircularProgress size={20} color="inherit" />
+                ) : null
+              }
+            >
+              {isLoading && submitAction === "magiclink"
+                ? "Sending link..."
+                : "Send Magic Link"}
+            </Button>
+            <Button
+              variant="text"
+              onClick={() => {
+                setShowMagicLink(false);
+                setMagicLinkEmail("");
+                setError(null);
+                setSuccess(null);
+              }}
+              disabled={isLoading}
+            >
+              Back to sign in
+            </Button>
+          </Box>
+        ) : (
         <Box
           component="form"
           onSubmit={handleSubmit}
@@ -362,26 +446,14 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
             }
           />
           {process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                my: 2,
-                overflow: "hidden",
-                "& > div": {
-                  transform: "scale(0.88)",
-                  transformOrigin: "center",
-                  maxWidth: "100%",
-                },
-              }}
-            >
+            <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
               <HCaptcha
                 ref={captchaRef}
                 sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
                 onVerify={handleCaptchaVerify}
                 onExpire={handleCaptchaExpire}
                 onError={handleCaptchaError}
-                size="normal"
+                size="compact"
               />
             </Box>
           )}
@@ -403,6 +475,17 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
               ? "Already have an account? Sign In"
               : "Need an account? Sign Up"}
           </Button>
+
+          {!isSignUp && (
+            <Button
+              variant="text"
+              onClick={() => setShowMagicLink(!showMagicLink)}
+              disabled={isLoading}
+              sx={{ mt: -1, mb: 1 }}
+            >
+              Sign in with email link instead
+            </Button>
+          )}
 
           <Divider sx={{ my: 1 }}>or</Divider>
 
@@ -433,6 +516,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
               : "Continue as Guest"}
           </Button>
         </Box>
+        )}
       </Paper>
     </Box>
   );

@@ -38,29 +38,9 @@ export async function middleware(request: NextRequest) {
     console.error("Middleware: Error getting session:", error);
   }
 
-  // Protected routes that require authentication
-  const protectedPaths = ["/play", "/game", "/profile"];
-  const isProtectedPath = protectedPaths.some(path => 
-    request.nextUrl.pathname.startsWith(path)
-  );
-
-  // Redirect to login if accessing protected route without session
-  if (isProtectedPath && !session) {
-    const redirectUrl = new URL("/login", request.url);
-    redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // Auth routes that should redirect to home if already logged in
-  const authPaths = ["/login", "/signup"];
-  const isAuthPath = authPaths.some(path => 
-    request.nextUrl.pathname.startsWith(path)
-  );
-
-  // Redirect to home if accessing auth routes while logged in
-  if (isAuthPath && session) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
+  // No protected routes - all pages are accessible
+  // Users can view games as spectators without authentication
+  // Authentication is handled at the component level where needed
 
   return response;
 }

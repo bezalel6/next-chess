@@ -19,6 +19,7 @@ import { useRouter } from "next/router";
 import { z } from "zod";
 import { debounce } from "lodash";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { TURNSTILE_CONFIG } from "@/config/turnstile";
 
 // Zod schema for username validation
 const usernameSchema = z
@@ -33,6 +34,7 @@ const usernameSchema = z
 export type AuthFormProps = {
   redirectOnSuccess?: boolean;
 };
+
 
 export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   const {
@@ -304,10 +306,10 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     }
   };
 
-  // Check if Turnstile site key is available
+  // Check if Turnstile is configured
   useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
-      console.warn('Turnstile site key not configured');
+    if (!TURNSTILE_CONFIG.isEnabled()) {
+      console.warn('Turnstile not configured properly');
     }
   }, []);
 
@@ -349,7 +351,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
         )}
 
         {/* Single Turnstile widget for all auth methods */}
-        {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+        {TURNSTILE_CONFIG.isEnabled() && (
           <Box sx={{ 
             display: "flex", 
             justifyContent: "center",
@@ -358,18 +360,11 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
           }}>
             <Turnstile
               ref={turnstileRef}
-              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              siteKey={TURNSTILE_CONFIG.siteKey}
               onSuccess={handleTurnstileVerify}
               onExpire={handleTurnstileExpire}
               onError={handleTurnstileError}
-              options={{
-                theme: 'dark',
-                size: 'invisible',
-                appearance: 'execute',
-                execution: 'render',
-                retry: 'auto',
-                refreshExpired: 'auto',
-              }}
+              options={TURNSTILE_CONFIG.options}
             />
           </Box>
         )}

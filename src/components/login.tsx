@@ -1,11 +1,14 @@
-import { Box, Button, Typography, Paper, CircularProgress } from "@mui/material";
+import { Box, Button, Typography, Paper, CircularProgress, Alert } from "@mui/material";
 import { Logout, Login as LoginIcon } from "@mui/icons-material";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConnection } from "@/contexts/ConnectionContext";
 import AuthForm from "@/components/auth-form";
+import { useState } from "react";
 
 function Login() {
     const { user, profile, signOut, isLoading } = useAuth();
+    const [error, setError] = useState<string | null>(null);
+    const [signingOut, setSigningOut] = useState(false);
 
     if (isLoading) {
         return (
@@ -38,15 +41,32 @@ function Login() {
                     <Typography variant="body2" color={"success.main"}>
                         {"Connected"}
                     </Typography>
+                    {error && (
+                        <Alert severity="error" onClose={() => setError(null)} sx={{ width: '100%' }}>
+                            {error}
+                        </Alert>
+                    )}
                     <Button
                         variant="outlined"
                         color="error"
-                        startIcon={<Logout />}
-                        onClick={signOut}
+                        startIcon={signingOut ? <CircularProgress size={20} color="inherit" /> : <Logout />}
+                        onClick={async () => {
+                            setError(null);
+                            setSigningOut(true);
+                            try {
+                                await signOut();
+                            } catch (err) {
+                                console.error('Sign out error:', err);
+                                // Don't show error to user since we're clearing state anyway
+                            } finally {
+                                setSigningOut(false);
+                            }
+                        }}
+                        disabled={signingOut}
                         fullWidth
                         sx={{ mt: 1 }}
                     >
-                        Sign Out
+                        {signingOut ? 'Signing Out...' : 'Sign Out'}
                     </Button>
                 </Box>
             </Paper>

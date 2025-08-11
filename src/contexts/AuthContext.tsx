@@ -267,9 +267,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signOut = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-        setProfile(null);
+        try {
+            // First check if there's an active session
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (session) {
+                const { error } = await supabase.auth.signOut();
+                if (error && !error.message?.includes('session missing')) {
+                    console.error('Sign out error:', error);
+                    throw error;
+                }
+            }
+            
+            // Clear local state regardless of session status
+            setUser(null);
+            setSession(null);
+            setProfile(null);
+            setIsGuest(false);
+        } catch (error) {
+            console.error('Sign out error:', error);
+            // Even if sign out fails, clear local state
+            setUser(null);
+            setSession(null);
+            setProfile(null);
+            setIsGuest(false);
+            throw error;
+        }
     };
 
     const signInAsGuest = async () => {

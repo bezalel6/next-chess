@@ -2,11 +2,10 @@ html,
 body {
   padding: 0;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+  font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #121212 100%);
-  background-attachment: fixed;
-  color: white;
+  background: #161512;
+  color: #bababa;
   scroll-behavior: smooth;
 }
 
@@ -167,6 +166,29 @@ piece.disabled {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* local-game board rotation animation */
+@keyframes boardFlip {
+  0% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(90deg);
+  }
+  100% {
+    transform: rotateY(180deg);
+  }
+}
+
+.local-game-board {
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.local-game-board.rotating {
+  animation: boardFlip 0.6s ease-in-out;
 }
 
 .animate-fade-in-up {

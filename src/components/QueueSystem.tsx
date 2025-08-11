@@ -26,9 +26,11 @@ import {
   ExpandLess,
   TrendingUp,
   People,
+  Psychology,
 } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGame } from "@/contexts/GameContext";
 import { GameService } from "@/services/gameService";
 import { UserService } from "@/services/userService";
 import { useRouter } from "next/router";
@@ -41,6 +43,7 @@ interface GameWithOpponent extends Game {
 const QueueSystem = () => {
   const { queue, matchDetails, handleQueueToggle, stats } = useConnection();
   const { user, profile } = useAuth();
+  const { actions: gameActions } = useGame();
   const [activeGames, setActiveGames] = useState<GameWithOpponent[]>([]);
   const [hasActiveGames, setHasActiveGames] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -282,34 +285,74 @@ const QueueSystem = () => {
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<PlayCircleOutline />}
-          onClick={handleQueueToggle}
-          size="large"
-          disabled={hasActiveGames || checking}
-          sx={{
-            px: 6,
-            py: 2,
-            fontSize: "1.25rem",
-            fontWeight: 600,
-            borderRadius: 3,
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            boxShadow: "0 10px 40px rgba(102, 126, 234, 0.4)",
-            transition: "all 0.3s ease",
-            "&:hover": {
-              transform: "translateY(-2px)",
-              boxShadow: "0 15px 50px rgba(102, 126, 234, 0.5)",
-              background: "linear-gradient(135deg, #764ba2 0%, #667eea 100%)",
-            },
-            "&:disabled": {
-              background: "rgba(255, 255, 255, 0.1)",
-            },
-          }}
-        >
-          Play Now
-        </Button>
+        <Box sx={{ display: "flex", gap: 2, flexDirection: "column", alignItems: "center" }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<PlayCircleOutline />}
+            onClick={handleQueueToggle}
+            size="large"
+            disabled={hasActiveGames || checking}
+            sx={{
+              px: 6,
+              py: 2,
+              fontSize: "1.25rem",
+              fontWeight: 600,
+              borderRadius: 3,
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              boxShadow: "0 10px 40px rgba(102, 126, 234, 0.4)",
+              transition: "all 0.3s ease",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                boxShadow: "0 15px 50px rgba(102, 126, 234, 0.5)",
+                background: "linear-gradient(135deg, #764ba2 0%, #667eea 100%)",
+              },
+              "&:disabled": {
+                background: "rgba(255, 255, 255, 0.1)",
+              },
+            }}
+          >
+            Play Now
+          </Button>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ my: 1 }}>
+            or
+          </Typography>
+          
+          <Button
+            variant="outlined"
+            color="secondary"
+            startIcon={<Psychology />}
+            onClick={() => {
+              if (gameActions.startLocalGame) {
+                gameActions.startLocalGame();
+              }
+            }}
+            size="large"
+            disabled={hasActiveGames || checking}
+            sx={{
+              px: 4,
+              py: 1.5,
+              fontSize: "1rem",
+              fontWeight: 600,
+              borderRadius: 3,
+              borderColor: "secondary.main",
+              color: "secondary.main",
+              transition: "all 0.3s ease",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                backgroundColor: "rgba(156, 39, 176, 0.1)",
+                borderColor: "secondary.light",
+              },
+              "&:disabled": {
+                borderColor: "rgba(255, 255, 255, 0.1)",
+                color: "rgba(255, 255, 255, 0.3)",
+              },
+            }}
+          >
+            Local Game
+          </Button>
+        </Box>
 
         {hasActiveGames && (
           <Typography variant="caption" color="warning.main">

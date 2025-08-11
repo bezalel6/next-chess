@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ComponentProps,
 } from "react";
 import { useChessSounds } from "../hooks/useChessSounds";
@@ -35,9 +36,16 @@ interface PromotionState {
 type Config = ComponentProps<typeof Chessground>["config"];
 
 const LichessBoard = ({}: LichessBoardProps) => {
-  const { game, actions, isMyTurn, myColor, pgn } = useGame();
+  const { game, actions, isMyTurn, myColor, pgn, isLocalGame, localGameOrientation, boardOrientation } = useGame();
   const { playMoveSound } = useChessSounds();
   const [overlay, setOverlay] = useState<React.ReactNode | null>(null);
+  const [boardSize, setBoardSize] = useState(512); // Default size in pixels - Lichess standard
+  const boardRef = useRef<HTMLDivElement>(null);
+  const isResizing = useRef(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const startSize = useRef(0);
+  
   const isActiveGame = useMemo(() => {
     return game?.status === "active";
   }, [game?.status]);
@@ -53,7 +61,10 @@ const LichessBoard = ({}: LichessBoardProps) => {
       console.log("viewing an older position");
       return new Map();
     }
-    if (!isMyTurn && !game.banningPlayer) return new Map();
+    // In local games during ban phase, show opponent's moves
+    // In normal games, show moves when it's your turn or you're banning
+    if (!isLocalGame && !isMyTurn && !game.banningPlayer) return new Map();
+    if (isLocalGame && !game.banningPlayer && game.turn !== myColor) return new Map();
 
     return Array.from(game.chess.moves({ verbose: true })).reduce(
       (map, move) => {
@@ -81,7 +92,10 @@ const LichessBoard = ({}: LichessBoardProps) => {
   ]);
 
   useEffect(() => {
-    if (game?.banningPlayer && myColor === game.banningPlayer) {
+    if (isLocalGame) {
+      // For local games, don't show overlay during ban phase
+      setOverlay(null);
+    } else if (game?.banningPlayer && myColor === game.banningPlayer) {
       setOverlay(null);
     } else if (isActiveGame && game?.banningPlayer) {
       // Simple, non-intrusive message for waiting player
@@ -97,12 +111,14 @@ const LichessBoard = ({}: LichessBoardProps) => {
     document
       .querySelectorAll(`piece.disabled`)
       .forEach((e) => e.classList.remove("disabled"));
-    if (game.banningPlayer === myColor) {
+    if (game.banningPlayer && (isLocalGame || game.banningPlayer === myColor)) {
+      // In local games or when it's your turn to ban, disable your own pieces
+      const colorToDisable = isLocalGame ? game.banningPlayer : myColor;
       document
-        .querySelectorAll(`piece.${myColor}`)
+        .querySelectorAll(`piece.${colorToDisable}`)
         .forEach((e) => e.classList.add("disabled"));
     }
-  }, [isActiveGame, game?.banningPlayer, myColor]);
+  }, [isActiveGame, game?.banningPlayer, myColor, isLocalGame]);
 
   const handlePromotion = useCallback(
     (piece: PromoteablePieces, promotionState: PromotionState) => {
@@ -155,15 +171,58 @@ const LichessBoard = ({}: LichessBoardProps) => {
 
   // Add state to track if we're in banning mode
   const isBanningMode = useMemo(
-    () => isActiveGame && game.banningPlayer === myColor,
-    [game.banningPlayer, myColor, isActiveGame],
+    () => isActiveGame && game.banningPlayer && (isLocalGame || game.banningPlayer === myColor),
+    [game.banningPlayer, myColor, isActiveGame, isLocalGame],
   );
+
+  // Handle resize start
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    startX.current = e.clientX;
+    startY.current = e.clientY;
+    startSize.current = boardSize;
+    document.body.style.cursor = 'nwse-resize';
+  }, [boardSize]);
+
+  // Handle resize move
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      
+      // Calculate the distance moved diagonally (average of X and Y)
+      const deltaX = e.clientX - startX.current;
+      const deltaY = e.clientY - startY.current;
+      const delta = (deltaX + deltaY) / 2;
+      
+      // Calculate new size with constraints
+      const newSize = Math.min(Math.max(startSize.current + delta, 300), 700);
+      setBoardSize(newSize);
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing.current) {
+        isResizing.current = false;
+        document.body.style.cursor = 'default';
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   const config = useMemo(
     () =>
       ({
         fen,
-        orientation: myColor ?? "white",
+        orientation: isLocalGame 
+          ? (localGameOrientation ?? "white") 
+          : (boardOrientation ?? myColor ?? "white"),
         draggable: {
           enabled: true,
         },
@@ -192,8 +251,8 @@ const LichessBoard = ({}: LichessBoardProps) => {
           move: (from: string, to: string) => {
             if (!game?.chess || !isActiveGame) return;
 
-            // If it's my turn to ban a move
-            if (game.banningPlayer === myColor) {
+            // If it's a ban phase
+            if (game.banningPlayer && (isLocalGame || game.banningPlayer === myColor)) {
               // Add visual feedback when banning
               playMoveSound(null, null); // Play a sound to indicate ban action
               actions.banMove(from, to);
@@ -258,18 +317,17 @@ const LichessBoard = ({}: LichessBoardProps) => {
       }}
     >
       <Box
+        ref={boardRef}
         className={isBanningMode ? "ban-mode-active" : ""}
         sx={{
-          width: "80%",
-          maxWidth: 600,
-          aspectRatio: "1/1",
-          margin: "0 auto",
+          width: `${boardSize}px`,
+          height: `${boardSize}px`,
+          maxWidth: '100%',
           position: "relative",
-          // Simple static border for banning player - no animations
           ...(isBanningMode && {
-            border: "3px solid",
-            borderColor: "warning.main",
-            borderRadius: "8px",
+            outline: "2px solid",
+            outlineColor: "#ff9800",
+            outlineOffset: 2,
           }),
         }}
       >
@@ -293,6 +351,45 @@ const LichessBoard = ({}: LichessBoardProps) => {
           />
         )}
         <Chessground contained config={config} />
+        {/* Resize handle */}
+        <Box
+          onMouseDown={handleResizeStart}
+          sx={{
+            position: "absolute",
+            bottom: -5,
+            right: -5,
+            width: 24,
+            height: 24,
+            cursor: "nwse-resize",
+            opacity: 0.6,
+            transition: "opacity 0.2s",
+            "&:hover": {
+              opacity: 1,
+            },
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              bottom: 3,
+              right: 3,
+              width: 16,
+              height: 16,
+              borderRight: "2px solid",
+              borderBottom: "2px solid",
+              borderColor: "rgba(255, 255, 255, 0.7)",
+            },
+            "&::after": {
+              content: '""',
+              position: "absolute",
+              bottom: 3,
+              right: 8,
+              width: 0,
+              height: 0,
+              borderStyle: "solid",
+              borderWidth: "0 0 8px 8px",
+              borderColor: "transparent transparent rgba(255, 255, 255, 0.5) transparent",
+            },
+          }}
+        />
       </Box>
       {overlay && (
         <Box

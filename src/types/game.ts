@@ -62,6 +62,9 @@ export interface GameContextType {
   myColor: PlayerColor | null;
   loading: boolean;
   playerUsernames: { white: string; black: string };
+  isLocalGame?: boolean;
+  localGameOrientation?: PlayerColor;
+  boardOrientation?: PlayerColor;
   actions: {
     makeMove: (
       from: string,
@@ -77,6 +80,8 @@ export interface GameContextType {
     offerRematch: () => Promise<void>;
     acceptRematch: () => Promise<void>;
     declineRematch: () => Promise<void>;
+    startLocalGame?: () => void;
+    flipBoardOrientation?: () => void;
   };
 }
 

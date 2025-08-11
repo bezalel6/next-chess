@@ -1,12 +1,15 @@
 import { useGame } from "@/contexts/GameContext";
 import type { Game } from "@/types/game";
-import { Box, Typography, Alert } from "@mui/material";
+import { Box, Typography, Alert, Paper, Chip, IconButton, Tooltip } from "@mui/material";
 import { GameActions } from "./GameActions";
 import GameOverDetails from "./GameOverDetails";
 import GameOverOverlay from "./GameOverOverlay";
 import LichessBoard from "./lichess-board";
 import UserLink from "./user-link";
 import TimeControl from "./TimeControl";
+import CachedIcon from '@mui/icons-material/Cached';
+import ShareIcon from '@mui/icons-material/Share';
+import TuneIcon from '@mui/icons-material/Tune';
 
 const e1Fix = String.fromCharCode(
   ...[
@@ -26,20 +29,58 @@ interface GameStatusProps {
   myColor: "white" | "black" | null;
 }
 
-// Player information display component
-const PlayerInfo = ({ username, isOpponent = false }: PlayerInfoProps) => (
+// Player card component - Lichess style with integrated time
+const PlayerCard = ({ 
+  username, 
+  isOpponent = false, 
+  rating = 1956,
+  timeLeft,
+  isCurrentTurn,
+  color
+}: PlayerInfoProps & { 
+  rating?: number; 
+  timeLeft?: string;
+  isCurrentTurn?: boolean;
+  color: 'white' | 'black';
+}) => (
   <Box
     sx={{
-      width: "100%",
-      maxWidth: 800,
-      mb: isOpponent ? 2 : 0,
-      mt: isOpponent ? 0 : 2,
       display: "flex",
-      justifyContent: "center",
       alignItems: "center",
+      justifyContent: "space-between",
+      p: 1.5,
+      bgcolor: isCurrentTurn ? "rgba(255,255,255,0.06)" : "transparent",
+      borderRadius: 0,
+      minHeight: 56,
     }}
   >
-    <UserLink username={username} />
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+      <Box sx={{ 
+        width: 10, 
+        height: 10, 
+        borderRadius: "50%", 
+        bgcolor: "#76ff03",
+      }} />
+      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+        <Typography sx={{ color: "#bababa", fontWeight: 500, fontSize: '1rem' }}>
+          {username}
+        </Typography>
+        <Typography sx={{ color: "#888", fontSize: "0.9rem" }}>
+          {rating}
+        </Typography>
+      </Box>
+    </Box>
+    {timeLeft && (
+      <Typography sx={{ 
+        fontFamily: 'monospace',
+        fontSize: '1.8rem',
+        fontWeight: isCurrentTurn ? 700 : 400,
+        color: isCurrentTurn ? '#fff' : '#bababa',
+        letterSpacing: '0.05em',
+      }}>
+        {timeLeft}
+      </Typography>
+    )}
   </Box>
 );
 
@@ -65,25 +106,18 @@ const GameStatus = ({ game, currentTurnName, myColor }: GameStatusProps) => {
       <Typography sx={{ color: "white" }}>
         Status: {game.status} •{" "}
         {isBanPhase ? (
-          <>
-            {game.banningPlayer === myColor ? (
-              <span style={{ 
-                color: "#ff9800", 
-                fontWeight: "bold",
-              }}>
-                🚫 Your turn to ban a move
-              </span>
-            ) : (
-              <span style={{ 
-                color: "#ffa726", 
-                opacity: 0.9,
-              }}>
-                {game.banningPlayer === "white" ? "White" : "Black"} is banning
-              </span>
-            )}
-          </>
+          <span
+            style={{
+              color: "#ff9800",
+              fontWeight: "bold",
+            }}
+          >
+            🚫 {game.banningPlayer === "white" ? "White" : "Black"} is selecting a move to ban
+          </span>
         ) : (
-          <>Current Turn: {currentTurnName} ({game.turn})</>
+          <>
+            Current Turn: {currentTurnName} ({game.turn})
+          </>
         )}
       </Typography>
     </Box>
@@ -92,19 +126,29 @@ const GameStatus = ({ game, currentTurnName, myColor }: GameStatusProps) => {
 
 // Main GameBoard component
 const GameBoard = () => {
-  const { game, myColor, playerUsernames } = useGame();
-  const isSpectator = !myColor;
+  const { game, myColor, playerUsernames, isLocalGame, localGameOrientation, actions } =
+    useGame();
+  const isSpectator = !myColor && !isLocalGame;
 
   if (!game)
     return <Typography sx={{ color: "white" }}>Loading game...</Typography>;
 
   // Determine player names
-  const opponentName =
-    myColor === "white" ? playerUsernames.black : playerUsernames.white;
-  const myName =
-    myColor === "white" ? playerUsernames.white : playerUsernames.black;
-  const currentTurnName =
-    game.turn === "white" ? playerUsernames.white : playerUsernames.black;
+  const opponentName = isLocalGame
+    ? (localGameOrientation === "white" ? "Black" : "White")
+    : myColor === "white"
+      ? playerUsernames.black
+      : playerUsernames.white;
+  const myName = isLocalGame
+    ? (localGameOrientation === "white" ? "White" : "Black")
+    : myColor === "white"
+      ? playerUsernames.white
+      : playerUsernames.black;
+  const currentTurnName = isLocalGame
+    ? (game.turn === "white" ? "White" : "Black")
+    : game.turn === "white"
+      ? playerUsernames.white
+      : playerUsernames.black;
 
   // Determine opponent color
   const opponentColor = myColor === "white" ? "black" : "white";
@@ -114,40 +158,33 @@ const GameBoard = () => {
       sx={{
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        flex: 1,
+        width: 560,
+        maxWidth: "100%",
+        bgcolor: 'rgba(0,0,0,0.2)',
+        borderRadius: 1,
+        overflow: 'hidden',
       }}
     >
-      {/* Spectator indicator */}
-      {isSpectator && (
-        <Alert 
-          severity="info" 
-          sx={{ 
-            mb: 2, 
-            maxWidth: 600,
-            width: "90%",
-          }}
-        >
-          👁️ You are spectating this game between {playerUsernames.white} and {playerUsernames.black}
-        </Alert>
-      )}
+      {/* Top player card */}
+      <PlayerCard
+        username={isSpectator ? playerUsernames.black : opponentName}
+        isOpponent={true}
+        isCurrentTurn={game.turn === opponentColor}
+        color={opponentColor}
+        rating={1956}
+        timeLeft={!isLocalGame ? "00:54" : undefined}
+      />
 
-      {/* Opponent info */}
-      <PlayerInfo username={isSpectator ? playerUsernames.black : opponentName} isOpponent={true} />
-
-      {/* Time control for opponent/black */}
-      <TimeControl playerColor={isSpectator ? "black" : opponentColor} />
-
-      {/* Chess board with ban phase indicator as overlay */}
+      {/* Chess board container */}
       <Box
         sx={{
           width: "100%",
           position: "relative",
+          bgcolor: "transparent",
         }}
       >
         {/* Ban phase indicator - only show prominent alert for banning player */}
-        {game.banningPlayer === myColor && (
+        {((isLocalGame && game.banningPlayer) || (!isLocalGame && game.banningPlayer === myColor)) && (
           <Box
             sx={{
               position: "absolute",
@@ -174,28 +211,77 @@ const GameBoard = () => {
                 },
               }}
             >
-              Your turn to BAN - Select any opponent move!
+              {isLocalGame 
+                ? `${game.banningPlayer === "white" ? "White" : "Black"}'s turn to BAN - Select opponent's move!`
+                : "Your turn to BAN - Select any opponent move!"}
             </Alert>
           </Box>
         )}
         <LichessBoard />
         {game.status === "finished" && <GameOverOverlay />}
+        
+        {/* Board control buttons - Lichess style */}
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 0.5,
+          p: 1,
+          bgcolor: 'transparent',
+        }}>
+          <Tooltip title="Flip board">
+            <IconButton
+              size="small"
+              onClick={() => actions.flipBoardOrientation?.()}
+              sx={{ 
+                color: '#888',
+                bgcolor: (isLocalGame ? localGameOrientation === 'black' : myColor === 'black') 
+                  ? 'rgba(255,255,255,0.1)' 
+                  : 'transparent',
+                '&:hover': { 
+                  color: '#bababa',
+                  bgcolor: (isLocalGame ? localGameOrientation === 'black' : myColor === 'black')
+                    ? 'rgba(255,255,255,0.15)'
+                    : 'rgba(255,255,255,0.05)',
+                },
+              }}
+            >
+              <CachedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Analysis board">
+            <IconButton
+              size="small"
+              sx={{ 
+                color: '#888',
+                '&:hover': { color: '#bababa' },
+              }}
+            >
+              <TuneIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Share">
+            <IconButton
+              size="small"
+              sx={{ 
+                color: '#888',
+                '&:hover': { color: '#bababa' },
+              }}
+            >
+              <ShareIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
 
-      {/* Time control for player/white */}
-      <TimeControl playerColor={isSpectator ? "white" : myColor!} />
-
-      {/* Player info */}
-      <PlayerInfo username={isSpectator ? playerUsernames.white : myName} />
-
-      {/* Game actions */}
-      <GameActions />
-
-      {/* Game Status */}
-      <GameStatus game={game} currentTurnName={currentTurnName} myColor={myColor} />
-
-      {/* Game Over Details (under status) */}
-      {game.status === "finished" && <GameOverDetails />}
+      {/* Bottom player card */}
+      <PlayerCard
+        username={isSpectator ? playerUsernames.white : myName}
+        isCurrentTurn={game.turn === myColor}
+        color={myColor || "white"}
+        rating={1970}
+        timeLeft={!isLocalGame ? "00:50" : undefined}
+      />
     </Box>
   );
 };

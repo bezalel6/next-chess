@@ -94,23 +94,20 @@ const TimeControlBase = ({ playerColor }: TimeControlProps) => {
     return (
         <Box
             sx={{
-                p: 1,
-                m: 1,
                 display: 'flex',
-                justifyContent: playerColor === 'white' ? 'flex-start' : 'flex-end',
-                bgcolor: 'background.paper',
-                borderRadius: 1,
-                boxShadow: 1,
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                p: 0.75,
+                bgcolor: 'rgba(0,0,0,0.2)',
                 width: '100%',
-                maxWidth: 800
             }}
         >
             <Typography
-                variant="h4"
                 sx={{
                     fontFamily: 'monospace',
-                    fontWeight: 'bold',
-                    color: getTimeColor()
+                    fontWeight: 500,
+                    fontSize: '1.1rem',
+                    color: timeLeft < 30000 ? '#ff6659' : '#bababa',
                 }}
             >
                 {formatTime(timeLeft)}

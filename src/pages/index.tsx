@@ -2,13 +2,7 @@ import Head from "next/head";
 import LichessBoard from "@/components/lichess-board";
 import QueueSystem from "@/components/QueueSystem";
 import AuthForm from "@/components/auth-form";
-import {
-  Box,
-  Container,
-  Typography,
-  Fade,
-  Paper,
-} from "@mui/material";
+import { Box, Container, Typography, Fade, Paper } from "@mui/material";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
@@ -67,7 +61,6 @@ export default function Home() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            minHeight: "calc(100vh - 200px)",
             py: 4,
           }}
         >
@@ -84,7 +77,8 @@ export default function Home() {
                 variant="h2"
                 sx={{
                   fontWeight: 700,
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  background:
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   mb: 2,
@@ -138,7 +132,8 @@ export default function Home() {
                     sx={{
                       p: 6,
                       width: "100%",
-                      background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+                      background:
+                        "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
                       backdropFilter: "blur(10px)",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                       borderRadius: 3,
@@ -159,7 +154,8 @@ export default function Home() {
                       elevation={8}
                       sx={{
                         p: 4,
-                        background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+                        background:
+                          "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
                         backdropFilter: "blur(10px)",
                         border: "1px solid rgba(255, 255, 255, 0.1)",
                         borderRadius: 3,

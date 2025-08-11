@@ -8,6 +8,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
 import LastPageIcon from '@mui/icons-material/LastPage';
+import CachedIcon from '@mui/icons-material/Cached';
 import { useSingleKeys, Keys } from "@/hooks/useKeys";
 import { useMagicalObjectMap } from "@/utils/magicalMap";
 
@@ -36,7 +37,7 @@ function pliesToMoves(plies: Ply[]): Move[] {
   return moves;
 }
 const MoveHistory = () => {
-  const { game, setPgn } = useGame();
+  const { game, setPgn, actions, myColor, isLocalGame, localGameOrientation } = useGame();
   const [currentPlyIndex, setCurrentPlyIndex] = useState<number>(-1);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
   const prevGameIdRef = useRef<string | null>(null);
@@ -171,56 +172,44 @@ const MoveHistory = () => {
   return (
     <Box
       sx={{
-        width: { xs: '100%', md: '300px' },
-        height: { xs: 'auto', md: 'min(500px, 60vh)' },
-        bgcolor: 'rgba(10,10,10,0.8)',
-        borderRadius: 1,
-        alignSelf: 'center',
+        width: '100%',
+        height: 400, // Fixed height like Lichess
+        maxHeight: '60vh',
+        bgcolor: 'rgba(255,255,255,0.03)',
+        borderRadius: 0.5,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        mb: { xs: 3, md: 0 },
-        maxHeight: { xs: '40vh', md: 'min(500px, 60vh)' },
-        position: 'relative'
       }}
     >
-      {/* Header */}
-      <Box sx={{
-        p: 1,
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
-        bgcolor: 'rgba(0,0,0,0.3)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1
-      }}>
-        <Typography variant="subtitle2" sx={{ color: 'white', fontWeight: 'bold' }}>
-          Moves
-        </Typography>
-      </Box>
+      {/* No header - moves list starts immediately like Lichess */}
 
       {/* Move table with scroll */}
       <Box
         ref={moveHistoryRef}
         sx={{
-          flexGrow: 1,
-          overflow: 'auto',
-          width: '100%'
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          width: '100%',
+          p: 0,
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            bgcolor: 'transparent',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            bgcolor: 'rgba(255,255,255,0.2)',
+            borderRadius: '3px',
+            '&:hover': {
+              bgcolor: 'rgba(255,255,255,0.3)',
+            },
+          },
         }}
       >
         <Box sx={{ width: '100%', display: 'table', borderCollapse: 'collapse' }}>
-          {/* Table header */}
-          <Box sx={{ display: 'table-row', bgcolor: 'rgba(0,0,0,0.2)' }}>
-            <Box sx={{ display: 'table-cell', p: 1, width: '20%', color: 'rgba(255,255,255,0.7)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.75rem', textAlign: 'center' }}>
-              #
-            </Box>
-            <Box sx={{ display: 'table-cell', p: 1, width: '40%', color: 'rgba(255,255,255,0.7)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.75rem', textAlign: 'center' }}>
-              White
-            </Box>
-            <Box sx={{ display: 'table-cell', p: 1, width: '40%', color: 'rgba(255,255,255,0.7)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.75rem', textAlign: 'center' }}>
-              Black
-            </Box>
-          </Box>
+          {/* No table header - cleaner look */}
 
           {/* Game moves */}
           {moves.map((move) => (
@@ -234,13 +223,15 @@ const MoveHistory = () => {
         </Box>
       </Box>
 
-      {/* Navigation Bar */}
+      {/* Navigation Bar - Lichess style */}
       <Box sx={{
         display: 'flex',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 0.5,
         p: 1,
-        borderTop: '1px solid rgba(255,255,255,0.1)',
-        bgcolor: 'rgba(0,0,0,0.3)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        bgcolor: 'rgba(0,0,0,0.2)',
       }}>
         <Tooltip title="First Move (Home)">
           <span>
@@ -265,6 +256,26 @@ const MoveHistory = () => {
               <ChevronLeftIcon fontSize="small" />
             </IconButton>
           </span>
+        </Tooltip>
+        <Tooltip title="Flip Board">
+          <IconButton
+            size="small"
+            onClick={() => actions.flipBoardOrientation?.()}
+            sx={{ 
+              color: 'white', 
+              mx: 1,
+              bgcolor: (isLocalGame ? localGameOrientation === 'black' : myColor === 'black') 
+                ? 'rgba(255,255,255,0.15)' 
+                : 'transparent',
+              '&:hover': { 
+                bgcolor: (isLocalGame ? localGameOrientation === 'black' : myColor === 'black')
+                  ? 'rgba(255,255,255,0.2)'
+                  : 'rgba(255,255,255,0.08)',
+              },
+            }}
+          >
+            <CachedIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
         <Tooltip title="Next Move (Right Arrow)">
           <span>
@@ -308,32 +319,35 @@ function MovesRow({
     <Box
       sx={{
         display: 'table-row',
-        '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' }
       }}
     >
       <Box sx={{
         display: 'table-cell',
-        p: 1,
-        color: 'rgba(255,255,255,0.5)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        fontSize: '0.75rem',
-        textAlign: 'center',
+        pr: 1,
+        pl: 1.5,
+        color: '#888',
+        fontSize: '0.875rem',
+        textAlign: 'right',
         verticalAlign: 'middle',
-        width: '10%'
+        width: '15%',
+        fontWeight: 400,
       }}>
-        {move.number}
+        {move.number}.
       </Box>
       <Box sx={{
         display: 'table-cell',
-        p: 1,
-        color: 'white',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        fontSize: '0.8rem',
-        textAlign: 'center',
+        py: 0.5,
+        px: 1.5,
+        color: selectedPly?.index === move.white.index ? '#fff' : '#bababa',
+        fontSize: '0.95rem',
+        textAlign: 'left',
         verticalAlign: 'middle',
-        bgcolor: selectedPly?.index === move.white.index ? 'rgba(255,255,255,0.15)' : 'transparent',
+        bgcolor: selectedPly?.index === move.white.index ? 'rgba(255,204,0,0.25)' : 'transparent',
         cursor: 'pointer',
-        width: '45%'
+        width: '42.5%',
+        fontWeight: selectedPly?.index === move.white.index ? 600 : 400,
+        '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+        borderRadius: selectedPly?.index === move.white.index ? '3px 0 0 3px' : 0,
       }}
         onClick={() => onPlyClick(move.white)}
       >
@@ -341,15 +355,18 @@ function MovesRow({
       </Box>
       <Box sx={{
         display: 'table-cell',
-        p: 1,
-        color: 'white',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        fontSize: '0.8rem',
-        textAlign: 'center',
+        py: 0.5,
+        px: 1.5,
+        color: selectedPly?.index === move.black?.index ? '#fff' : '#bababa',
+        fontSize: '0.95rem',
+        textAlign: 'left',
         verticalAlign: 'middle',
-        bgcolor: selectedPly?.index === move.black?.index ? 'rgba(255,255,255,0.15)' : 'transparent',
+        bgcolor: selectedPly?.index === move.black?.index ? 'rgba(255,204,0,0.25)' : 'transparent',
         cursor: move.black ? 'pointer' : 'default',
-        width: '45%'
+        width: '42.5%',
+        fontWeight: selectedPly?.index === move.black?.index ? 600 : 400,
+        '&:hover': move.black ? { bgcolor: 'rgba(255,255,255,0.08)' } : {},
+        borderRadius: selectedPly?.index === move.black?.index ? '0 3px 3px 0' : 0,
       }}
         onClick={() => move.black && onPlyClick(move.black)}
       >

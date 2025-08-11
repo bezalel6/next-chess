@@ -7,73 +7,92 @@ import { useState } from "react";
 import GameBoardV2 from "@/components/GameBoardV2";
 import GameLoading from "@/components/GameLoading";
 import LoadingScreen from "@/components/LoadingScreen";
-import MoveHistory from "@/components/MoveHistory";
+import RightSidebar from "@/components/RightSidebar";
 import NotFoundScreen from "@/components/NotFoundScreen";
 
 // Left sidebar components
-const LeftSidebar = ({ gameId }: { gameId: string }) => (
-    <Box sx={{ 
-        display: { xs: 'none', lg: 'flex' },
-        flexDirection: 'column',
-        width: 280,
-        flexShrink: 0,
-        gap: 2,
-    }}>
-        {/* Game info */}
-        <Box sx={{
-            bgcolor: 'rgba(255,255,255,0.03)',
-            borderRadius: 0.5,
-            p: 2,
-        }}>
-            <Typography sx={{ color: '#bababa', fontSize: '0.85rem', mb: 1 }}>1+0 • Rated • Bullet</Typography>
-            <Typography sx={{ color: '#7a7a7a', fontSize: '0.8rem' }}>right now</Typography>
-        </Box>
+const LeftSidebar = () => {
+    const { game } = useGame();
+    
+    // Calculate time ago
+    const getTimeAgo = () => {
+        if (!game?.created_at) return 'just now';
+        const created = new Date(game.created_at);
+        const now = new Date();
+        const diffMs = now.getTime() - created.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
         
-        {/* Chat room */}
-        <Box sx={{
-            bgcolor: 'rgba(255,255,255,0.03)',
-            borderRadius: 0.5,
-            p: 2,
-            flex: 1,
+        if (diffMins < 1) return 'just now';
+        if (diffMins === 1) return '1 minute ago';
+        if (diffMins < 60) return `${diffMins} minutes ago`;
+        
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours === 1) return '1 hour ago';
+        if (diffHours < 24) return `${diffHours} hours ago`;
+        
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays === 1) return '1 day ago';
+        return `${diffDays} days ago`;
+    };
+    
+    // Get time control format (e.g., "10+0" for 10 minutes, no increment)
+    const getTimeControl = () => {
+        if (!game) return '10+0';
+        
+        // Check for time control in game object
+        const initialTime = game.timeControl?.initialTime || 
+                          game.time_control?.initial_time || 
+                          600000; // Default 10 minutes
+        
+        const increment = game.timeControl?.increment || 
+                         game.time_control?.increment || 
+                         0;
+        
+        const minutes = Math.floor(initialTime / 60000);
+        return `${minutes}+${increment}`;
+    };
+    
+    // Determine game speed category
+    const getGameSpeed = () => {
+        const timeControl = getTimeControl();
+        const [minutes] = timeControl.split('+').map(Number);
+        
+        if (minutes < 3) return 'Bullet';
+        if (minutes < 8) return 'Blitz';
+        if (minutes < 15) return 'Rapid';
+        return 'Classical';
+    };
+    
+    return (
+        <Box sx={{ 
             display: 'flex',
             flexDirection: 'column',
+            width: 240,
+            flexShrink: 0,
         }}>
-            <Typography sx={{ color: '#bababa', fontSize: '0.9rem', mb: 2 }}>Chat room</Typography>
-            <Box sx={{ flex: 1 }} />
-            <Typography sx={{ color: '#7a7a7a', fontSize: '0.8rem', textAlign: 'center' }}>
-                Please be nice in the chat!
-            </Typography>
+            {/* Game info */}
+            <Box sx={{
+                bgcolor: 'rgba(255,255,255,0.03)',
+                borderRadius: 0.5,
+                p: 2,
+            }}>
+                <Typography sx={{ color: '#bababa', fontSize: '0.85rem', mb: 0.5 }}>
+                    {getTimeControl()} • {game?.is_rated ? 'Rated' : 'Casual'} • {getGameSpeed()}
+                </Typography>
+                <Typography sx={{ color: '#7a7a7a', fontSize: '0.8rem' }}>
+                    {getTimeAgo()}
+                </Typography>
+            </Box>
         </Box>
-        
-        {/* Notes */}
-        <Box sx={{
-            bgcolor: 'rgba(255,255,255,0.03)',
-            borderRadius: 0.5,
-            p: 2,
-        }}>
-            <Typography sx={{ color: '#bababa', fontSize: '0.9rem', mb: 1 }}>Notes</Typography>
-            <textarea 
-                placeholder="Notes" 
-                style={{
-                    width: '100%',
-                    minHeight: 80,
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#bababa',
-                    fontSize: '0.85rem',
-                    outline: 'none',
-                    resize: 'vertical',
-                }}
-            />
-        </Box>
-    </Box>
-);
+    );
+};
 
 export default function GamePage() {
     const { game, loading, myColor, playerUsernames, isLocalGame } = useGame();
     const router = useRouter();
     const { id } = router.query;
     const [accessError, setAccessError] = useState<string | null>(null);
+    const [boardFlipped, setBoardFlipped] = useState(false);
 
     // Title based on game state
     const pageTitle = game
@@ -87,13 +106,12 @@ export default function GamePage() {
             </Head>
             <Box sx={{
                 display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                height: '100%',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '100vh',
                 bgcolor: '#161512',
                 p: 2,
-                gap: 2,
-                justifyContent: 'center',
-                alignItems: 'flex-start',
             }}>
                 {loading ? (
                     id && typeof id === 'string' ? (
@@ -106,54 +124,40 @@ export default function GamePage() {
                         <LoadingScreen />
                     )
                 ) : game ? (
-                    <>
+                    // Main game container - centered and constrained
+                    <Box sx={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        gap: 2,
+                        maxWidth: 1400,
+                        width: '100%',
+                        justifyContent: 'center',
+                        alignItems: 'flex-start',
+                    }}>
                         {/* Left sidebar */}
-                        <LeftSidebar gameId={id as string} />
+                        {!isLocalGame && <LeftSidebar />}
                         
-                        {/* Center - Game board and scoreboard */}
+                        {/* Center - Game board */}
                         <Box sx={{ 
-                            flex: '0 1 auto',
                             display: 'flex',
-                            flexDirection: 'column',
+                            justifyContent: 'center',
                             alignItems: 'center',
-                            gap: 2,
-                        }}>
-                            <GameBoardV2 />
-                            
-                            {/* Scoreboard below board - only show for non-local games */}
-                            {!isLocalGame && (
-                                <Box sx={{
-                                    bgcolor: 'rgba(255,255,255,0.03)',
-                                    borderRadius: 0.5,
-                                    p: 1.5,
-                                    display: 'flex',
-                                    justifyContent: 'space-around',
-                                    width: 560,
-                                    maxWidth: '100%',
-                                }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography sx={{ color: '#888', fontSize: '0.75rem' }}>bezalel6</Typography>
-                                            <Typography sx={{ color: '#bababa', fontSize: '1.25rem', fontWeight: 600 }}>0</Typography>
-                                        </Box>
-                                        <Typography sx={{ color: '#666' }}>-</Typography>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography sx={{ color: '#888', fontSize: '0.75rem' }}>Shantnu_Rajpoot</Typography>
-                                            <Typography sx={{ color: '#bababa', fontSize: '1.25rem', fontWeight: 600 }}>0</Typography>
-                                        </Box>
-                                    </Box>
-                                </Box>
-                            )}
-                        </Box>
-                        
-                        {/* Right sidebar - Move history */}
-                        <Box sx={{ 
-                            width: { xs: '100%', md: 280 },
                             flexShrink: 0,
                         }}>
-                            <MoveHistory />
+                            <GameBoardV2 
+                                orientation={boardFlipped 
+                                    ? (myColor === 'white' ? 'black' : 'white')
+                                    : (myColor || 'white')
+                                }
+                            />
                         </Box>
-                    </>
+                        
+                        {/* Right sidebar - Player info, moves, actions */}
+                        <RightSidebar 
+                            boardFlipped={boardFlipped}
+                            onFlipBoard={() => setBoardFlipped(!boardFlipped)}
+                        />
+                    </Box>
                 ) : (
                     <NotFoundScreen message={accessError || "Game not found"} />
                 )}

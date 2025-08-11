@@ -198,23 +198,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   ]);
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        maxWidth: 560,
-        aspectRatio: '1/1',
-        position: 'relative',
-        borderRadius: 1,
-        overflow: 'hidden',
-        boxShadow: 3,
-        bgcolor: 'background.paper',
-        ...(canBan && {
-          outline: '3px solid',
-          outlineColor: 'error.main',
-          outlineOffset: 2,
-        }),
-      }}
-    >
+    <>
       <AnimatePresence>
         {canBan && (
           <motion.div
@@ -231,12 +215,47 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
               pointerEvents: 'none',
               zIndex: 10,
               background: 'radial-gradient(circle, transparent 30%, rgba(255,0,0,0.1) 100%)',
+              outline: '3px solid rgba(255,0,0,0.5)',
+              outlineOffset: -3,
+              borderRadius: 'inherit',
             }}
           />
         )}
       </AnimatePresence>
       
-      <Chessground config={config} />
-    </Box>
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          '& > div': {
+            width: '100% !important',
+            height: '100% !important',
+          },
+          '& .cg-wrap': {
+            width: '100% !important',
+            height: '100% !important',
+            borderRadius: 'inherit',
+          },
+          '& .cg-container': {
+            position: 'absolute !important',
+            width: '100% !important',
+            height: '100% !important',
+          },
+          '& cg-board': {
+            width: '100% !important',
+            height: '100% !important',
+          },
+          '& square': {
+            width: '12.5% !important',
+            height: '12.5% !important',
+          },
+        }}
+      >
+        <Chessground config={config} />
+      </Box>
+    </>
   );
 }

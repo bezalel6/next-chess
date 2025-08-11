@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 import { Box, CircularProgress, Typography } from "@mui/material";
-import { supabase } from "@/utils/supabase";
+import { supabaseBrowser } from "@/utils/supabase-browser";
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -10,7 +10,7 @@ export default function AuthCallback() {
     const handleCallback = async () => {
       try {
         // Check if we have a session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabaseBrowser().auth.getSession();
         
         if (error) {
           console.error("Auth callback error:", error);

@@ -59,10 +59,67 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaLoading, setCaptchaLoading] = useState(true);
   const [showMagicLink, setShowMagicLink] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const turnstileRef = useRef<TurnstileInstance>(null);
   const router = useRouter();
+  
+  // Refs for input elements to detect autofill
+  const usernameInputRef = useRef<HTMLInputElement>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const loginUsernameInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+  const magicLinkEmailInputRef = useRef<HTMLInputElement>(null);
+  const [shrinkStates, setShrinkStates] = useState({
+    username: false,
+    email: false,
+    loginUsername: false,
+    password: false,
+    magicLinkEmail: false,
+  });
+
+  useEffect(() => {
+    // Check for autofill on mount and periodically
+    const checkAutofill = () => {
+      const refs = {
+        username: usernameInputRef.current,
+        email: emailInputRef.current,
+        loginUsername: loginUsernameInputRef.current,
+        password: passwordInputRef.current,
+        magicLinkEmail: magicLinkEmailInputRef.current,
+      };
+
+      const newShrinkStates = { ...shrinkStates };
+      let hasChanges = false;
+
+      Object.entries(refs).forEach(([key, ref]) => {
+        if (ref) {
+          const isAutofilled = ref.matches?.(':-webkit-autofill') || 
+                              ref.matches?.(':autofill') ||
+                              ref.value !== '';
+          if (newShrinkStates[key as keyof typeof shrinkStates] !== isAutofilled) {
+            newShrinkStates[key as keyof typeof shrinkStates] = isAutofilled;
+            hasChanges = true;
+          }
+        }
+      });
+
+      if (hasChanges) {
+        setShrinkStates(newShrinkStates);
+      }
+    };
+
+    // Check immediately and then periodically for a short time
+    checkAutofill();
+    const interval = setInterval(checkAutofill, 200);
+    const timeout = setTimeout(() => clearInterval(interval), 2000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [isSignUp, showMagicLink]);
 
   useEffect(() => {
     // Clear messages when changing auth mode
@@ -71,6 +128,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
       setSuccess(null);
       setUsernameError(null);
       setCaptchaToken(null);
+      setCaptchaLoading(true);
       turnstileRef.current?.reset();
     };
   }, [isSignUp]);
@@ -172,6 +230,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     } finally {
       setIsLoading(false);
       setCaptchaToken(null);
+      setCaptchaLoading(true);
       turnstileRef.current?.reset();
     }
   };
@@ -198,6 +257,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     } finally {
       setIsLoading(false);
       setCaptchaToken(null);
+      setCaptchaLoading(true);
       turnstileRef.current?.reset();
     }
   };
@@ -239,6 +299,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     } finally {
       setIsLoading(false);
       setCaptchaToken(null);
+      setCaptchaLoading(true);
       turnstileRef.current?.reset();
     }
   };
@@ -249,6 +310,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     setSuccess(null);
     setUsernameError(null);
     setCaptchaToken(null);
+    setCaptchaLoading(true);
     turnstileRef.current?.reset();
     // Clear username when switching to sign in
     if (isSignUp) {
@@ -269,6 +331,9 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
           return "Loading...";
       }
     }
+    if (captchaLoading && isFormValid()) {
+      return isSignUp ? "Verifying..." : "Verifying...";
+    }
     return isSignUp ? "Sign Up" : "Sign In";
   };
 
@@ -287,16 +352,19 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
 
   const handleTurnstileVerify = (token: string) => {
     setCaptchaToken(token);
+    setCaptchaLoading(false);
   };
 
   const handleTurnstileExpire = () => {
     setCaptchaToken(null);
+    setCaptchaLoading(true);
     turnstileRef.current?.reset();
   };
 
   const handleTurnstileError = (error?: Error | string) => {
     console.error('Turnstile error:', error);
     setCaptchaToken(null);
+    setCaptchaLoading(false);
     
     // Error 110200 means domain not configured properly
     if (error?.toString().includes('110200')) {
@@ -310,6 +378,8 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   useEffect(() => {
     if (!TURNSTILE_CONFIG.isEnabled()) {
       console.warn('Turnstile not configured properly');
+      setCaptchaLoading(false);
+      setCaptchaToken('bypass'); // Allow form submission without captcha in dev
     }
   }, []);
 
@@ -384,20 +454,29 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
               fullWidth
               disabled={isLoading}
               helperText="We'll send you a sign-in link to this email"
+              inputRef={magicLinkEmailInputRef}
+              InputLabelProps={{
+                shrink: shrinkStates.magicLinkEmail || !!magicLinkEmail,
+              }}
             />
             <Button
               type="submit"
               variant="contained"
               fullWidth
-              disabled={isLoading || !magicLinkEmail}
+              disabled={isLoading || !magicLinkEmail || !captchaToken}
               startIcon={
-                isLoading && submitAction === "magiclink" ? (
-                  <CircularProgress size={20} color="inherit" />
+                (isLoading && submitAction === "magiclink") || (captchaLoading && magicLinkEmail) ? (
+                  <CircularProgress size={18} color="inherit" />
                 ) : null
               }
+              sx={{
+                opacity: captchaLoading && magicLinkEmail && !isLoading ? 0.8 : 1,
+              }}
             >
               {isLoading && submitAction === "magiclink"
                 ? "Sending link..."
+                : captchaLoading && magicLinkEmail
+                ? "Verifying..."
                 : "Send Magic Link"}
             </Button>
             <Button
@@ -435,10 +514,14 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
                   : usernameError ||
                     "3-20 characters, letters, numbers, _ and - only"
               }
+              inputRef={usernameInputRef}
               InputProps={{
                 endAdornment: checkingUsername && (
                   <CircularProgress size={20} color="inherit" />
                 ),
+              }}
+              InputLabelProps={{
+                shrink: shrinkStates.username || !!username,
               }}
             />
           )}
@@ -451,6 +534,10 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
               required
               fullWidth
               disabled={isLoading}
+              inputRef={emailInputRef}
+              InputLabelProps={{
+                shrink: shrinkStates.email || !!email,
+              }}
             />
           ) : (
             <TextField
@@ -462,6 +549,10 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
               fullWidth
               disabled={isLoading}
               helperText="Enter your username to sign in"
+              inputRef={loginUsernameInputRef}
+              InputLabelProps={{
+                shrink: shrinkStates.loginUsername || !!loginUsername,
+              }}
             />
           )}
           <TextField
@@ -475,6 +566,10 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
             helperText={
               isSignUp ? "Password must be at least 6 characters" : ""
             }
+            inputRef={passwordInputRef}
+            InputLabelProps={{
+              shrink: shrinkStates.password || !!password,
+            }}
           />
           <Button
             type="submit"
@@ -482,10 +577,13 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
             fullWidth
             disabled={isLoading || !isFormValid() || !captchaToken}
             startIcon={
-              isLoading && submitAction !== "guest" ? (
-                <CircularProgress size={20} color="inherit" />
+              (isLoading && submitAction !== "guest") || (captchaLoading && isFormValid()) ? (
+                <CircularProgress size={18} color="inherit" />
               ) : null
             }
+            sx={{
+              opacity: captchaLoading && isFormValid() && !isLoading ? 0.8 : 1,
+            }}
           >
             {getButtonText()}
           </Button>
@@ -525,13 +623,18 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
             onClick={handleGuestSignIn}
             disabled={isLoading || !captchaToken}
             startIcon={
-              isLoading && submitAction === "guest" ? (
-                <CircularProgress size={20} color="inherit" />
+              (isLoading && submitAction === "guest") || captchaLoading ? (
+                <CircularProgress size={18} color="inherit" />
               ) : null
             }
+            sx={{
+              opacity: captchaLoading && !isLoading ? 0.8 : 1,
+            }}
           >
             {submitAction === "guest" && isLoading
               ? "Continuing..."
+              : captchaLoading
+              ? "Verifying..."
               : "Continue as Guest"}
           </Button>
         </Box>

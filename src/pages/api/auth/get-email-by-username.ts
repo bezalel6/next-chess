@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env';
+import { createSupabaseServerClient } from '@/utils/supabase-server';
 
 const supabaseAdmin = createClient(
   env.NEXT_PUBLIC_SUPABASE_URL,

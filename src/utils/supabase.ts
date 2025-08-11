@@ -1,48 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
-import { env } from "../env";
-import type { Session } from "@supabase/supabase-js";
+// Legacy export - use supabase-browser.ts or supabase-server.ts instead
+import { supabaseBrowser } from "./supabase-browser";
 import type { Database } from "@/types/database";
 
-const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error("Missing Supabase environment variables!");
-}
-
-// Create Supabase client with auto-injected auth headers for edge functions
-export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-  global: {
-    fetch: async (url: RequestInfo | URL, options?: RequestInit) => {
-      try {
-        return await fetch(url, options);
-      } catch (error) {
-        console.error(`Supabase fetch error:`, {
-          url,
-          method: options?.method || "GET",
-          headers: options?.headers,
-          error:
-            error instanceof Error
-              ? {
-                  message: error.message,
-                  stack: error.stack,
-                  name: error.name,
-                }
-              : error,
-        });
-        throw error;
-      }
-    },
-    headers: {
-      "X-Client-Info": "next-chess",
-    },
-  },
-});
+// Export the browser client as the default for backward compatibility
+// This will use cookie-based session storage
+export const supabase = supabaseBrowser();
 
 /**
  * Invoke a Supabase Edge Function with authentication

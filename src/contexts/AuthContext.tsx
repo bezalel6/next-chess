@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/utils/supabase";
+import { supabaseBrowser } from "@/utils/supabase-browser";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface UserProfile {
@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Check if username already exists (case-insensitive)
     const checkUsernameExists = async (username: string): Promise<boolean> => {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseBrowser()
             .from('profiles')
             .select('username')
             .ilike('username', username)
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Function to fetch or create user profile
     const fetchProfile = async (userId: string, createUsername?: string) => {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseBrowser()
                 .from('profiles')
                 .select('username')
                 .eq('id', userId)
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     const username = createUsername || await generateUniqueUsername();
 
                     // First check if profile exists again to avoid race conditions
-                    const { data: existingProfile } = await supabase
+                    const { data: existingProfile } = await supabaseBrowser()
                         .from('profiles')
                         .select('username')
                         .eq('id', userId)
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         return existingProfile;
                     }
 
-                    const { error: insertError, data: insertedData } = await supabase
+                    const { error: insertError, data: insertedData } = await supabaseBrowser()
                         .from('profiles')
                         .insert({ id: userId, username })
                         .select('username')
@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         // If insert fails due to duplicate key, the profile was likely created
                         // in a race condition - try to fetch it again
                         if (insertError.code === '23505') {
-                            const { data: existingProfile, error: fetchError } = await supabase
+                            const { data: existingProfile, error: fetchError } = await supabaseBrowser()
                                 .from('profiles')
                                 .select('username')
                                 .eq('id', userId)
@@ -155,6 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     useEffect(() => {
+        const supabase = supabaseBrowser();
+        
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             updateUserState(session);
@@ -193,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email = data.email.toLowerCase();
         }
         
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabaseBrowser().auth.signInWithPassword({
             email,
             password,
             options: {
@@ -217,7 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         try {
             // Create the user with username in metadata
-            const { data, error } = await supabase.auth.signUp({
+            const { data, error } = await supabaseBrowser().auth.signUp({
                 email: normalizedEmail,
                 password,
                 options: {
@@ -234,7 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 throw error;
             }
             
-            await supabase
+            await supabaseBrowser()
                 .from('profiles')
                 .insert({ id: data.user.id, username: normalizedUsername })
                 .select('username')
@@ -261,10 +263,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const signOut = async () => {
         try {
             // First check if there's an active session
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supabaseBrowser().auth.getSession();
             
             if (session) {
-                const { error } = await supabase.auth.signOut();
+                const { error } = await supabaseBrowser().auth.signOut();
                 if (error && !error.message?.includes('session missing')) {
                     console.error('Sign out error:', error);
                     throw error;
@@ -290,7 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const signInAsGuest = async (captchaToken?: string) => {
         const randomUsername = await generateUniqueUsername('guest_');
 
-        const { data, error } = await supabase.auth.signInAnonymously({
+        const { data, error } = await supabaseBrowser().auth.signInAnonymously({
             options: {
                 data: { username: randomUsername },
                 ...(captchaToken && { captchaToken })
@@ -304,7 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signInWithGoogle = async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
+        const { error } = await supabaseBrowser().auth.signInWithOAuth({
             provider: 'google',
             options: {
                 redirectTo: `${window.location.origin}/auth/callback`,
@@ -321,7 +323,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const signInWithMagicLink = async (email: string, captchaToken?: string) => {
         const normalizedEmail = email.toLowerCase().trim();
         
-        const { error } = await supabase.auth.signInWithOtp({
+        const { error } = await supabaseBrowser().auth.signInWithOtp({
             email: normalizedEmail,
             options: {
                 emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -345,7 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         }
 
-        const { error } = await supabase
+        const { error } = await supabaseBrowser()
             .from('profiles')
             .update({ username: normalizedUsername })
             .eq('id', user.id);

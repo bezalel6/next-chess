@@ -46,6 +46,38 @@ This is a real-time multiplayer chess application with a unique "ban move" mecha
 - Different sound effects for bans vs moves
 - Red outline on board during ban selection
 
+## Code Change Philosophy
+
+### Minimalist Debugging Approach
+When fixing bugs or issues in this codebase:
+
+1. **Targeted Fixes Only**: 
+   - Fix EXACTLY what's broken, nothing more
+   - Don't refactor adjacent code unless it's the cause
+   - Don't add "nice to have" improvements
+
+2. **E2E Test Specific Rules**:
+   - Timing issues: Increase by minimum viable amount (100-500ms increments)
+   - Never restructure test architecture to fix a simple timing issue
+   - Parallel execution is preferred - don't sequentialize unless absolutely necessary
+
+3. **Rate Limit Handling**:
+   - Simple delays over complex retry logic
+   - One strategic wait over multiple defensive waits
+   - If Supabase rate limit: Add ONE delay at auth/setup, not throughout
+
+4. **File Modification Limits**:
+   - Bug fix in single component: Touch ONLY that file
+   - Cross-component issue: Maximum 2-3 files
+   - Architectural change: MUST ask permission first
+
+### Forbidden Patterns (Unless Explicitly Requested)
+- Creating new "utility" or "helper" files for one-time fixes
+- Adding abstraction layers to "make it cleaner"
+- Refactoring working code while fixing unrelated bugs
+- Adding comprehensive error handling when fixing a specific error
+- Converting simple fixes into complex state machines
+
 ## Authentication System
 
 ### Auth Routes
@@ -91,6 +123,24 @@ This is a real-time multiplayer chess application with a unique "ban move" mecha
 - **Psychological Element**: Predicting what your opponent wants to play becomes crucial
 - **Time Management**: Both banning phase and moving phase consume clock time
 
+## Custom Claude Commands
+
+### Frontend Review Commands
+When asked to review a UI screenshot or implementation, automatically perform:
+
+**`/ui-audit`** - Comprehensive positioning and alignment check:
+1. First scan for edge-touching elements
+2. Check all banners/notifications for center alignment
+3. Verify spacing consistency around primary content
+4. Look for visual weight imbalances
+5. Rate severity of any issues found
+6. Suggest specific CSS fixes with exact positioning values
+
+**`/positioning-check`** - Quick positioning verification:
+- Identify top 3 most critical positioning issues
+- Provide immediate fix recommendations
+- Flag any elements that violate spatial hierarchy
+
 ## Essential Commands
 
 ### Development
@@ -122,6 +172,62 @@ npm run preview          # Build and start preview
 npm run typegen          # Generate TypeScript types from Supabase schema
 npm run db:remote-reset  # Reset remote database (use with caution)
 ```
+
+## Frontend Design Review Standards
+
+### CRITICAL: Positioning and Alignment Analysis
+
+When reviewing UI screenshots or implementing frontend changes, you MUST analyze the following positioning aspects as TOP PRIORITY:
+
+#### 1. **Spatial Hierarchy Violations** (IMMEDIATE RED FLAGS)
+- **Banner/Notification Positioning**: Any important notification or action banner (like "Select opponent's move to ban") MUST be:
+  - Centered horizontally relative to its context (e.g., above/below the game board)
+  - Have consistent margins/padding from adjacent elements
+  - NEVER awkwardly touch or overlap primary content areas
+  - NEVER be positioned at edges or corners unless explicitly designed as a corner element
+- **Overlapping Elements**: Call out ANY elements that inappropriately overlap or touch edges of main content
+- **Misaligned Centers**: Flag when elements that should be centered are offset
+
+#### 2. **Visual Weight and Balance**
+- Check if UI elements are properly balanced around the visual center
+- Identify when heavy elements (like banners) are positioned asymmetrically
+- Flag when important CTAs or notifications are pushed to edges instead of prominent positions
+
+#### 3. **Positioning Checklist for Game UIs**
+When reviewing chess/game board interfaces specifically:
+- [ ] Action banners are centered above/below the board with proper spacing
+- [ ] No UI elements awkwardly touch board edges
+- [ ] Overlays maintain consistent padding from board boundaries
+- [ ] Player information is symmetrically positioned
+- [ ] Time displays align with their respective player positions
+- [ ] Control buttons have consistent spacing and alignment
+
+#### 4. **Required Callouts**
+You MUST immediately flag these positioning issues:
+- Elements touching edges when they should float
+- Off-center positioning of centered elements
+- Inconsistent margins between related elements
+- Overlapping that obscures important information
+- Banners/notifications in corners when they should be prominent
+- Any element that "feels" awkwardly placed even if technically functional
+
+#### 5. **Severity Levels for Positioning Issues**
+- **CRITICAL**: Banners/CTAs in wrong positions (like edge-touching instead of centered)
+- **HIGH**: Misaligned primary elements, broken visual hierarchy
+- **MEDIUM**: Inconsistent spacing, minor alignment issues
+- **LOW**: Pixel-perfect adjustments, micro-spacing issues
+
+### Example of What to Flag
+**BAD** (Must be called out immediately):
+- "Select opponent's move to ban" banner positioned at top-right edge of board
+- Banner touching/overlapping board boundary
+- Important action UI pushed to corner instead of centered
+
+**GOOD** (Proper positioning):
+- Banner centered horizontally above board
+- Consistent 20-30px margin from board top
+- Clear visual separation from board content
+- Maintains visual hierarchy with proper prominence
 
 ## UI/UX Design Philosophy
 
@@ -305,3 +411,5 @@ No test framework is currently configured. Verify changes by:
 - Use the V2 components (`GameBoardV2`, `GameContextV2`) for the refactored version
 - use es module syntax when working with e2e tests
 - By default you will run the dev server in a background shell if it is not running already
+- Always use dotenv when you want to have an env variable set for a session, to ensure platform compatibility
+- before commiting a package.json update that involved a dependency modification, make sure to get package-lock.json updated as well

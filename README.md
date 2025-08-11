@@ -1,29 +1,143 @@
-# Create T3 App
+# Ban Chess - Multiplayer Chess with Move Banning
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+A real-time multiplayer chess application with a unique "ban move" mechanic. Before each move, the opponent selects one legal move to ban, forcing constant adaptation and strategic thinking.
 
-## What's next? How do I make an app with this?
+## Features
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+- **Ban Chess Mechanic**: Before every move, your opponent bans one of your legal moves
+- **Real-time Multiplayer**: WebSocket-based gameplay via Supabase Realtime
+- **Matchmaking System**: Automatic player pairing with queue system
+- **Lichess-inspired UI**: Clean, familiar interface for chess players
+- **Guest Authentication**: Quick play without registration
+- **Time Controls**: Server-managed chess clocks for fair play
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## Tech Stack
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+- **Frontend**: Next.js 14, TypeScript, Material-UI
+- **Backend**: Supabase (PostgreSQL, Realtime, Auth)
+- **Chess Logic**: Chess.ts library
+- **State Management**: Zustand + TanStack Query
+- **Testing**: Playwright for E2E tests
+- **Animations**: Framer Motion
 
-## Learn More
+## Development
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+### Prerequisites
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+- Node.js 18+
+- Bun or npm
+- Supabase CLI (for local development)
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+### Setup
 
-## How do I deploy this?
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+3. Set up environment variables:
+   ```bash
+   # Copy .env.example to .env and fill in your Supabase credentials
+   cp .env.example .env
+   ```
+
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+### Available Scripts
+
+```bash
+# Development
+npm run dev              # Start with Turbopack
+npm run dev:local        # Start with local environment
+
+# Code Quality
+npm run lint             # Run ESLint
+npm run typecheck        # TypeScript type checking
+npm run format:check     # Check Prettier formatting
+npm run check            # Run lint + typecheck
+
+# Testing
+npm test                 # Run E2E tests with Playwright
+npm run test:ui          # Interactive test UI
+npm run test:debug       # Debug mode with visible browser
+npm run test:headed      # Run tests with visible browser
+
+# Build & Deploy
+npm run build            # Build for production
+npm run start            # Start production server
+```
+
+## Testing
+
+### E2E Tests
+
+The project uses Playwright for end-to-end testing with a type-safe selector system:
+
+- **Linker Pattern**: Type-safe test selectors shared between tests and components
+- **Rate Limit Management**: Built-in delays to avoid Supabase rate limits
+- **Two-Player Testing**: Simulates real multiplayer scenarios
+
+Run tests:
+```bash
+# Test mode automatically enables guest authentication
+npm test
+```
+
+### Test Architecture
+
+- `__tests__/e2e/` - E2E test files
+- `src/test-utils/linker.ts` - Type-safe selector definitions
+- Tests run with Chrome by default, other browsers available via flags
+
+## Project Structure
+
+```
+src/
+├── components/          # React components
+│   ├── LichessBoardV2.tsx    # Main game board
+│   ├── QueueSystem.tsx       # Matchmaking UI
+│   └── auth-form.tsx         # Authentication forms
+├── contexts/           # React contexts
+├── services/           # Business logic
+│   ├── gameService.ts       # Game state management
+│   └── matchmakingService.ts # Player matching
+├── pages/              # Next.js pages
+│   ├── api/            # API routes
+│   └── game/[id].tsx   # Game page
+├── stores/             # Zustand stores
+└── test-utils/         # Testing utilities
+```
+
+## Game Rules
+
+### Ban Chess Mechanics
+
+1. **Turn Sequence**:
+   - Opponent views all your legal moves
+   - Opponent selects ONE move to ban
+   - You play any remaining legal move
+   - Repeat for every turn
+
+2. **Strategic Elements**:
+   - Predict which move your opponent wants to play
+   - Ban their most dangerous options
+   - Adapt when your preferred move is banned
+
+3. **Time Management**:
+   - Ban selection counts against your clock
+   - Both players must manage time for banning AND moving
+
+## Contributing
+
+1. Follow the existing code style
+2. Add tests for new features
+3. Ensure all tests pass before submitting PR
+4. Update documentation as needed
+
+## License
+
+[MIT License](LICENSE)

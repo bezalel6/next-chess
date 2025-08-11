@@ -7,6 +7,19 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/playwright/.cache/
+playwright/.auth/
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.webm
+*.trace.zip
+!public/**/*.png
+!public/**/*.jpg
+!public/**/*.jpeg
 
 # database
 /prisma/db.sqlite

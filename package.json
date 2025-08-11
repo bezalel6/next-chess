@@ -18,10 +18,15 @@
     "preview": "next build && next start",
     "start": "dotenv -e ./.env -- npx tsx src/server/server.ts",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "jest --config=e2e/jest.config.js",
-    "test:e2e:debug": "HEADLESS=false SLOW_MO=100 jest --config=e2e/jest.config.js",
-    "test:e2e:watch": "jest --config=e2e/jest.config.js --watch",
-    "test:e2e:screenshot": "node e2e/two-player-screenshot.js"
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:headed": "playwright test --headed",
+    "test:all-browsers": "playwright test --project=chromium --project=firefox --project=webkit",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:mobile": "playwright test --project='Mobile Chrome'",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",

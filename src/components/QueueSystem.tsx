@@ -35,6 +35,7 @@ import { GameService } from "@/services/gameService";
 import { UserService } from "@/services/userService";
 import { useRouter } from "next/router";
 import type { Game } from "@/types/game";
+import { Linker } from "@/test-utils/linker";
 
 interface GameWithOpponent extends Game {
   opponentName: string;
@@ -241,7 +242,7 @@ const QueueSystem = () => {
               startIcon={<StopCircle />}
               onClick={handleQueueToggle}
               size="large"
-              data-testid="cancel-queue-button"
+              {...Linker.queue.cancelButton()}
               sx={{
                 px: 4,
                 py: 1.5,
@@ -294,7 +295,7 @@ const QueueSystem = () => {
             onClick={handleQueueToggle}
             size="large"
             disabled={hasActiveGames || checking}
-            data-testid="play-now-button"
+            {...Linker.queue.findGameButton()}
             sx={{
               px: 6,
               py: 2,

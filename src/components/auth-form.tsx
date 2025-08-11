@@ -19,6 +19,7 @@ import { z } from "zod";
 import { debounce } from "lodash";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { TURNSTILE_CONFIG } from "@/config/turnstile";
+import { Linker } from "@/test-utils/linker";
 
 // Zod schema for username validation
 const usernameSchema = z
@@ -547,6 +548,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
               InputLabelProps={{
                 shrink: shrinkStates.username || !!username,
               }}
+              {...Linker.auth.usernameInput()}
             />
           )}
           {isSignUp ? (
@@ -562,6 +564,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
               InputLabelProps={{
                 shrink: shrinkStates.email || !!email,
               }}
+              {...Linker.auth.emailInput()}
             />
           ) : (
             <TextField
@@ -594,6 +597,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
             InputLabelProps={{
               shrink: shrinkStates.password || !!password,
             }}
+            {...Linker.auth.passwordInput()}
           />
           <Button
             type="submit"
@@ -608,10 +612,16 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
             sx={{
               opacity: captchaLoading && isFormValid() && !isLoading ? 0.8 : 1,
             }}
+            {...(isSignUp ? Linker.auth.signupButton() : Linker.auth.loginButton())}
           >
             {getButtonText()}
           </Button>
-          <Button variant="text" onClick={toggleSignUp} disabled={isLoading}>
+          <Button 
+            variant="text" 
+            onClick={toggleSignUp} 
+            disabled={isLoading}
+            {...(isSignUp ? Linker.auth.switchToLogin() : Linker.auth.switchToSignup())}
+          >
             {isSignUp
               ? "Already have an account? Sign In"
               : "Need an account? Sign Up"}
@@ -654,6 +664,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
             sx={{
               opacity: captchaLoading && !isLoading ? 0.8 : 1,
             }}
+            {...Linker.auth.signInAsGuest()}
           >
             {submitAction === "guest" && isLoading
               ? "Continuing..."

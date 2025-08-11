@@ -28,11 +28,11 @@ export default async function handler(
   }
 
   try {
-    // Look up the user id by username from profiles table
+    // Look up the user id by username from profiles table (case-insensitive)
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id')
-      .eq('username', username)
+      .ilike('username', username)
       .single();
     
     if (profileError || !profile?.id) {

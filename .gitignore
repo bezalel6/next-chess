@@ -81,6 +81,14 @@ start-database.sh
 
 # Claude configuration
 .claude/
+CLAUDE.local.md
 
 # Build info
 tsconfig.tsbuildinfo
+
+# Package lock files
+bun.lock
+
+# Documentation files
+DOCKER_README.md
+SELF_HOSTED_README.md

@@ -27,8 +27,8 @@ interface AuthContextType {
     session: Session | null;
     isLoading: boolean;
     profile: UserProfile | null;
-    signIn: (email: string, password: string) => Promise<void>;
-    signUp: (email: string, password: string, username: string) => Promise<SignUpStatus>;
+    signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
+    signUp: (email: string, password: string, username: string, captchaToken?: string) => Promise<SignUpStatus>;
     signOut: () => Promise<void>;
     signInAsGuest: () => Promise<void>;
     signInWithGoogle: () => Promise<void>;
@@ -46,12 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isGuest, setIsGuest] = useState(false);
     const [profile, setProfile] = useState<UserProfile | null>(null);
 
-    // Check if username already exists
+    // Check if username already exists (case-insensitive)
     const checkUsernameExists = async (username: string): Promise<boolean> => {
         const { data, error } = await supabase
             .from('profiles')
             .select('username')
-            .eq('username', username)
+            .ilike('username', username)
             .limit(1);
 
         if (error) throw error;
@@ -169,18 +169,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    const signIn = async (usernameOrEmail: string, password: string) => {
-        let email = usernameOrEmail;
+    const signIn = async (usernameOrEmail: string, password: string, captchaToken?: string) => {
+        let email = usernameOrEmail.toLowerCase().trim();
         
         // Check if the input looks like a username (no @ symbol)
-        if (!usernameOrEmail.includes('@')) {
+        if (!email.includes('@')) {
             // Call API to get email by username
             const response = await fetch('/api/auth/get-email-by-username', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username: usernameOrEmail }),
+                body: JSON.stringify({ username: email }),
             });
             
             if (!response.ok) {
@@ -189,36 +189,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             
             const data = await response.json();
-            email = data.email;
+            email = data.email.toLowerCase();
         }
         
         const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
+            options: captchaToken ? {
+                captchaToken
+            } : undefined
         });
         if (error) throw error;
     };
 
-    const signUp = async (email: string, password: string, username: string): Promise<SignUpStatus> => {
+    const signUp = async (email: string, password: string, username: string, captchaToken?: string): Promise<SignUpStatus> => {
+        // Normalize email and username
+        const normalizedEmail = email.toLowerCase().trim();
+        const normalizedUsername = username.toLowerCase().trim();
+        
         // First check if username is already taken
-        const usernameExists = await checkUsernameExists(username);
+        const usernameExists = await checkUsernameExists(normalizedUsername);
         if (usernameExists) {
             throw new UsernameExistsError("Username already taken. Please choose another username.");
         }
 
         // Create the user with username in metadata
         const { data, error } = await supabase.auth.signUp({
-            email,
+            email: normalizedEmail,
             password,
             options: {
-                data: { username }
+                data: { username: normalizedUsername },
+                ...(captchaToken ? { captchaToken } : {})
             }
         });
 
         if (error) throw error;
         await supabase
             .from('profiles')
-            .insert({ id: data.user.id, username })
+            .insert({ id: data.user.id, username: normalizedUsername })
             .select('username')
             .single();
 
@@ -276,9 +284,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const updateUsername = async (username: string) => {
         if (!user) throw new Error("User not authenticated");
 
-        // Skip check if username isn't changing
-        if (username !== profile?.username) {
-            const usernameExists = await checkUsernameExists(username);
+        const normalizedUsername = username.toLowerCase().trim();
+        
+        // Skip check if username isn't changing (case-insensitive)
+        if (normalizedUsername !== profile?.username?.toLowerCase()) {
+            const usernameExists = await checkUsernameExists(normalizedUsername);
             if (usernameExists) {
                 throw new UsernameExistsError("Username already taken. Please choose another username.");
             }
@@ -286,12 +296,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const { error } = await supabase
             .from('profiles')
-            .update({ username })
+            .update({ username: normalizedUsername })
             .eq('id', user.id);
 
         if (error) throw error;
 
-        setProfile(prev => ({ ...prev!, username }));
+        setProfile(prev => ({ ...prev!, username: normalizedUsername }));
     };
 
     const value = {

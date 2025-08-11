@@ -277,6 +277,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   };
 
   const handleCaptchaVerify = (token: string) => {
+    console.log('hCaptcha verified with token:', token);
     setCaptchaToken(token);
   };
 

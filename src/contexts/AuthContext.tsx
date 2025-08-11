@@ -193,14 +193,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email = data.email.toLowerCase();
         }
         
+        console.log('Signing in with captcha token:', captchaToken ? 'Token present' : 'No token');
+        
         const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
-            options: captchaToken ? {
-                captchaToken
-            } : undefined
+            options: {
+                ...(captchaToken && { captchaToken })
+            }
         });
-        if (error) throw error;
+        
+        if (error) {
+            console.error('Sign in error:', error);
+            throw error;
+        }
     };
 
     const signUp = async (email: string, password: string, username: string, captchaToken?: string): Promise<SignUpStatus> => {
@@ -215,17 +221,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         try {
+            console.log('Signing up with captcha token:', captchaToken ? 'Token present' : 'No token');
+            
             // Create the user with username in metadata
             const { data, error } = await supabase.auth.signUp({
                 email: normalizedEmail,
                 password,
                 options: {
                     data: { username: normalizedUsername },
-                    ...(captchaToken ? { captchaToken } : {})
+                    ...(captchaToken && { captchaToken })
                 }
             });
 
             if (error) {
+                console.error('Sign up error:', error);
                 // Check if it's a captcha-related error
                 if (error.message?.includes('captcha') || error.status === 500) {
                     throw new Error("Captcha verification failed. Please try again.");

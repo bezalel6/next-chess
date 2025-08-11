@@ -196,7 +196,10 @@ The application follows Lichess's proven design patterns:
 
 ### Testing Infrastructure
 - **`e2e/`** - Complete E2E testing setup with Puppeteer
-- **`NEXT_PUBLIC_USE_TEST_CAPTCHA=true`** - Uses Cloudflare test keys that always pass
+  - `two-player-screenshot.js` - Captures 1920x1080 screenshots from both players' perspectives
+  - Parallelized player setup for faster test execution
+  - Fuzzy button matching for robust UI interaction
+- **`NEXT_PUBLIC_USE_TEST_AUTH=true`** - Bypasses authentication for testing purposes (enables "Continue as Guest" button)
 
 ## Development Guidelines
 
@@ -288,8 +291,10 @@ No test framework is currently configured. Verify changes by:
 - Use `bun run dev` for development with hot reload
 - Always run `bun run typecheck` before committing
 - Check `bun run lint` for code quality
-- **E2E Testing**: `bun run test:e2e` (automatically uses test captcha keys)
-- **Debug E2E**: `bun run test:e2e:debug` (runs with visible browser)
+- **E2E Testing**: 
+  - Run dev server: `NEXT_PUBLIC_USE_TEST_AUTH=true bun run dev`
+  - Run tests: `node e2e/two-player-screenshot.js`
+  - Creates `player1_perspective.png` and `player2_perspective.png` screenshots
 
 ### Key Refactor Notes
 - **DO NOT** trust old comments about "initial ban phase" - they're wrong
@@ -299,3 +304,4 @@ No test framework is currently configured. Verify changes by:
 - Banned moves should be stored in database, not PGN comments
 - Use the V2 components (`GameBoardV2`, `GameContextV2`) for the refactored version
 - use es module syntax when working with e2e tests
+- By default you will run the dev server in a background shell if it is not running already

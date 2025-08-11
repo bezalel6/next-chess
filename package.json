@@ -10,7 +10,7 @@
     "supabase:start": "dotenv -e ./.env.local -- npx supabase start",
     "typegen": "supabase gen types --local > src/types/database.ts; cp src/types/database.ts supabase/functions/_shared/database-types.ts",
     "db:remote-reset": "npx supabase@beta db reset --linked",
-    "dev": "dotenv -e ./.env -- npx tsx src/server/server.ts",
+    "dev": "dotenv -e ./.env -v NEXT_PUBLIC_USE_TEST_AUTH=true -- npx tsx src/server/server.ts",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",
@@ -20,7 +20,8 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "jest --config=e2e/jest.config.js",
     "test:e2e:debug": "HEADLESS=false SLOW_MO=100 jest --config=e2e/jest.config.js",
-    "test:e2e:watch": "jest --config=e2e/jest.config.js --watch"
+    "test:e2e:watch": "jest --config=e2e/jest.config.js --watch",
+    "test:e2e:screenshot": "node e2e/two-player-screenshot.js"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",
@@ -68,9 +69,11 @@
     "zustand": "^5.0.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
     "@types/jest": "^30.0.0",
     "@types/puppeteer": "^7.0.4",
     "jest": "^30.0.5",
+    "playwright": "^1.54.2",
     "prettier": "^3.2.5",
     "puppeteer": "^24.16.1",
     "ts-jest": "^29.4.1",

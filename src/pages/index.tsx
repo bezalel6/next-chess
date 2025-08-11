@@ -1,46 +1,56 @@
 import Head from "next/head";
 import LichessBoard from "@/components/lichess-board";
-import FindMatch from "@/components/find-match";
-import Login from "@/components/login";
+import QueueSystem from "@/components/QueueSystem";
+import AuthForm from "@/components/auth-form";
 import ServerStats from "@/components/server-stats";
-import ActiveGames from "@/components/active-games";
 import {
   Box,
   Container,
-  Grid,
-  Paper,
   Typography,
-  Divider,
+  Fade,
+  Paper,
 } from "@mui/material";
 import { useGame } from "@/contexts/GameContext";
-import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 
 export default function Home() {
   const { game } = useGame();
-  const { queue } = useConnection();
-  const { user } = useAuth();
-  const [hasActiveGames, setHasActiveGames] = useState(false);
+  const { user, isLoading } = useAuth();
+  const [mounted, setMounted] = useState(false);
 
-  // Check if user has active games to adjust UI
   useEffect(() => {
-    async function checkForActiveGames() {
-      if (!user) {
-        setHasActiveGames(false);
-        return;
-      }
+    setMounted(true);
+  }, []);
 
-      // try {
-      //   const games = await GameService.getUserActiveGames(user.id);
-      //   setHasActiveGames(games.length > 0);
-      // } catch (error) {
-      //   console.error('Error checking for active games:', error);
-      // }
-    }
-
-    checkForActiveGames();
-  }, [user]);
+  // If there's an active game, show the board
+  if (game) {
+    return (
+      <>
+        <Head>
+          <title>Ban Chess - Game in Progress</title>
+          <meta
+            name="description"
+            content="Play Ban Chess - the unique chess variant where you can ban one of your opponent's moves each turn"
+          />
+          <link rel="icon" href="/logo.png" />
+        </Head>
+        <Container maxWidth="lg">
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+              py: 4,
+            }}
+          >
+            <LichessBoard />
+          </Box>
+        </Container>
+      </>
+    );
+  }
 
   return (
     <>
@@ -58,120 +68,158 @@ export default function Home() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 4,
+            minHeight: "calc(100vh - 200px)",
             py: 4,
           }}
         >
-          {/* Content area */}
-          <Typography
-            variant="h6"
-            sx={{ color: "grey.500", mb: 2, textAlign: "center" }}
-          >
-            A unique chess variant where you ban one of your opponent&apos;s
-            moves each turn
-          </Typography>
+          {/* Title and Description */}
+          <Fade in={mounted} timeout={600}>
+            <Box
+              sx={{
+                textAlign: "center",
+                mb: 6,
+                mt: 2,
+              }}
+            >
+              <Typography
+                variant="h2"
+                sx={{
+                  fontWeight: 700,
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  mb: 2,
+                  fontSize: { xs: "2.5rem", md: "3.5rem" },
+                }}
+              >
+                Ban Chess
+              </Typography>
+              <Typography
+                variant="h6"
+                sx={{
+                  color: "text.secondary",
+                  maxWidth: 600,
+                  mx: "auto",
+                  fontWeight: 400,
+                }}
+              >
+                A strategic chess variant where you ban your opponent's moves
+                before the game begins
+              </Typography>
+            </Box>
+          </Fade>
 
-          <Grid container spacing={4}>
-            {/* Left column - Server Status */}
-            <Grid item xs={12} md={3}>
+          {/* Main Content Area */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 4,
+              width: "100%",
+              maxWidth: 1200,
+              flexDirection: { xs: "column", lg: "row" },
+              alignItems: { xs: "center", lg: "flex-start" },
+              justifyContent: "center",
+              flex: 1,
+            }}
+          >
+            {/* Left Side - Server Stats */}
+            <Fade in={mounted} timeout={800}>
               <Box
                 sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 3,
+                  width: { xs: "100%", sm: 350, lg: 280 },
+                  display: { xs: "none", md: "block" },
                 }}
               >
                 <ServerStats />
               </Box>
-            </Grid>
+            </Fade>
 
-            {/* Center column - Game board */}
-            <Grid item xs={12} md={6}>
+            {/* Center - Auth or Queue System */}
+            <Fade in={mounted} timeout={1000}>
               <Box
                 sx={{
+                  flex: 1,
+                  maxWidth: 500,
+                  width: "100%",
                   display: "flex",
-                  flexDirection: "column",
-                  gap: 3,
                   alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                <div
-                  className={`chess-container ${hasActiveGames && !game ? "expanded-container" : ""}`}
-                >
-                  {game ? (
-                    <LichessBoard />
-                  ) : (
+                {isLoading ? (
+                  <Paper
+                    elevation={8}
+                    sx={{
+                      p: 6,
+                      width: "100%",
+                      background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+                      backdropFilter: "blur(10px)",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      borderRadius: 3,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Typography variant="body1" color="text.secondary">
+                      Loading...
+                    </Typography>
+                  </Paper>
+                ) : user ? (
+                  <QueueSystem />
+                ) : (
+                  <Box sx={{ width: "100%" }}>
                     <Paper
-                      elevation={2}
+                      elevation={8}
                       sx={{
-                        width: "100%",
-                        height: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "space-between",
                         p: 4,
+                        background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+                        backdropFilter: "blur(10px)",
+                        border: "1px solid rgba(255, 255, 255, 0.1)",
+                        borderRadius: 3,
                       }}
                     >
-                      {hasActiveGames ? (
-                        /* When there are active games, show only those */
-                        <ActiveGames fullHeight />
-                      ) : (
-                        /* When no active games, show welcome message */
-                        <>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              flex: 1,
-                            }}
-                          >
-                            <Typography variant="h5" gutterBottom>
-                              Welcome to Ban Chess
-                            </Typography>
-                            <Typography
-                              variant="body1"
-                              align="center"
-                              sx={{ mb: 2 }}
-                            >
-                              Click &quot;Play&quot; below to find an opponent
-                              and start a new game.
-                            </Typography>
-                            {queue.inQueue && (
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                              >
-                                Finding opponent...{" "}
-                                {queue.position > 0 &&
-                                  `(${queue.position}/${queue.size})`}
-                              </Typography>
-                            )}
-                          </Box>
-                        </>
-                      )}
+                      <Typography
+                        variant="h5"
+                        sx={{
+                          textAlign: "center",
+                          mb: 3,
+                          fontWeight: 600,
+                        }}
+                      >
+                        Sign in to Play
+                      </Typography>
+                      <AuthForm redirectOnSuccess={false} />
                     </Paper>
-                  )}
-                </div>
-                <FindMatch />
+                  </Box>
+                )}
               </Box>
-            </Grid>
+            </Fade>
 
-            {/* Right column - Login */}
-            <Grid item xs={12} md={3}>
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 3,
-                  alignItems: "center",
-                }}
-              >
-                <Login />
-              </Box>
-            </Grid>
-          </Grid>
+            {/* Right Side - Placeholder for future features */}
+            <Box
+              sx={{
+                width: { xs: "100%", sm: 350, lg: 280 },
+                display: { xs: "none", lg: "block" },
+              }}
+            >
+              {/* Space for future features like leaderboard, recent games, etc. */}
+            </Box>
+          </Box>
+
+          {/* Mobile Server Stats */}
+          <Fade in={mounted} timeout={1200}>
+            <Box
+              sx={{
+                width: "100%",
+                maxWidth: 400,
+                display: { xs: "block", md: "none" },
+                mt: 4,
+              }}
+            >
+              <ServerStats />
+            </Box>
+          </Fade>
         </Box>
       </Container>
     </>

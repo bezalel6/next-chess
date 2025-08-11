@@ -17,6 +17,7 @@ import React, { useState, useEffect } from "react";
 import TabDialog from "./TabDialog";
 import UserLink from "./user-link";
 import Logo from "./Logo";
+import UserMenu from "./UserMenu";
 
 // Hook for scroll-based header effects
 function useScrollEffect() {
@@ -54,33 +55,9 @@ const Header = () => {
   };
 
   const navigationItems = [
-    profile && (
-      <Button
-        key="following"
-        variant="outlined"
-        size="small"
-        href="/following"
-        sx={{
-          textTransform: "none",
-          fontWeight: 500,
-          fontSize: "0.95rem",
-          px: 2.5,
-          py: 0.9,
-          borderRadius: "8px",
-          borderColor: "rgba(168, 85, 247, 0.3)",
-          color: "rgba(255, 255, 255, 0.9)",
-          "&:hover": {
-            borderColor: "rgba(168, 85, 247, 0.5)",
-            bgcolor: "rgba(168, 85, 247, 0.08)",
-          },
-        }}
-      >
-        Following
-      </Button>
-    ),
     <HowToPlayDialog key="how-to-play" />,
     <AboutDialog key="about" />,
-  ].filter(Boolean);
+  ];
 
   if (!mounted) return null;
 
@@ -143,49 +120,11 @@ const Header = () => {
                   </Box>
                 </Fade>
 
-                {/* Mobile User Info */}
-                {displayUserInfo() && (
+                {/* Mobile User Menu */}
+                {profile && (
                   <Fade in={mounted} timeout={1000}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        px: 2,
-                        py: 1,
-                        borderRadius: 2,
-                        bgcolor: "rgba(255, 255, 255, 0.05)",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        backdropFilter: "blur(8px)",
-                        transition: "all 0.3s ease",
-                        "&:hover": {
-                          bgcolor: "rgba(255, 255, 255, 0.08)",
-                          borderColor: "rgba(255, 255, 255, 0.15)",
-                        },
-                      }}
-                    >
-                      {profile?.username ? (
-                        <UserLink username={profile.username} />
-                      ) : (
-                        <>
-                          <PersonIcon
-                            sx={{
-                              fontSize: "1rem",
-                              color: "rgba(255, 255, 255, 0.6)",
-                            }}
-                          />
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontWeight: 500,
-                              fontSize: "0.8rem",
-                              color: "rgba(255, 255, 255, 0.9)",
-                            }}
-                          >
-                            {displayUserInfo()}
-                          </Typography>
-                        </>
-                      )}
+                    <Box>
+                      <UserMenu />
                     </Box>
                   </Fade>
                 )}
@@ -267,49 +206,11 @@ const Header = () => {
                   gap: 2,
                 }}
               >
-                {/* Desktop User Info */}
-                {displayUserInfo() && (
+                {/* Desktop User Menu */}
+                {profile && (
                   <Fade in={mounted} timeout={1000}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        px: 2,
-                        py: 1,
-                        borderRadius: 2,
-                        bgcolor: "rgba(255, 255, 255, 0.05)",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        backdropFilter: "blur(8px)",
-                        transition: "all 0.3s ease",
-                        "&:hover": {
-                          bgcolor: "rgba(255, 255, 255, 0.08)",
-                          borderColor: "rgba(255, 255, 255, 0.15)",
-                        },
-                      }}
-                    >
-                      {profile?.username ? (
-                        <UserLink username={profile.username} />
-                      ) : (
-                        <>
-                          <PersonIcon
-                            sx={{
-                              fontSize: "1.1rem",
-                              color: "rgba(255, 255, 255, 0.6)",
-                            }}
-                          />
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontWeight: 500,
-                              fontSize: "0.875rem",
-                              color: "rgba(255, 255, 255, 0.9)",
-                            }}
-                          >
-                            {displayUserInfo()}
-                          </Typography>
-                        </>
-                      )}
+                    <Box>
+                      <UserMenu />
                     </Box>
                   </Fade>
                 )}

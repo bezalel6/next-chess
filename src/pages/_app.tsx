@@ -12,6 +12,9 @@ import theme from '@/theme';
 import { AuthProvider } from "@/contexts/AuthContext";
 import Head from "next/head";
 import Layout from "@/components/Layout";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { useState } from 'react';
 
 export type PageProps = {
   title?: string;
@@ -23,10 +26,22 @@ const defaultPageProps: PageProps = {
   title: "Ban Chess"
 }
 const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
+  const [queryClient] = useState(
+    () => new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 1000 * 10, // 10 seconds
+          refetchOnWindowFocus: false,
+        },
+      },
+    })
+  );
+
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Head>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Head>
         <title>{pageProps.title || defaultPageProps.title}</title>
         <meta name="description" content={pageProps.description || defaultPageProps.description} />
         {/* Open Graph meta tags for social sharing */}
@@ -48,7 +63,9 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
           </Layout>
         </ConnectionProvider>
       </AuthProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
     </ThemeProvider>
+    </QueryClientProvider>
   );
 };
 

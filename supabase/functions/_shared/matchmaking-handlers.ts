@@ -135,7 +135,7 @@ export async function handleCreateMatch(
         current_fen: INITIAL_FEN,
         pgn: "",
         turn: "white",
-        banning_player: "black",
+        banning_player: "black", // Black must ban before White's first move
         time_control: {
           initial_time: timeControl.initialTime,
           increment: timeControl.increment,

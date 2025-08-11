@@ -239,13 +239,16 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     setSubmitAction("guest");
 
     try {
-      if (!captchaToken) {
+      // Only check captcha if it's enabled
+      if (TURNSTILE_CONFIG.isEnabled() && !captchaToken) {
         setError("Please wait for security verification to complete");
         setIsLoading(false);
         return;
       }
       
-      await signInAsGuest(captchaToken);
+      // Skip captcha in test environment
+      const token = TURNSTILE_CONFIG.isEnabled() ? captchaToken : 'test-token';
+      await signInAsGuest(token);
       setSuccess("Signed in as guest! Redirecting...");
       // Redirect after successful guest signin
       redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
@@ -620,7 +623,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
             variant="outlined"
             fullWidth
             onClick={handleGuestSignIn}
-            disabled={isLoading || !captchaToken}
+            disabled={isLoading || (TURNSTILE_CONFIG.isEnabled() && !captchaToken)}
             startIcon={
               (isLoading && submitAction === "guest") || captchaLoading ? (
                 <CircularProgress size={18} color="inherit" />

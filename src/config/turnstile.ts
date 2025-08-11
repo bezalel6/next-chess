@@ -8,6 +8,10 @@ export const TURNSTILE_CONFIG = {
   
   // Check if Turnstile is enabled
   isEnabled: () => {
+    // Allow disabling for E2E tests
+    if (process.env.NEXT_PUBLIC_DISABLE_CAPTCHA === 'true') {
+      return false;
+    }
     const key = TURNSTILE_CONFIG.siteKey;
     return !!(key && key !== '' && key !== 'undefined');
   },

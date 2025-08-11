@@ -172,7 +172,8 @@ async function handleMakeMove(
         pgn: moveResult.newPgn,
         last_move: move as unknown as Json, // Type cast for database storage
         turn: playerColor === "white" ? "black" : "white",
-        banning_player: playerColor,
+        banning_player: status === "finished" ? null : playerColor, // Next opponent must ban (unless game over)
+        current_banned_move: null, // Clear the banned move after it's been avoided
         status,
         result: gameOverState.result,
         end_reason: gameOverState.reason,
@@ -280,8 +281,9 @@ async function handleBanMove(
   // Check if the game is over after banning this move
   const gameOverState = isGameOver(game.current_fen, updatedPgn);
   const updateData: Record<string, any> = {
-    banning_player: null,
+    banning_player: null, // Clear banning_player so the turn player can move
     pgn: updatedPgn,
+    current_banned_move: { from: move.from, to: move.to }, // Track the banned move for this turn
   };
 
   // If the game is over after this ban, update the game status
@@ -306,6 +308,17 @@ async function handleBanMove(
   if (updateError) {
     return errorResponse(`Failed to update game: ${updateError.message}`, 500);
   }
+
+  // Store ban in history table for analysis
+  const moveNumber = game.pgn ? game.pgn.split(' ').filter(s => s.includes('.')).length + 1 : 1;
+  const { error: historyError } = await (supabase as any).from("ban_history").insert({
+    game_id: gameId,
+    move_number: moveNumber,
+    banned_by: userColor,
+    banned_move: { from: move.from, to: move.to },
+  });
+
+  logOperation("record ban history", historyError);
 
   // Record ban event
   await recordEvent(

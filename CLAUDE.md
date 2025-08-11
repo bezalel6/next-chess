@@ -6,12 +6,60 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a real-time multiplayer chess application with a unique "ban move" mechanic, inspired by Lichess's design and functionality. In Ban Chess, before each player makes a move, their opponent selects one legal move to ban, forcing constant adaptation and strategic thinking.
 
+## ⚠️ CRITICAL ISSUES IDENTIFIED AND SOLUTIONS
+
+### 1. **Fundamental Game Flow Misunderstanding (FIXED)**
+**Issue**: The junior developer misunderstood Ban Chess as having an "initial ban phase" where each player bans one move at the start, then plays normal chess. This is completely wrong.
+
+**Correct Implementation**: Ban Chess requires the opponent to ban ONE move before EVERY single move throughout the entire game:
+- White's turn → Black bans one of White's moves → White plays
+- Black's turn → White bans one of Black's moves → Black plays
+- This continues until checkmate/draw
+
+**Solution Implemented**:
+- Updated game flow to properly implement continuous banning
+- Fixed `banning_player` field to correctly alternate after each move
+- Added `current_banned_move` to track the banned move for each turn
+- Created `ban_history` table for proper tracking
+
+### 2. **Inconsistent Local vs Online Games**
+**Issue**: Local games had a different implementation (two initial bans only) vs online games (accidentally closer to correct).
+
+**Solution**: Unified game logic - both modes now use the same continuous ban-move cycle.
+
+### 3. **Poor State Management**
+**Issue**: Game state scattered across database, PGN comments, and local state. Banned moves stored as PGN comments (hacky, not queryable).
+
+**Solution Implemented**:
+- Added Zustand store for UI state (`src/stores/gameStore.ts`)
+- Added TanStack Query for server state management
+- Moved banned moves to proper database columns (`current_banned_move`, `ban_history`)
+- Clear phase tracking: `waiting_for_ban`, `selecting_ban`, `waiting_for_move`, `making_move`
+
+### 4. **Confusing UX for Ban Phase**
+**Issue**: Unclear visual feedback, no ban timeline, confusing state transitions.
+
+**Solution Implemented**:
+- `BanPhaseOverlay` component with clear indicators
+- `BanTimeline` component showing ban history
+- Framer Motion animations for smooth transitions
+- Different sound effects for bans vs moves
+- Red outline on board during ban selection
+
+## Modern Architecture Stack
+
 ### Core Technologies
 - **Next.js 14** (Pages Router) with TypeScript
 - **Supabase** for database, authentication, and real-time functionality
 - **Material-UI** for component styling
 - **Chess.ts** for chess logic
 - **WebSockets** via Supabase Realtime for live game updates
+
+### New Additions for Production Quality
+- **TanStack Query** - Server state management with optimistic updates
+- **Zustand** - Client-side state management for UI
+- **Framer Motion** - Smooth animations and transitions
+- **Puppeteer** - E2E testing infrastructure
 
 ### Ban Chess Mechanic - Core Rules
 - **Dynamic Ban System**: Before EVERY move, the opponent bans one of your legal moves
@@ -115,6 +163,23 @@ The application follows Lichess's proven design patterns:
 - **Matchmaking Queue**: Real-time queue management
 - **Time Controls**: Server-managed chess clocks
 
+## New Components Created
+
+### State Management
+- **`src/stores/gameStore.ts`** - Zustand store for game UI state
+- **`src/contexts/GameContextV2.tsx`** - Simplified game context using TanStack Query
+- **`src/hooks/useGameActions.ts`** - Game actions with optimistic updates
+
+### UI Components  
+- **`src/components/BanPhaseOverlay.tsx`** - Clear ban phase indicators
+- **`src/components/BanTimeline.tsx`** - Visual ban history timeline
+- **`src/components/GameBoardV2.tsx`** - Refactored game board
+- **`src/components/LichessBoardV2.tsx`** - Simplified board with proper ban logic
+
+### Testing Infrastructure
+- **`e2e/`** - Complete E2E testing setup with Puppeteer
+- **`NEXT_PUBLIC_DISABLE_CAPTCHA=true`** - Environment variable for testing
+
 ## Development Guidelines
 
 ### TypeScript Configuration
@@ -169,16 +234,21 @@ No test framework is currently configured. Verify changes by:
 - Supabase Realtime requires careful connection management
 - WebSocket reconnection logic is critical for user experience
 
-### Game Flow
+### Correct Game Flow (IMPORTANT - This was previously wrong!)
 1. **Matchmaking**: Players join queue and get paired
-2. **Game Start**: Standard chess position
+2. **Game Start**: 
+   - Initial state: `turn=white`, `banning_player=black`
+   - Black must ban one of White's opening moves
 3. **Each Turn Cycle**:
-   - **Active Player's Turn**: Player to move waits
-   - **Opponent Bans**: Opponent reviews all legal moves and selects one to ban
-   - **Move Execution**: Active player plays from remaining legal moves
-   - **Switch Sides**: Roles reverse for next turn
-4. **Continuous Play**: Ban-then-move cycle continues until game end
-5. **Game End**: Checkmate/stalemate/draw with rematch option
+   - **Ban Phase**: Opponent of current turn player selects one move to ban
+   - **Move Phase**: Current turn player makes any remaining legal move
+   - **State Update**: After move, `banning_player` is set to the player who just moved
+   - **Repeat**: Other player now faces a ban before their move
+4. **Example Sequence**:
+   - Black bans e2e4 → White plays d2d4 → `banning_player=white`
+   - White bans d7d5 → Black plays e7e6 → `banning_player=black`
+   - Black bans Ng1f3 → White plays Nb1c3 → continues...
+5. **Game End**: Checkmate/stalemate/draw (including if only banned move remains)
 
 ### Ban Phase Details
 - **Visual Feedback**: Banned moves are grayed out/disabled on the board
@@ -197,12 +267,16 @@ No test framework is currently configured. Verify changes by:
 - **Time format**: MM:SS display in monospace font
 
 ### Development Workflow
-- Use `npm run dev` for development with hot reload
-- Always run `npm run typecheck` before committing
-- Check `npm run lint` for code quality
-- Test ban mechanics for every move in local game mode first
-- Verify ban selection UI appears before each move
-- Ensure banned moves are properly disabled for that turn only
-- Verify UI matches Lichess design patterns
-- Ensure scoreboard visibility rules (online only)
-- Test board flip toggle state persistence
+- Use `bun run dev` for development with hot reload
+- Always run `bun run typecheck` before committing
+- Check `bun run lint` for code quality
+- **E2E Testing**: `NEXT_PUBLIC_DISABLE_CAPTCHA=true bun run test:e2e`
+- **Debug E2E**: `HEADLESS=false SLOW_MO=100 bun run test:e2e:debug`
+
+### Key Refactor Notes
+- **DO NOT** trust old comments about "initial ban phase" - they're wrong
+- The game uses continuous banning throughout, not just at start
+- `banning_player` field indicates who must ban next (not who is currently banning)
+- After each move, `banning_player` is set to the player who just moved
+- Banned moves should be stored in database, not PGN comments
+- Use the V2 components (`GameBoardV2`, `GameContextV2`) for the refactored version

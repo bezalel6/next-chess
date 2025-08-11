@@ -1,9 +1,9 @@
 import Head from "next/head";
-import LichessBoard from "@/components/lichess-board";
+import LichessBoardV2 from "@/components/LichessBoardV2";
 import QueueSystem from "@/components/QueueSystem";
 import AuthForm from "@/components/auth-form";
 import { Box, Container, Typography, Fade, Paper } from "@mui/material";
-import { useGame } from "@/contexts/GameContext";
+import { useGame } from "@/contexts/GameContextV2";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 
@@ -38,7 +38,7 @@ export default function Home() {
               py: 4,
             }}
           >
-            <LichessBoard />
+            <LichessBoardV2 orientation="white" />
           </Box>
         </Container>
       </>

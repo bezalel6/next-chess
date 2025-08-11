@@ -5,7 +5,6 @@ import { useRouter } from "next/router";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { GameMatch } from "../types/realtime";
 import { useAuth } from "./AuthContext";
-import { GameProvider } from "./GameContext";
 
 interface QueueState {
     inQueue: boolean;
@@ -250,9 +249,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
     return (
         <ConnectionContext.Provider value={value}>
-            <GameProvider>
-                {children}
-            </GameProvider>
+            {children}
         </ConnectionContext.Provider>
     );
 }

@@ -10,6 +10,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '@/theme';
 import { AuthProvider } from "@/contexts/AuthContext";
+import { GameProvider } from "@/contexts/GameContextV2";
 import Head from "next/head";
 import Layout from "@/components/Layout";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -58,9 +59,11 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
       </Head>
       <AuthProvider>
         <ConnectionProvider>
-          <Layout>
-            <Component {...pageProps} />
-          </Layout>
+          <GameProvider>
+            <Layout>
+              <Component {...pageProps} />
+            </Layout>
+          </GameProvider>
         </ConnectionProvider>
       </AuthProvider>
       <ReactQueryDevtools initialIsOpen={false} />

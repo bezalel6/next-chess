@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabaseBrowser } from "@/utils/supabase-browser";
 import type { User, Session } from "@supabase/supabase-js";
+import { TEST_MODE } from "@/config/test-mode";
 
 interface UserProfile {
     username: string | null;
@@ -173,6 +174,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const signIn = async (usernameOrEmail: string, password: string, captchaToken?: string) => {
+        // Use test auth endpoint if enabled
+        if (process.env.NEXT_PUBLIC_USE_TEST_AUTH === 'true') {
+            const response = await fetch('/api/test/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'signin',
+                    email: usernameOrEmail.includes('@') ? usernameOrEmail : `${usernameOrEmail}@test.com`,
+                    password
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Sign in failed');
+            }
+            
+            const { session } = await response.json();
+            
+            // Set the session in Supabase client
+            await supabaseBrowser().auth.setSession(session);
+            return;
+        }
+
         let email = usernameOrEmail.toLowerCase().trim();
         
         // Check if the input looks like a username (no @ symbol)
@@ -207,6 +232,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signUp = async (email: string, password: string, username: string, captchaToken?: string): Promise<SignUpStatus> => {
+        // Use test auth endpoint if enabled
+        if (process.env.NEXT_PUBLIC_USE_TEST_AUTH === 'true') {
+            const response = await fetch('/api/test/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'signup',
+                    email,
+                    password,
+                    username
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Sign up failed');
+            }
+            
+            const { session } = await response.json();
+            
+            // Set the session in Supabase client
+            await supabaseBrowser().auth.setSession(session);
+            
+            return {
+                confirmEmail: false,
+                message: 'Account created successfully'
+            };
+        }
+
         // Normalize email and username
         const normalizedEmail = email.toLowerCase().trim();
         const normalizedUsername = username.toLowerCase().trim();
@@ -224,7 +278,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 password,
                 options: {
                     data: { username: normalizedUsername },
-                    ...(captchaToken && { captchaToken })
+                    captchaToken: captchaToken // Pass captchaToken directly in options
                 }
             });
 
@@ -290,6 +344,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signInAsGuest = async (captchaToken?: string) => {
+        // Use test auth endpoint if enabled
+        if (process.env.NEXT_PUBLIC_USE_TEST_AUTH === 'true') {
+            const response = await fetch('/api/test/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'guest' })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Guest sign in failed');
+            }
+            
+            const { session } = await response.json();
+            
+            // Set the session in Supabase client
+            await supabaseBrowser().auth.setSession(session);
+            return;
+        }
+
         const randomUsername = await generateUniqueUsername('guest_');
 
         const { data, error } = await supabaseBrowser().auth.signInAnonymously({

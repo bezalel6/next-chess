@@ -1,6 +1,6 @@
 import { Box, Typography, Fade, Slide } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useGame } from "@/contexts/GameContext";
+import { useGame } from "@/contexts/GameContextV2";
 
 const OVERLAY_DURATION = 1500; // ms
 

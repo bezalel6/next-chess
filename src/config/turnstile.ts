@@ -1,19 +1,31 @@
 // Turnstile configuration
 // This file centralizes Turnstile configuration to ensure it works in all environments
+import { TEST_MODE } from './test-mode';
 
 export const TURNSTILE_CONFIG = {
   // Site key should be set via environment variable NEXT_PUBLIC_TURNSTILE_SITE_KEY
   // This is replaced at build time by Next.js
   siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAABqaOP-v_GdBeTg0',
   
-  // Check if Turnstile is enabled
+  // Check if test mode is active
+  isTestMode: () => {
+    return TEST_MODE.isEnabled();
+  },
+  
+  // Check if Turnstile widget should be shown (not in test mode and has key)
   isEnabled: () => {
-    // Allow disabling for E2E tests
-    if (process.env.NEXT_PUBLIC_DISABLE_CAPTCHA === 'true') {
+    // Skip Turnstile entirely in test mode
+    if (TURNSTILE_CONFIG.isTestMode()) {
       return false;
     }
     const key = TURNSTILE_CONFIG.siteKey;
     return !!(key && key !== '' && key !== 'undefined');
+  },
+  
+  // Check if captcha is required for form submission
+  isRequired: () => {
+    // Never required in test mode
+    return !TURNSTILE_CONFIG.isTestMode() && TURNSTILE_CONFIG.isEnabled();
   },
   
   // Widget options

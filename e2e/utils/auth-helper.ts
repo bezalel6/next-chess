@@ -1,67 +1,87 @@
 import { Page } from 'puppeteer';
 import { TEST_CONFIG } from './test-config';
-import { supabase } from '../../src/utils/supabase';
 
 export class AuthHelper {
   /**
-   * Create test users in the database
+   * Create a guest user for testing without captcha
+   */
+  static async createGuestUser(page: Page): Promise<{ userId: string; accessToken: string }> {
+    console.log('Creating guest user via API...');
+    
+    // Call our test API endpoint to create a guest user
+    const response = await page.evaluate(async () => {
+      const res = await fetch('/api/test/create-guest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return res.json();
+    });
+    
+    if (!response.success) {
+      throw new Error(`Failed to create guest user: ${response.error}`);
+    }
+    
+    console.log(`Created guest user: ${response.user.id}`);
+    
+    // Set the session in the browser
+    await page.evaluate((sessionData) => {
+      // Store the session in localStorage for Supabase to pick up
+      const storageKey = `sb-${window.location.hostname.split('.')[0]}-auth-token`;
+      localStorage.setItem(storageKey, JSON.stringify({
+        access_token: sessionData.session.access_token,
+        refresh_token: sessionData.session.refresh_token,
+        expires_at: sessionData.session.expires_at,
+        user: sessionData.user
+      }));
+    }, response);
+    
+    // Reload the page to apply the session
+    await page.reload({ waitUntil: 'networkidle0' });
+    
+    return {
+      userId: response.user.id,
+      accessToken: response.session.access_token
+    };
+  }
+  
+  /**
+   * Create test users in the database (deprecated - use createGuestUser instead)
    */
   static async createTestUsers(): Promise<void> {
-    console.log('Creating test users...');
-    
-    for (const [key, user] of Object.entries(TEST_CONFIG.testUsers)) {
-      try {
-        // Sign up user via Supabase Auth
-        const { data, error } = await supabase.auth.signUp({
-          email: user.email,
-          password: user.password,
-          options: {
-            data: {
-              username: user.username,
-            },
-          },
-        });
-        
-        if (error && !error.message.includes('already registered')) {
-          throw error;
-        }
-        
-        if (data?.user) {
-          console.log(`Created test user: ${user.email}`);
-        } else {
-          console.log(`Test user already exists: ${user.email}`);
-        }
-      } catch (error) {
-        console.error(`Error creating test user ${user.email}:`, error);
-      }
-    }
+    console.log('Note: createTestUsers is deprecated. Use createGuestUser for testing.');
   }
 
   /**
-   * Clean up test users from the database
+   * Clean up guest users (they auto-expire after 30 days)
    */
   static async cleanupTestUsers(): Promise<void> {
-    console.log('Cleaning up test users...');
-    
-    // Note: This requires admin access to delete users
-    // In a real scenario, you'd use the service role key
-    for (const user of Object.values(TEST_CONFIG.testUsers)) {
-      try {
-        // Delete user data from games, profiles, etc.
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .delete()
-          .match({ username: user.username });
-          
-        if (profileError) {
-          console.error(`Error deleting profile for ${user.username}:`, profileError);
-        }
-      } catch (error) {
-        console.error(`Error cleaning up ${user.email}:`, error);
-      }
-    }
+    console.log('Guest users auto-expire after 30 days, no cleanup needed.');
   }
 
+  /**
+   * Sign in as guest without UI interaction
+   */
+  static async signInAsGuest(page: Page): Promise<void> {
+    console.log('Signing in as guest...');
+    
+    // Navigate to home page
+    await page.goto(TEST_CONFIG.baseUrl, {
+      waitUntil: 'networkidle0',
+    });
+    
+    // Create guest user and set session
+    await this.createGuestUser(page);
+    
+    // Verify we're logged in
+    await page.waitForSelector(TEST_CONFIG.selectors.joinQueueButton, {
+      timeout: 10000,
+    });
+    
+    console.log('Successfully signed in as guest');
+  }
+  
   /**
    * Sign in a user via the UI
    */

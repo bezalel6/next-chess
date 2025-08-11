@@ -1,6 +1,6 @@
 import { Box, Typography, Tooltip, IconButton } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useGame } from "@/contexts/GameContext";
+import { useGame } from "@/contexts/GameContextV2";
 import { Chess } from "chess.ts";
 import { getAllBannedMoves, getBannedMove, getMoveNumber } from '@/utils/gameUtils';
 import BlockIcon from '@mui/icons-material/Block';

@@ -178,7 +178,7 @@ The application follows Lichess's proven design patterns:
 
 ### Testing Infrastructure
 - **`e2e/`** - Complete E2E testing setup with Puppeteer
-- **`NEXT_PUBLIC_DISABLE_CAPTCHA=true`** - Environment variable for testing
+- **`NEXT_PUBLIC_USE_TEST_CAPTCHA=true`** - Uses Cloudflare test keys that always pass
 
 ## Development Guidelines
 
@@ -270,8 +270,8 @@ No test framework is currently configured. Verify changes by:
 - Use `bun run dev` for development with hot reload
 - Always run `bun run typecheck` before committing
 - Check `bun run lint` for code quality
-- **E2E Testing**: `NEXT_PUBLIC_DISABLE_CAPTCHA=true bun run test:e2e`
-- **Debug E2E**: `HEADLESS=false SLOW_MO=100 bun run test:e2e:debug`
+- **E2E Testing**: `bun run test:e2e` (automatically uses test captcha keys)
+- **Debug E2E**: `bun run test:e2e:debug` (runs with visible browser)
 
 ### Key Refactor Notes
 - **DO NOT** trust old comments about "initial ban phase" - they're wrong

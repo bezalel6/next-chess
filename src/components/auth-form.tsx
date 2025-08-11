@@ -59,7 +59,8 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaLoading, setCaptchaLoading] = useState(true);
+  // In test mode, captcha is never loading
+  const [captchaLoading, setCaptchaLoading] = useState(!TURNSTILE_CONFIG.isTestMode());
   const [showMagicLink, setShowMagicLink] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const turnstileRef = useRef<TurnstileInstance>(null);
@@ -78,6 +79,14 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     password: false,
     magicLinkEmail: false,
   });
+
+  useEffect(() => {
+    // In test mode, set a dummy token immediately
+    if (TURNSTILE_CONFIG.isTestMode()) {
+      setCaptchaToken('test-mode-bypass');
+      setCaptchaLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     // Check for autofill on mount and periodically
@@ -192,7 +201,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
           }
         }
 
-        if (!captchaToken) {
+        if (!captchaToken && process.env.NEXT_PUBLIC_USE_TEST_AUTH !== 'true') {
           setError("Please wait for security verification to complete");
           setIsLoading(false);
           return;
@@ -207,7 +216,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
           redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
         }
       } else {
-        if (!captchaToken) {
+        if (!captchaToken && process.env.NEXT_PUBLIC_USE_TEST_AUTH !== 'true') {
           setError("Please wait for security verification to complete");
           setIsLoading(false);
           return;
@@ -239,8 +248,8 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     setSubmitAction("guest");
 
     try {
-      // Only check captcha if it's enabled
-      if (TURNSTILE_CONFIG.isEnabled() && !captchaToken) {
+      // Only check captcha if it's required
+      if (!captchaToken && TURNSTILE_CONFIG.isRequired()) {
         setError("Please wait for security verification to complete");
         setIsLoading(false);
         return;
@@ -285,7 +294,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     setSubmitAction("magiclink");
     
     try {
-      if (!captchaToken) {
+      if (!captchaToken && TURNSTILE_CONFIG.isRequired()) {
         setError("Please wait for security verification to complete");
         setIsLoading(false);
         return;
@@ -421,8 +430,8 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
           </Alert>
         )}
 
-        {/* Single Turnstile widget for all auth methods */}
-        {TURNSTILE_CONFIG.isEnabled() && (
+        {/* Single Turnstile widget for all auth methods - Skip in test mode */}
+        {TURNSTILE_CONFIG.isEnabled() && process.env.NEXT_PUBLIC_USE_TEST_AUTH !== 'true' && (
           <Box sx={{ 
             display: "flex", 
             justifyContent: "center",

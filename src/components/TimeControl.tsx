@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { ComponentType } from 'react';
 import { Box, Typography } from '@mui/material';
-import { useGame } from '@/contexts/GameContext';
+import { useGame } from '@/contexts/GameContextV2';
 import { formatTime } from '@/utils/timeUtils';
 import type { PlayerColor, Game } from '@/types/game';
 // import { DEFAULT_INITIAL_TIME } from '@/constants/timeControl';

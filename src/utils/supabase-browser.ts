@@ -46,7 +46,7 @@ export const createSupabaseBrowser = () => {
     },
     global: {
       headers: {
-        "X-Client-Info": "next-chess",
+        "X-Client-Info": "ban-chess",
       },
     },
   });

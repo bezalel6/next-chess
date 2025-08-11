@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useGameStore } from '@/stores/gameStore';
@@ -12,17 +13,37 @@ import { Chess } from 'chess.ts';
 
 interface GameContextType {
   game: Game | null;
+  loading: boolean;
   isLoading: boolean;
   myColor: PlayerColor | null;
   isMyTurn: boolean;
   canBan: boolean;
   canMove: boolean;
+  isLocalGame: boolean;
+  localGameOrientation: PlayerColor;
+  playerUsernames: {
+    white: string;
+    black: string;
+  };
   makeMove: (from: string, to: string, promotion?: string) => void;
   banMove: (from: string, to: string) => void;
   resign: () => void;
   offerDraw: () => void;
   acceptDraw: () => void;
   declineDraw: () => void;
+  setPgn: (pgn: string) => void;
+  actions: {
+    resetGame: () => void;
+    flipBoardOrientation?: () => void;
+    startLocalGame: () => void;
+    resign: () => void;
+    offerDraw: () => void;
+    acceptDraw: () => void;
+    declineDraw: () => void;
+    offerRematch?: () => void;
+    acceptRematch?: () => void;
+    declineRematch?: () => void;
+  };
 }
 
 const GameContext = createContext<GameContextType | null>(null);
@@ -33,6 +54,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { playMoveSound, playGameStart, playGameEnd } = useChessSounds();
   const gameId = router.query.id as string | undefined;
+  const isLocalGame = router.pathname === '/local';
   
   const {
     setPhase,
@@ -169,13 +191,23 @@ export function GameProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Get player usernames
+  const playerUsernames = {
+    white: game?.whitePlayer || 'White',
+    black: game?.blackPlayer || 'Black',
+  };
+
   const value: GameContextType = {
     game: game || null,
+    loading: isLoading,
     isLoading,
-    myColor,
-    isMyTurn: game?.status === 'active' && game?.turn === myColor,
+    myColor: isLocalGame ? 'white' : myColor,
+    isMyTurn: isLocalGame ? true : (game?.status === 'active' && game?.turn === myColor),
     canBan: phase === 'selecting_ban',
     canMove: phase === 'making_move',
+    isLocalGame,
+    localGameOrientation: 'white', // Default to white for local games
+    playerUsernames,
     
     makeMove: (from: string, to: string, promotion?: string) => {
       makeMoveMutation.mutate({ 
@@ -208,6 +240,57 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (!gameId) return;
       await GameService.declineDraw(gameId);
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+    },
+
+    setPgn: (pgn: string) => {
+      // For move history navigation - this would need proper implementation
+      // For now, we'll keep it as a no-op since the V2 context uses TanStack Query
+      console.log('setPgn called with:', pgn);
+    },
+
+    actions: {
+      resetGame: () => {
+        router.push('/');
+      },
+      flipBoardOrientation: () => {
+        // This would need to be implemented in the game store
+        console.log('Flip board orientation');
+      },
+      startLocalGame: () => {
+        router.push('/local-game');
+      },
+      resign: () => resignMutation.mutate(),
+      offerDraw: async () => {
+        if (!gameId || !myColor) return;
+        await GameService.offerDraw(gameId, myColor);
+        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+      },
+      acceptDraw: async () => {
+        if (!gameId) return;
+        await GameService.acceptDraw(gameId);
+        playGameEnd();
+        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+      },
+      declineDraw: async () => {
+        if (!gameId) return;
+        await GameService.declineDraw(gameId);
+        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+      },
+      offerRematch: async () => {
+        if (!gameId || !myColor) return;
+        // This would need to be implemented in GameService
+        console.log('Offer rematch');
+      },
+      acceptRematch: async () => {
+        if (!gameId) return;
+        // This would need to be implemented in GameService
+        console.log('Accept rematch');
+      },
+      declineRematch: async () => {
+        if (!gameId) return;
+        // This would need to be implemented in GameService  
+        console.log('Decline rematch');
+      },
     },
   };
 

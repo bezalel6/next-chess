@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-import { useMemo, useCallback, ComponentProps } from 'react';
+import { useMemo, useCallback, type ComponentProps } from 'react';
 import { Box } from '@mui/material';
 import { useGame } from '@/contexts/GameContextV2';
 import { useGameStore } from '@/stores/gameStore';

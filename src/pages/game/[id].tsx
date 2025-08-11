@@ -1,10 +1,10 @@
-import { useGame } from "@/contexts/GameContext";
+import { useGame } from "@/contexts/GameContextV2";
 import { Box, Typography } from "@mui/material";
 import { useRouter } from 'next/compat/router';
 import Head from "next/head";
 import { useState } from "react";
 
-import GameBoard from "@/components/GameBoard";
+import GameBoardV2 from "@/components/GameBoardV2";
 import GameLoading from "@/components/GameLoading";
 import LoadingScreen from "@/components/LoadingScreen";
 import MoveHistory from "@/components/MoveHistory";
@@ -118,7 +118,7 @@ export default function GamePage() {
                             alignItems: 'center',
                             gap: 2,
                         }}>
-                            <GameBoard />
+                            <GameBoardV2 />
                             
                             {/* Scoreboard below board - only show for non-local games */}
                             {!isLocalGame && (

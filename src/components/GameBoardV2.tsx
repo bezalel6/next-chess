@@ -66,8 +66,7 @@ export default function GameBoardV2() {
             </Typography>
           </Box>
           <TimeControl 
-            timeRemaining={game.blackTimeRemaining || game.whiteTimeRemaining}
-            isActive={!isMyTurn && game.status === 'active'}
+            playerColor="black"
           />
         </Paper>
 
@@ -87,10 +86,7 @@ export default function GameBoardV2() {
           </motion.div>
 
           {game.status === 'finished' && (
-            <GameOverOverlay 
-              winner={game.result}
-              reason={game.endReason}
-            />
+            <GameOverOverlay />
           )}
         </Box>
 
@@ -119,8 +115,7 @@ export default function GameBoardV2() {
             </Typography>
           </Box>
           <TimeControl 
-            timeRemaining={game.whiteTimeRemaining || game.blackTimeRemaining}
-            isActive={isMyTurn && game.status === 'active'}
+            playerColor="white"
           />
         </Paper>
 

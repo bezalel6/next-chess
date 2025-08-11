@@ -1,9 +1,9 @@
 import { Box, Container, Typography, Button, Paper } from "@mui/material";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
-import GameBoard from "@/components/GameBoard";
+import GameBoardV2 from "@/components/GameBoardV2";
 import MoveHistory from "@/components/MoveHistory";
-import { useGame } from "@/contexts/GameContext";
+import { useGame } from "@/contexts/GameContextV2";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LocalGamePage() {
@@ -91,7 +91,7 @@ export default function LocalGamePage() {
           justifyContent: 'center',
           alignItems: 'flex-start',
         }}>
-          <GameBoard />
+          <GameBoardV2 />
         </Box>
         
         {/* Right sidebar - Move history */}

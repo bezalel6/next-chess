@@ -25,6 +25,7 @@ import {
   ExpandMore,
   ExpandLess,
   TrendingUp,
+  People,
 } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,7 +39,7 @@ interface GameWithOpponent extends Game {
 }
 
 const QueueSystem = () => {
-  const { queue, matchDetails, handleQueueToggle } = useConnection();
+  const { queue, matchDetails, handleQueueToggle, stats } = useConnection();
   const { user, profile } = useAuth();
   const [activeGames, setActiveGames] = useState<GameWithOpponent[]>([]);
   const [hasActiveGames, setHasActiveGames] = useState(false);
@@ -321,6 +322,31 @@ const QueueSystem = () => {
 
   return (
     <Box sx={{ width: "100%", maxWidth: 500, mx: "auto" }}>
+      {/* Active Users Indicator */}
+      {stats.activeUsers > 0 && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            mb: 2,
+          }}
+        >
+          <Chip
+            icon={<People />}
+            label={`${stats.activeUsers} ${stats.activeUsers === 1 ? 'Player' : 'Players'} Online`}
+            color="primary"
+            variant="outlined"
+            sx={{
+              fontWeight: 500,
+              px: 1,
+              backdropFilter: "blur(10px)",
+              background: "rgba(255, 255, 255, 0.03)",
+              borderColor: "rgba(168, 85, 247, 0.3)",
+            }}
+          />
+        </Box>
+      )}
+
       <Paper
         elevation={8}
         sx={{

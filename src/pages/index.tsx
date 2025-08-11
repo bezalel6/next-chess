@@ -2,7 +2,6 @@ import Head from "next/head";
 import LichessBoard from "@/components/lichess-board";
 import QueueSystem from "@/components/QueueSystem";
 import AuthForm from "@/components/auth-form";
-import ServerStats from "@/components/server-stats";
 import {
   Box,
   Container,
@@ -115,32 +114,19 @@ export default function Home() {
               display: "flex",
               gap: 4,
               width: "100%",
-              maxWidth: 1200,
-              flexDirection: { xs: "column", lg: "row" },
-              alignItems: { xs: "center", lg: "flex-start" },
+              maxWidth: 600,
+              flexDirection: "column",
+              alignItems: "center",
               justifyContent: "center",
               flex: 1,
             }}
           >
-            {/* Left Side - Server Stats */}
-            <Fade in={mounted} timeout={800}>
-              <Box
-                sx={{
-                  width: { xs: "100%", sm: 350, lg: 280 },
-                  display: { xs: "none", md: "block" },
-                }}
-              >
-                <ServerStats />
-              </Box>
-            </Fade>
-
             {/* Center - Auth or Queue System */}
             <Fade in={mounted} timeout={1000}>
               <Box
                 sx={{
-                  flex: 1,
-                  maxWidth: 500,
                   width: "100%",
+                  maxWidth: 500,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -195,31 +181,7 @@ export default function Home() {
                 )}
               </Box>
             </Fade>
-
-            {/* Right Side - Placeholder for future features */}
-            <Box
-              sx={{
-                width: { xs: "100%", sm: 350, lg: 280 },
-                display: { xs: "none", lg: "block" },
-              }}
-            >
-              {/* Space for future features like leaderboard, recent games, etc. */}
-            </Box>
           </Box>
-
-          {/* Mobile Server Stats */}
-          <Fade in={mounted} timeout={1200}>
-            <Box
-              sx={{
-                width: "100%",
-                maxWidth: 400,
-                display: { xs: "block", md: "none" },
-                mt: 4,
-              }}
-            >
-              <ServerStats />
-            </Box>
-          </Fade>
         </Box>
       </Container>
     </>

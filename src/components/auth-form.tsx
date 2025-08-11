@@ -123,14 +123,10 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
 
   useEffect(() => {
     // Clear messages when changing auth mode
-    return () => {
-      setError(null);
-      setSuccess(null);
-      setUsernameError(null);
-      setCaptchaToken(null);
-      setCaptchaLoading(true);
-      turnstileRef.current?.reset();
-    };
+    setError(null);
+    setSuccess(null);
+    setUsernameError(null);
+    // Don't reset captcha when just switching modes
   }, [isSignUp]);
 
   // Debounced function to check if username exists
@@ -227,11 +223,12 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
       } else {
         setError(err instanceof Error ? err.message : "An error occurred");
       }
-    } finally {
-      setIsLoading(false);
+      // Reset captcha on error
       setCaptchaToken(null);
       setCaptchaLoading(true);
       turnstileRef.current?.reset();
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -254,11 +251,12 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
       redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
+      // Reset captcha on error
       setCaptchaToken(null);
       setCaptchaLoading(true);
       turnstileRef.current?.reset();
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -296,11 +294,12 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
       setMagicLinkEmail("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
+      // Reset captcha on error
       setCaptchaToken(null);
       setCaptchaLoading(true);
       turnstileRef.current?.reset();
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -309,9 +308,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     setError(null);
     setSuccess(null);
     setUsernameError(null);
-    setCaptchaToken(null);
-    setCaptchaLoading(true);
-    turnstileRef.current?.reset();
+    // Don't reset captcha when just toggling sign up/sign in
     // Clear username when switching to sign in
     if (isSignUp) {
       setUsername("");
@@ -356,9 +353,10 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   };
 
   const handleTurnstileExpire = () => {
+    // Token expired, need to re-verify
     setCaptchaToken(null);
     setCaptchaLoading(true);
-    turnstileRef.current?.reset();
+    // Turnstile will automatically refresh with refreshExpired: 'auto'
   };
 
   const handleTurnstileError = (error?: Error | string) => {
@@ -486,6 +484,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
                 setMagicLinkEmail("");
                 setError(null);
                 setSuccess(null);
+                // Don't reset captcha when just closing magic link form
               }}
               disabled={isLoading}
             >

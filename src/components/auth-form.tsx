@@ -18,7 +18,7 @@ import {
 import { useRouter } from "next/router";
 import { z } from "zod";
 import { debounce } from "lodash";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 // Zod schema for username validation
 const usernameSchema = z
@@ -59,7 +59,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [showMagicLink, setShowMagicLink] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
-  const captchaRef = useRef<HCaptcha>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
       setSuccess(null);
       setUsernameError(null);
       setCaptchaToken(null);
-      captchaRef.current?.resetCaptcha();
+      turnstileRef.current?.reset();
     };
   }, [isSignUp]);
 
@@ -137,7 +137,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
         }
 
         if (!captchaToken) {
-          setError("Please complete the captcha verification");
+          setError("Please wait for security verification to complete");
           setIsLoading(false);
           return;
         }
@@ -152,7 +152,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
         }
       } else {
         if (!captchaToken) {
-          setError("Please complete the captcha verification");
+          setError("Please wait for security verification to complete");
           setIsLoading(false);
           return;
         }
@@ -170,7 +170,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     } finally {
       setIsLoading(false);
       setCaptchaToken(null);
-      captchaRef.current?.resetCaptcha();
+      turnstileRef.current?.reset();
     }
   };
 
@@ -181,7 +181,13 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     setSubmitAction("guest");
 
     try {
-      await signInAsGuest();
+      if (!captchaToken) {
+        setError("Please wait for security verification to complete");
+        setIsLoading(false);
+        return;
+      }
+      
+      await signInAsGuest(captchaToken);
       setSuccess("Signed in as guest! Redirecting...");
       // Redirect after successful guest signin
       redirectOnSuccess && setTimeout(() => router.push("/"), 1500);
@@ -189,6 +195,8 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
+      setCaptchaToken(null);
+      turnstileRef.current?.reset();
     }
   };
 
@@ -215,7 +223,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     
     try {
       if (!captchaToken) {
-        setError("Please complete the captcha verification");
+        setError("Please wait for security verification to complete");
         setIsLoading(false);
         return;
       }
@@ -229,7 +237,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     } finally {
       setIsLoading(false);
       setCaptchaToken(null);
-      captchaRef.current?.resetCaptcha();
+      turnstileRef.current?.reset();
     }
   };
 
@@ -239,7 +247,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
     setSuccess(null);
     setUsernameError(null);
     setCaptchaToken(null);
-    captchaRef.current?.resetCaptcha();
+    turnstileRef.current?.reset();
     // Clear username when switching to sign in
     if (isSignUp) {
       setUsername("");
@@ -269,26 +277,41 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
         password &&
         username &&
         !usernameError &&
-        !checkingUsername &&
-        captchaToken
+        !checkingUsername
       );
     }
-    return loginUsername && password && captchaToken;
+    return loginUsername && password;
   };
 
-  const handleCaptchaVerify = (token: string) => {
-    console.log('hCaptcha verified with token:', token);
+  const handleTurnstileVerify = (token: string) => {
     setCaptchaToken(token);
   };
 
-  const handleCaptchaExpire = () => {
+  const handleTurnstileExpire = () => {
     setCaptchaToken(null);
+    turnstileRef.current?.reset();
   };
 
-  const handleCaptchaError = () => {
+  const handleTurnstileError = (error?: Error | string) => {
+    console.error('Turnstile error:', error);
     setCaptchaToken(null);
-    setError("Captcha verification failed. Please try again.");
+    
+    // Error 110200 means domain not configured properly
+    if (error?.toString().includes('110200')) {
+      setError("Captcha configuration error. Please check domain settings in Cloudflare dashboard.");
+    } else {
+      setError("Captcha verification failed. Please try again.");
+    }
   };
+
+  // Check if Turnstile site key is available
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+      console.warn('Turnstile site key not configured');
+    } else {
+      console.log('Turnstile initialized with site key:', process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+    }
+  }, []);
 
   return (
     <Box
@@ -327,6 +350,32 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
           </Alert>
         )}
 
+        {/* Single Turnstile widget for all auth methods */}
+        {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+          <Box sx={{ 
+            display: "flex", 
+            justifyContent: "center",
+            height: 0,
+            overflow: "hidden"
+          }}>
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              onSuccess={handleTurnstileVerify}
+              onExpire={handleTurnstileExpire}
+              onError={handleTurnstileError}
+              options={{
+                theme: 'dark',
+                size: 'invisible',
+                appearance: 'execute',
+                execution: 'render',
+                retry: 'auto',
+                refreshExpired: 'auto',
+              }}
+            />
+          </Box>
+        )}
+
         {showMagicLink && !isSignUp ? (
           <Box
             component="form"
@@ -343,23 +392,11 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
               disabled={isLoading}
               helperText="We'll send you a sign-in link to this email"
             />
-            {process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
-              <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
-                <HCaptcha
-                  ref={captchaRef}
-                  sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
-                  onVerify={handleCaptchaVerify}
-                  onExpire={handleCaptchaExpire}
-                  onError={handleCaptchaError}
-                  size="compact"
-                />
-              </Box>
-            )}
             <Button
               type="submit"
               variant="contained"
               fullWidth
-              disabled={isLoading || !magicLinkEmail || !captchaToken}
+              disabled={isLoading || !magicLinkEmail}
               startIcon={
                 isLoading && submitAction === "magiclink" ? (
                   <CircularProgress size={20} color="inherit" />
@@ -446,23 +483,11 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
               isSignUp ? "Password must be at least 6 characters" : ""
             }
           />
-          {process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
-            <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
-              <HCaptcha
-                ref={captchaRef}
-                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
-                onVerify={handleCaptchaVerify}
-                onExpire={handleCaptchaExpire}
-                onError={handleCaptchaError}
-                size="compact"
-              />
-            </Box>
-          )}
           <Button
             type="submit"
             variant="contained"
             fullWidth
-            disabled={isLoading || !isFormValid()}
+            disabled={isLoading || !isFormValid() || !captchaToken}
             startIcon={
               isLoading && submitAction !== "guest" ? (
                 <CircularProgress size={20} color="inherit" />
@@ -505,7 +530,7 @@ export default function AuthForm({ redirectOnSuccess = true }: AuthFormProps) {
             variant="outlined"
             fullWidth
             onClick={handleGuestSignIn}
-            disabled={isLoading}
+            disabled={isLoading || !captchaToken}
             startIcon={
               isLoading && submitAction === "guest" ? (
                 <CircularProgress size={20} color="inherit" />

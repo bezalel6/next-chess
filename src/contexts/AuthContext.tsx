@@ -30,7 +30,7 @@ interface AuthContextType {
     signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
     signUp: (email: string, password: string, username: string, captchaToken?: string) => Promise<SignUpStatus>;
     signOut: () => Promise<void>;
-    signInAsGuest: () => Promise<void>;
+    signInAsGuest: (captchaToken?: string) => Promise<void>;
     signInWithGoogle: () => Promise<void>;
     signInWithMagicLink: (email: string, captchaToken?: string) => Promise<void>;
     isGuest: boolean;
@@ -193,8 +193,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email = data.email.toLowerCase();
         }
         
-        console.log('Signing in with captcha token:', captchaToken ? 'Token present' : 'No token');
-        
         const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -203,10 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         });
         
-        if (error) {
-            console.error('Sign in error:', error);
-            throw error;
-        }
+        if (error) throw error;
     };
 
     const signUp = async (email: string, password: string, username: string, captchaToken?: string): Promise<SignUpStatus> => {
@@ -221,8 +216,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-            console.log('Signing up with captcha token:', captchaToken ? 'Token present' : 'No token');
-            
             // Create the user with username in metadata
             const { data, error } = await supabase.auth.signUp({
                 email: normalizedEmail,
@@ -234,7 +227,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (error) {
-                console.error('Sign up error:', error);
                 // Check if it's a captcha-related error
                 if (error.message?.includes('captcha') || error.status === 500) {
                     throw new Error("Captcha verification failed. Please try again.");
@@ -295,12 +287,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const signInAsGuest = async () => {
+    const signInAsGuest = async (captchaToken?: string) => {
         const randomUsername = await generateUniqueUsername('guest_');
 
         const { data, error } = await supabase.auth.signInAnonymously({
             options: {
-                data: { username: randomUsername }
+                data: { username: randomUsername },
+                ...(captchaToken && { captchaToken })
             }
         });
 

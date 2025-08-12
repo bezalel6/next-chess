@@ -314,19 +314,25 @@ const HowToPlayDialog = () => (
       <li>
         <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
           <strong style={{ color: "rgba(255, 255, 255, 0.95)" }}>
-            Banning Phase:
+            Turn Sequence:
           </strong>{" "}
-          Each player takes turns banning pieces or moves from the board before
-          the game begins.
+          Before EVERY move throughout the entire game, your opponent sees all your legal moves and selects ONE to ban.
         </Typography>
       </li>
       <li>
         <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
           <strong style={{ color: "rgba(255, 255, 255, 0.95)" }}>
-            Chess Phase:
+            Continuous Banning:
           </strong>{" "}
-          Once all bans are complete, play proceeds according to standard chess
-          rules.
+          After each move is made, the other player now becomes the banning player for their opponent's next turn.
+        </Typography>
+      </li>
+      <li>
+        <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+          <strong style={{ color: "rgba(255, 255, 255, 0.95)" }}>
+            Strategic Depth:
+          </strong>{" "}
+          You must constantly predict what your opponent wants to play and ban their most dangerous moves.
         </Typography>
       </li>
       <li>
@@ -334,7 +340,7 @@ const HowToPlayDialog = () => (
           <strong style={{ color: "rgba(255, 255, 255, 0.95)" }}>
             Victory:
           </strong>{" "}
-          Checkmate your opponent to win!
+          Checkmate your opponent to win, just like regular chess!
         </Typography>
       </li>
     </Box>
@@ -351,7 +357,7 @@ const HowToPlayDialog = () => (
         border: "1px solid rgba(168, 85, 247, 0.2)",
       }}
     >
-      Strategic banning can completely change the game dynamics!
+      Every single move in Ban Chess requires adapting to your opponent's ban!
     </Typography>
   </TabDialog>
 );

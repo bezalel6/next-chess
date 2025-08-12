@@ -64,7 +64,7 @@ export default function TestingIndicator() {
           variant="subtitle1"
           sx={{ fontWeight: "bold", color: "orange" }}
         >
-          TEST MODE ACTIVE
+          TEST MODE
         </Typography>
       </Box>
 
@@ -105,6 +105,12 @@ export default function TestingIndicator() {
           • Using test endpoint: /api/test/auth
           <br />• Supabase:{" "}
           {status.supabaseUrl?.replace("https://", "").split(".")[0]}
+        </Typography>
+        <Typography variant="h5">
+          IF YOU ARE SEEING THIS: YOU ARE NOT.
+        </Typography>
+        <Typography variant="subtitle2">
+          but haha lol please contact me like right now
         </Typography>
       </Box>
     </Box>

@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Box, Typography, Chip, LinearProgress } from '@mui/material';
 import { useGameStore } from '@/stores/gameStore';
-import { useEffect, useState } from 'react';
+import { useGame } from '@/contexts/GameContextV2';
 import BlockIcon from '@mui/icons-material/Block';
 import TimerIcon from '@mui/icons-material/Timer';
 
@@ -11,17 +11,9 @@ interface BanPhaseOverlayProps {
 }
 
 export default function BanPhaseOverlay({ timeRemaining, isMyTurnToBan }: BanPhaseOverlayProps) {
-  const { phase, currentBannedMove, optimisticBan } = useGameStore();
-  const [showBanAnimation, setShowBanAnimation] = useState(false);
+  const { phase } = useGameStore();
+  const { game } = useGame();
   
-  // Show ban animation when a ban is confirmed
-  useEffect(() => {
-    if (optimisticBan) {
-      setShowBanAnimation(true);
-      setTimeout(() => setShowBanAnimation(false), 1500);
-    }
-  }, [optimisticBan]);
-
   const isBanPhase = phase === 'selecting_ban' || phase === 'waiting_for_ban';
   
   return (
@@ -29,17 +21,17 @@ export default function BanPhaseOverlay({ timeRemaining, isMyTurnToBan }: BanPha
       {/* Ban Phase Indicator */}
       {isBanPhase && (
         <motion.div
+          key="ban-phase-indicator"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
           style={{
             position: 'absolute',
-            top: -60,
-            left: '50%',
-            transform: 'translateX(-50%)',
+            top: -70,
+            left: 0,
+            right: 0,
             zIndex: 100,
-            width: '100%',
             display: 'flex',
             justifyContent: 'center',
           }}
@@ -79,51 +71,11 @@ export default function BanPhaseOverlay({ timeRemaining, isMyTurnToBan }: BanPha
         </motion.div>
       )}
 
-      {/* Ban Animation */}
-      {showBanAnimation && optimisticBan && (
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0, opacity: 0 }}
-          transition={{ duration: 0.5, ease: 'backOut' }}
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 200,
-            pointerEvents: 'none',
-          }}
-        >
-          <Box
-            sx={{
-              bgcolor: 'error.main',
-              color: 'white',
-              p: 3,
-              borderRadius: '50%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 150,
-              height: 150,
-              boxShadow: '0 0 40px rgba(255,0,0,0.5)',
-            }}
-          >
-            <BlockIcon sx={{ fontSize: 60, mb: 1 }} />
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              BANNED
-            </Typography>
-            <Typography variant="body2">
-              {optimisticBan.from}{optimisticBan.to}
-            </Typography>
-          </Box>
-        </motion.div>
-      )}
 
-      {/* Current Ban Indicator (shows after ban is applied) */}
-      {currentBannedMove && !isBanPhase && (
+      {/* Current Ban Indicator (shows after ban is applied, during move phase) */}
+      {game?.currentBannedMove && phase === 'making_move' && (
         <motion.div
+          key="current-ban-indicator"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 20 }}
@@ -136,7 +88,7 @@ export default function BanPhaseOverlay({ timeRemaining, isMyTurnToBan }: BanPha
         >
           <Chip
             icon={<BlockIcon />}
-            label={`Banned: ${currentBannedMove.from}${currentBannedMove.to}`}
+            label={`Banned: ${game.currentBannedMove.from}${game.currentBannedMove.to}`}
             color="error"
             variant="filled"
             sx={{ 

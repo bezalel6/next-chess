@@ -28,8 +28,10 @@ export interface ChessMove {
 
 export interface Game {
   id: string;
-  whitePlayer: string;
-  blackPlayer: string;
+  whitePlayerId: string;
+  blackPlayerId: string;
+  whitePlayer: string;  // Username
+  blackPlayer: string;  // Username
   status: GameStatus;
   result: GameResult;
   currentFen: string;
@@ -40,6 +42,7 @@ export interface Game {
   startTime: number;
   lastMoveTime: number;
   banningPlayer: PlayerColor | null;
+  currentBannedMove: ChessMove | null; // The move that was banned for this turn
   drawOfferedBy: PlayerColor | null;
   endReason: GameEndReason;
   rematchOfferedBy: PlayerColor | null;

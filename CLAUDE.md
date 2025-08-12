@@ -402,6 +402,40 @@ No test framework is currently configured. Verify changes by:
   - Run tests: `node e2e/two-player-screenshot.js`
   - Creates `player1_perspective.png` and `player2_perspective.png` screenshots
 
+### Test Authentication System
+When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several authentication mechanisms for testing:
+
+#### Query Parameter Authentication (`?auth=username`)
+- **Purpose**: Allows instant authentication as any existing user via URL query parameter
+- **Usage**: Navigate to any page with `?auth=username` (e.g., `/game/abc123?auth=user_4dff0w`)
+- **Behavior**: 
+  - Authenticates as the specified user if they exist
+  - Returns 404 error if user doesn't exist (no auto-creation)
+  - Removes the query parameter from URL after authentication
+  - Works even if already authenticated (allows switching users)
+- **Implementation**:
+  - `useTestAuthQuery` hook detects and processes the auth parameter
+  - `TestAuthHandler` component provides visual feedback
+  - Uses test auth API endpoint to bypass captcha/email verification
+
+#### Guest Authentication
+- **"Continue as Guest" Button**: Visible only in test mode on the auth form
+- **Creates anonymous users** without requiring email/password
+- **Guest users get assigned test emails** (`username@test.local`) for compatibility
+
+#### Test API Endpoints
+- **`/api/test/auth`**: Handles all test authentication
+  - `action: 'signup'` - Create new user (bypasses captcha)
+  - `action: 'signin'` - Sign in existing user
+  - `action: 'guest'` - Create anonymous user
+  - `action: 'query-auth'` - Authenticate by username (for query param auth)
+
+#### Key Features
+- **Board orientation**: Correctly adjusts based on authenticated player color (black sees black at bottom)
+- **Username display**: Shows usernames instead of user IDs throughout the interface
+- **Session persistence**: Authentication persists across page navigation
+- **No email requirement**: Guest users and query auth work without email addresses
+
 ### Key Refactor Notes
 - **DO NOT** trust old comments about "initial ban phase" - they're wrong
 - The game uses continuous banning throughout, not just at start

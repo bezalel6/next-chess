@@ -34,6 +34,7 @@ interface AuthContextType {
     signInAsGuest: (captchaToken?: string) => Promise<void>;
     signInWithGoogle: () => Promise<void>;
     signInWithMagicLink: (email: string, captchaToken?: string) => Promise<void>;
+    signInWithTestUsername: (username: string) => Promise<void>;
     isGuest: boolean;
     updateUsername: (username: string) => Promise<void>;
     checkUsernameExists: (username: string) => Promise<boolean>;
@@ -410,6 +411,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
     };
 
+    const signInWithTestUsername = async (username: string) => {
+        // Only allow in test mode
+        if (process.env.NEXT_PUBLIC_USE_TEST_AUTH !== 'true') {
+            throw new Error('Test authentication is disabled');
+        }
+
+        const response = await fetch('/api/test/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'query-auth',
+                username: username.toLowerCase().trim()
+            })
+        });
+        
+        if (response.status === 404) {
+            throw new Error('User not found');
+        }
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Authentication failed');
+        }
+        
+        const { session } = await response.json();
+        
+        // Set the session in Supabase client
+        await supabaseBrowser().auth.setSession(session);
+    };
+
     const updateUsername = async (username: string) => {
         if (!user) throw new Error("User not authenticated");
 
@@ -444,6 +475,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInAsGuest,
         signInWithGoogle,
         signInWithMagicLink,
+        signInWithTestUsername,
         isGuest,
         updateUsername,
         checkUsernameExists

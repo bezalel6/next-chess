@@ -105,3 +105,10 @@ bun.lock
 # Documentation files
 DOCKER_README.md
 SELF_HOSTED_README.md
+# Test artifacts
+cookies.txt
+test-query-auth.js
+test-results.json
+
+# IDE settings
+.vscode/settings.json

@@ -75,7 +75,20 @@ export class GameService {
         throw error;
       }
 
-      return this.mapGameFromDB(game as GameRow);
+      // Fetch usernames separately
+      const [whiteProfile, blackProfile] = await Promise.all([
+        supabase.from("profiles").select("username").eq("id", game.white_player_id).single(),
+        supabase.from("profiles").select("username").eq("id", game.black_player_id).single()
+      ]);
+
+      // Add username data to game object
+      const gameWithUsernames = {
+        ...game,
+        white_profile: whiteProfile.data,
+        black_profile: blackProfile.data
+      };
+
+      return this.mapGameFromDB(gameWithUsernames);
     } catch (error) {
       console.error(`[GameService] Error fetching game: ${error.message}`);
       throw error;
@@ -94,12 +107,35 @@ export class GameService {
         throw error;
       }
 
-      const allGames = data.sort(
+      // Fetch all unique player IDs
+      const playerIds = new Set<string>();
+      data.forEach(game => {
+        playerIds.add(game.white_player_id);
+        playerIds.add(game.black_player_id);
+      });
+
+      // Fetch all profiles at once
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", Array.from(playerIds));
+
+      // Create a map for quick lookup
+      const profileMap = new Map(profiles?.map(p => [p.id, p.username]) || []);
+
+      // Add username data to each game
+      const gamesWithUsernames = data.map(game => ({
+        ...game,
+        white_profile: { username: profileMap.get(game.white_player_id) || game.white_player_id },
+        black_profile: { username: profileMap.get(game.black_player_id) || game.black_player_id }
+      }));
+
+      const allGames = gamesWithUsernames.sort(
         (a, b) =>
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
       );
 
-      return allGames.map((game) => this.mapGameFromDB(game as GameRow));
+      return allGames.map((game) => this.mapGameFromDB(game));
     } catch (error) {
       console.error(
         `[GameService] Error getting active games: ${error.message}`,
@@ -119,7 +155,13 @@ export class GameService {
           table: "games",
           filter: `id=eq.${gameId}`,
         },
-        (payload) => callback(this.mapGameFromDB(payload.new as GameRow)),
+        async (payload) => {
+          // Fetch the full game data with usernames
+          const game = await this.getGame(gameId);
+          if (game) {
+            callback(game);
+          }
+        },
       )
       .subscribe();
 
@@ -148,20 +190,31 @@ export class GameService {
         throw error;
       }
 
-      return this.mapGameFromResponse(data.data as GameRow);
+      // Edge function returns game without usernames, so fetch the full game
+      const fullGame = await this.getGame(gameId);
+      if (!fullGame) {
+        throw new Error("Game not found after operation");
+      }
+      return fullGame;
     } catch (error) {
       console.error(`[GameService] Error in ${operation}: ${error.message}`);
       throw error;
     }
   }
 
-  static mapGameFromDB(dbGame: GameRow): Game {
+  static mapGameFromDB(dbGame: any): Game {
     const chess = new Chess(dbGame.current_fen);
-    console.log({ dbGame });
+    
+    // Extract usernames from joined profiles or fallback to IDs
+    const whiteUsername = dbGame.white_profile?.username || dbGame.white_player_id;
+    const blackUsername = dbGame.black_profile?.username || dbGame.black_player_id;
+    
     return {
       id: dbGame.id,
-      whitePlayer: dbGame.white_player_id,
-      blackPlayer: dbGame.black_player_id,
+      whitePlayerId: dbGame.white_player_id,
+      blackPlayerId: dbGame.black_player_id,
+      whitePlayer: whiteUsername,
+      blackPlayer: blackUsername,
       status: dbGame.status,
       result: dbGame.result,
       currentFen: dbGame.current_fen,
@@ -172,6 +225,9 @@ export class GameService {
         : null,
       turn: dbGame.turn,
       banningPlayer: dbGame.banning_player,
+      currentBannedMove: (dbGame as any).current_banned_move
+        ? (dbGame as any).current_banned_move as ChessMove
+        : null,
       startTime: new Date(dbGame.created_at).getTime(),
       lastMoveTime: new Date(dbGame.updated_at).getTime(),
       drawOfferedBy: dbGame.draw_offered_by || null,

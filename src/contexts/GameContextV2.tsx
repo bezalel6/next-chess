@@ -79,29 +79,62 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // Determine player color
   useEffect(() => {
-    if (!game || !user) {
+    if (!game) {
       setMyColor(null);
       return;
     }
     
-    const color = game.whitePlayer === user.id ? 'white' : 
-                   game.blackPlayer === user.id ? 'black' : null;
+    // In test mode, if no user, default to viewing as white player
+    if (!user) {
+      // Check if we're in test mode
+      const isTestMode = process.env.NEXT_PUBLIC_USE_TEST_AUTH === 'true';
+      if (isTestMode) {
+        // For test mode, alternate perspective or default to white
+        setMyColor('white');
+        return;
+      }
+      setMyColor(null);
+      return;
+    }
+    
+    const color = game.whitePlayerId === user.id ? 'white' : 
+                   game.blackPlayerId === user.id ? 'black' : null;
     setMyColor(color);
   }, [game, user, setMyColor]);
 
   // Update phase based on game state
   useEffect(() => {
-    if (!game || !myColor) return;
+    if (!game) return;
+    
+    // If no player color determined (spectator/test mode)
+    if (!myColor) {
+      // Still show the correct phase based on game state
+      if (game.status === 'finished') {
+        setPhase('game_over');
+      } else if (game.banningPlayer) {
+        setPhase('waiting_for_ban'); // Show waiting state during ban phase
+      } else {
+        setPhase('waiting_for_move'); // Show waiting state during move phase
+      }
+      return;
+    }
     
     if (game.status === 'finished') {
       setPhase('game_over');
     } else if (game.banningPlayer === myColor) {
+      // I need to ban the opponent's move
       setPhase('selecting_ban');
-    } else if (game.banningPlayer) {
+    } else if (game.banningPlayer && game.banningPlayer !== myColor) {
+      // Opponent is banning my move
       setPhase('waiting_for_ban');
-    } else if (game.turn === myColor) {
+    } else if (!game.banningPlayer && game.turn === myColor) {
+      // It's my turn to move (ban has been completed)
       setPhase('making_move');
+    } else if (!game.banningPlayer && game.turn !== myColor) {
+      // It's opponent's turn to move (ban has been completed)
+      setPhase('waiting_for_move');
     } else {
+      // Default to waiting
       setPhase('waiting_for_move');
     }
   }, [game, myColor, setPhase]);

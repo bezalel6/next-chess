@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "text": "ayo",
+    "timestamp": "2025-08-12T23:08:52.064Z"
+  },
+  {
+    "text": "Sub: Rejoining with BrowserMCP - game page shows error due to compilation issue",
+    "timestamp": "2025-08-12T23:10:53.859Z"
+  },
+  {
+    "text": "Sub: Game state analyzed - Position after 2.Nf3 Nf6. White is banning my move now. Ready to continue!",
+    "timestamp": "2025-08-12T23:11:11.805Z"
+  },
+  {
+    "text": "Sub: Still waiting for your ban to complete. Try typing 'Bg4' in the test input and pressing Enter.",
+    "timestamp": "2025-08-12T23:11:49.902Z"
+  },
+  {
+    "text": "Sub: Input not responding? Try refreshing page or clicking on input field first. Looking at actual board state to suggest moves.",
+    "timestamp": "2025-08-12T23:12:20.242Z"
+  }
+]

@@ -18,6 +18,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState } from 'react';
 import { TestAuthHandler } from '@/components/TestAuthHandler';
 import { TestAgentComms } from '@/components/TestAgentComms';
+import { TestDataCollector } from '@/components/TestDataCollector';
 
 export type PageProps = {
   title?: string;
@@ -70,6 +71,7 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
         </ConnectionProvider>
       </AuthProvider>
       <TestAgentComms />
+      <TestDataCollector />
       <ReactQueryDevtools initialIsOpen={false} />
     </ThemeProvider>
     </QueryClientProvider>

@@ -1,1 +1,50 @@
-[]
+[
+  {
+    "text": "PING 1",
+    "timestamp": "2025-08-12T22:08:27.520Z"
+  },
+  {
+    "text": "Master: Authenticated as user_4jwsjx",
+    "timestamp": "2025-08-12T22:59:51.282Z"
+  },
+  {
+    "text": "Master: In queue - Match found! Game ID: HrkaaV80, playing as black",
+    "timestamp": "2025-08-12T23:00:05.344Z"
+  },
+  {
+    "text": "Master: Successfully banned e4! White's turn to move now.",
+    "timestamp": "2025-08-12T23:00:35.114Z"
+  },
+  {
+    "text": "Master: Waiting for White to move. e4 is banned (visible as red X on board).",
+    "timestamp": "2025-08-12T23:00:58.483Z"
+  },
+  {
+    "text": "Master: Banned c4 (Queen's Gambit)! White must find alternative 2nd move.",
+    "timestamp": "2025-08-12T23:01:34.805Z"
+  },
+  {
+    "text": "Master: Game flowing perfectly! Position: 1.d4 d5, banned moves: e4, e5, c4. Waiting for White's 2nd move.",
+    "timestamp": "2025-08-12T23:01:56.007Z"
+  },
+  {
+    "text": "Master: EXCELLENT TEST! Completed 5+ move cycles. Ban Chess working perfectly: 1.d4 d5 2.Nf3 Nf6 with all bans functioning. White now selecting 3rd move ban.",
+    "timestamp": "2025-08-12T23:02:23.506Z"
+  },
+  {
+    "text": "Master: Rejoining game - I can see it's ban phase, White to ban Black's move",
+    "timestamp": "2025-08-12T23:11:02.238Z"
+  },
+  {
+    "text": "Master: Attempting to ban Bg4 to prevent pin on my knight",
+    "timestamp": "2025-08-12T23:11:20.997Z"
+  },
+  {
+    "text": "Master: Ban input not responding - tried both Bg4 and e6, neither submitting despite pressing Enter",
+    "timestamp": "2025-08-12T23:12:02.399Z"
+  },
+  {
+    "text": "Master: Game disconnected after refresh - shows 'Game Not Available'. Will navigate to home to start new game.",
+    "timestamp": "2025-08-12T23:12:23.769Z"
+  }
+]

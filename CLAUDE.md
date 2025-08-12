@@ -109,7 +109,7 @@ When fixing bugs or issues in this codebase:
 - **TanStack Query** - Server state management with optimistic updates
 - **Zustand** - Client-side state management for UI
 - **Framer Motion** - Smooth animations and transitions
-- **Playwright** - E2E testing infrastructure with self-evolving capabilities
+- **Puppeteer** - E2E testing infrastructure with self-evolving capabilities using incognito mode for isolation
 
 ### Ban Chess Mechanic - Core Rules
 - **Dynamic Ban System**: Before EVERY move, the opponent bans one of your legal moves
@@ -300,38 +300,64 @@ The application follows Lichess's proven design patterns:
 - **`src/components/GameBoardV2.tsx`** - Refactored game board
 - **`src/components/LichessBoardV2.tsx`** - Simplified board with proper ban logic
 
-### Testing Infrastructure (AGENT-BASED, NOT SCRIPT-BASED)
+### Testing Infrastructure (PARALLEL AGENT-BASED, NOT SCRIPT-BASED)
 
-⚠️ **CRITICAL**: The testing system uses **CONCURRENT AGENTS with MCP Playwright tools**, NOT traditional test scripts!
+⚠️ **CRITICAL ARCHITECTURE CLARIFICATION**: The testing system uses **TWO PARALLEL SUB-AGENTS coordinating via messaging**, NOT one agent controlling another!
 
 - **NO TEST SCRIPTS**: Tests are executed by live agents using MCP tools in real-time
-- **CONCURRENT EXECUTION**: Multiple agents control different browser instances simultaneously
-- **MCP PLAYWRIGHT TOOLS**: Agents use `mcp__playwright__browser_*` tools directly
+- **PARALLEL EXECUTION**: Both agents are technically sub-agents running concurrently
+- **COORDINATION NOT CONTROL**: The "master" agent coordinates with (not controls) the "sub" agent via messaging
+- **MCP PUPPETEER TOOLS**: Each agent uses `mcp__puppeteer__puppeteer_*` tools independently
+- **INCOGNITO MODE**: Each agent launches its own Puppeteer with incognito context for complete isolation
+- **MESSAGING-BASED SYNC**: Agents coordinate actions through JSON file messaging, not direct control
 - **SELF-EVOLVING**: Agents learn from failures and update selector strategies in real-time
 - **`NEXT_PUBLIC_USE_TEST_AUTH=true`**: Enables test authentication features
 
-### How Testing Actually Works (NOT SCRIPTS!)
+### How Testing Actually Works (PARALLEL AGENTS WITH COORDINATION!)
 
-**THIS IS NOT A SCRIPT - IT'S CONCURRENT AGENT ORCHESTRATION:**
+**THIS IS PARALLEL AGENT COORDINATION - NOT ONE AGENT CONTROLLING ANOTHER:**
 
-1. **Master Agent** (You) starts the dev server and controls Player 1 using MCP tools:
+1. **"Master" Agent (Player 1)** - A sub-agent that:
+   - Starts the dev server
+   - Controls Player 1's browser using MCP tools
+   - Sends coordination messages via `window.sendMasterMessage()`
+   - Waits for responses from the other agent
    ```
-   mcp__playwright__browser_navigate({ url: 'http://localhost:3000' })
-   mcp__playwright__browser_snapshot()  // Check current state
-   mcp__playwright__browser_click({ element: 'guest button', ref: 'button-123' })
+   mcp__puppeteer__puppeteer_navigate({ 
+     url: 'http://localhost:3000',
+     launchOptions: { headless: false, args: ['--incognito'] }
+   })
+   mcp__puppeteer__puppeteer_evaluate({ 
+     script: 'window.sendMasterMessage("READY_TO_START")'
+   })
    ```
 
-2. **Sub-Agent** (via Task tool) controls Player 2 CONCURRENTLY:
-   - Runs in parallel, not sequentially
-   - Has its own browser context
-   - Uses same MCP Playwright tools
-   - Communicates via agent messaging
+2. **"Sub" Agent (Player 2)** - Another sub-agent running IN PARALLEL that:
+   - Runs concurrently via Task tool (NOT controlled by master)
+   - Has its own independent Puppeteer instance
+   - Makes its own decisions based on received messages
+   - Sends status updates via `window.sendSubMessage()`
+   - Acts autonomously while coordinating with master
 
 3. **Real-Time Learning**: When an action fails, agents immediately:
    - Try alternative selectors
    - Update success rates in memory
    - Discover new selector patterns
    - Share learnings via testing-memory.json
+
+### Key Distinction: Coordination vs Control
+
+**CRITICAL UNDERSTANDING**: The "master" agent doesn't control the "sub" agent!
+
+- **❌ WRONG**: Master agent controls sub-agent's actions directly
+- **✅ RIGHT**: Both agents run in parallel, coordinating via messages
+
+**How it really works**:
+1. Both agents are launched as independent sub-agents
+2. They communicate through JSON file messaging (`/public/master-messages.json` and `/public/sub-messages.json`)
+3. The "master" sends coordination signals like "READY_TO_QUEUE" or "YOUR_TURN_TO_BAN"
+4. The "sub" agent independently decides how to respond to these signals
+5. Neither agent waits for the other unless explicitly coordinating a game action
 
 ### Self-Evolving Testing System (Agent-Driven)
 The testing infrastructure continuously improves through agent learning:
@@ -381,9 +407,9 @@ The testing infrastructure continuously improves through agent learning:
 3. **Discovery Mode**: If all fail, attempt new selector patterns and record results
 4. **Learning**: Update success rates after each test run
 
-#### How Agents Use the Evolving Selector System (NOT A SCRIPT!)
+#### How Parallel Agents Use the Evolving Selector System
 
-**IMPORTANT**: This is NOT a test script! This is how AGENTS use the memory system:
+**IMPORTANT**: Both agents independently access and update the shared memory system:
 
 ```typescript
 // EXAMPLE: How an agent would use evolving selectors with MCP tools
@@ -393,23 +419,23 @@ The testing infrastructure continuously improves through agent learning:
 const memory = JSON.parse(await mcp__filesystem__read_file({ path: 'e2e/testing-memory.json' }));
 const bestSelector = memory.selectors.continue_as_guest.successful[0];
 
-// 2. Agent tries to use the selector via MCP tool
-const snapshot = await mcp__playwright__browser_snapshot();
-const element = findElementInSnapshot(snapshot, bestSelector.selector);
-
-if (element) {
-  // 3. Agent clicks using MCP tool with the element reference
-  await mcp__playwright__browser_click({ 
-    element: 'Continue as Guest button',
-    ref: element.ref 
+// 2. Agent tries to use the selector via MCP Puppeteer tool
+try {
+  await mcp__puppeteer__puppeteer_click({ 
+    selector: bestSelector.selector
   });
-  // 4. Agent updates success in memory
+  // 3. Agent updates success in memory
   bestSelector.successes++;
   bestSelector.success_rate = bestSelector.successes / bestSelector.attempts;
-} else {
-  // 5. Agent tries fallback selectors
+} catch (error) {
+  // 4. Agent tries fallback selectors
   for (const fallback of memory.selectors.continue_as_guest.successful.slice(1)) {
-    // Try next selector...
+    try {
+      await mcp__puppeteer__puppeteer_click({ selector: fallback.selector });
+      break;
+    } catch (e) {
+      continue;
+    }
   }
 }
 ```
@@ -539,8 +565,8 @@ No test framework is currently configured. Verify changes by:
 - Check `bun run lint` for code quality
 - **E2E Testing (AGENT-BASED, NOT SCRIPT-BASED)**: 
   - Master agent starts dev server: `NEXT_PUBLIC_USE_TEST_AUTH=true bun run dev` (background)
-  - Master agent controls Player 1 using MCP Playwright tools
-  - Sub-agent (via Task) controls Player 2 concurrently
+  - Master agent controls Player 1 using MCP Puppeteer tools with incognito mode
+  - Sub-agent (via Task) controls Player 2 concurrently with separate incognito instance
   - NO TEST SCRIPTS - agents use MCP tools directly
   - Agents learn from failures and update `e2e/testing-memory.json`
 
@@ -567,13 +593,19 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
   - Immediately signs out any existing session
   - Removes the `clean` parameter from URL
   - Leaves browser in unauthenticated state
-- **Test Usage**: Both agents should start with this parameter to ensure no cached auth:
+- **Test Usage**: Both agents should start with clean incognito contexts:
   ```javascript
   // Master agent:
-  mcp__playwright__browser_navigate({ url: 'http://localhost:3000?clean=true' })
+  mcp__puppeteer__puppeteer_navigate({ 
+    url: 'http://localhost:3000',
+    launchOptions: { headless: false, args: ['--incognito'] }
+  })
   
   // Sub-agent (in Task):
-  mcp__playwright__browser_navigate({ url: 'http://localhost:3000?clean=true' })
+  mcp__puppeteer__puppeteer_navigate({ 
+    url: 'http://localhost:3000',
+    launchOptions: { headless: false, args: ['--incognito'] }
+  })
   ```
 
 #### Guest Authentication
@@ -605,7 +637,7 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
 - By default you will run the dev server in a background shell if it is not running already
 - Always use dotenv when you want to have an env variable set for a session, to ensure platform compatibility
 - before commiting a package.json update that involved a dependency modification, make sure to get package-lock.json updated as well
-- If writing a script for gui tests and automation, we are using playwright typescript. note: these scripts should be designed as singular parts that can be interwoven concurrently by a running agent
+- If writing a script for gui tests and automation, we are using puppeteer with incognito mode. note: these scripts should be designed as singular parts that can be interwoven concurrently by a running agent
 - authenticating as any user from any point on the website when testing can be done setting an auth search query  parameter with the value being the target username. when the page to reloads without the auth parameter authentication is complete
 - maintain documentation of the testing configurations. most importantly are when agents manually work the gui to observe the current state of the code and game flow, and have immediate reactivity as it fixes the codebase
 - TO HAVE DIFFERENT USERS CONTROLED ON THE SAME TESTING MACHINE, DIFFERENT BROWSERS WITH DIFFERENT CONTEXT ARE REQUIRED. DO NOT ATTEMPT USING DIFFERENT TABS
@@ -617,36 +649,38 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
 
 **ABSOLUTELY CRITICAL**: 
 - ❌ **NO TEST SCRIPTS ARE RUN**
-- ✅ **AGENTS USE MCP PLAYWRIGHT TOOLS DIRECTLY**
+- ✅ **AGENTS USE MCP PUPPETEER TOOLS DIRECTLY**
 - ✅ **MULTIPLE AGENTS RUN CONCURRENTLY**
-- ✅ **EACH AGENT HAS ITS OWN BROWSER CONTEXT**
+- ✅ **EACH AGENT HAS ITS OWN INCOGNITO BROWSER CONTEXT**
 
-### Browser Context Isolation Strategy
+### Browser Context Isolation Strategy with Puppeteer
 
 #### How Each Agent Gets a Clean, Isolated Browser:
 
 1. **Master Agent (Player 1)**:
-   ```
-   # Close any existing browser first
-   mcp__playwright__browser_close()
-   
-   # Navigate to app - this creates a NEW browser instance
-   mcp__playwright__browser_navigate({ url: 'http://localhost:3000' })
-   
-   # Now has a clean browser with no auth/cookies
+   ```javascript
+   // Navigate with incognito mode - creates isolated browser instance
+   mcp__puppeteer__puppeteer_navigate({ 
+     url: 'http://localhost:3000',
+     launchOptions: { 
+       headless: false,  // Show browser for debugging
+       args: ['--incognito', '--no-sandbox', '--disable-setuid-sandbox']
+     }
+   })
+   // Now has a clean incognito browser with no auth/cookies
    ```
 
 2. **Sub-Agent (Player 2 via Task tool)**:
-   - Sub-agent MUST also close and reopen browser
-   - Each agent's Playwright MCP maintains separate browser instances
-   - No shared state between agents
-   - Clean cookies/localStorage for each agent
+   - Sub-agent launches its own Puppeteer with separate incognito context
+   - Each agent's Puppeteer MCP maintains completely isolated browser instances
+   - No shared cookies, localStorage, or authentication state
+   - Incognito mode ensures clean slate for each agent
 
-#### Why This Works:
-- **Playwright MCP Architecture**: Each agent connection gets its own browser process
-- **No Persistent Profiles**: Without --user-data-dir, browsers start fresh
-- **Complete Isolation**: Different browser processes = no shared auth/cookies
-- **Clean State**: browser_close() + browser_navigate() = fresh context
+#### Why Puppeteer Incognito Works Better:
+- **True Isolation**: Incognito mode prevents any cookie/cache sharing
+- **Concurrent Support**: Multiple incognito instances can run simultaneously
+- **No Profile Conflicts**: Each incognito context is ephemeral
+- **Clean State Guaranteed**: Every navigation starts with zero stored data
 
 ### The ONLY Correct Way to Test Two-Player Games (Via Agents):
 
@@ -656,13 +690,14 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
    NEXT_PUBLIC_USE_TEST_AUTH=true bun run dev
    ```
 
-2. **Launch Second Player as BACKGROUND Task**
-   - Use the Task tool to launch a sub-agent that will:
-     - Run CONCURRENTLY in the background (not sequentially!)
-     - Control its own Playwright browser instance
-     - Sign in as a different guest user
-     - Queue for a game
-     - Communicate via the agent messaging system
+2. **Launch Second Player Agent in Parallel**
+   - Use the Task tool to launch another sub-agent that will:
+     - Run CONCURRENTLY as an independent agent (not controlled!)
+     - Control its own Puppeteer browser instance with incognito mode
+     - Make autonomous decisions based on coordination messages
+     - Sign in as a different guest user independently
+     - Queue for a game when it sees the coordination signal
+     - Send status updates back via the messaging system
    
    Example Task invocation:
    ```javascript
@@ -671,10 +706,10 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
      subagent_type: 'general-purpose',
      prompt: `
        You are controlling the second player. IMPORTANT:
-       1. Create your OWN Playwright browser instance (separate from master)
-       2. Navigate to http://localhost:3000
+       1. Launch Puppeteer with incognito mode using mcp__puppeteer__puppeteer_navigate
+       2. Navigate to http://localhost:3000 with launchOptions: { headless: false, args: ['--incognito'] }
        3. Sign in as guest (you'll get a different username)
-       4. Send status updates via window.sendSubMessage()
+       4. Send status updates via mcp__puppeteer__puppeteer_evaluate with window.sendSubMessage()
        5. Queue for game and wait for match
        6. Play the game following Ban Chess rules
        7. Use the testing memory system to select best known selectors
@@ -682,42 +717,55 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
    });
    ```
 
-3. **Master Agent Controls First Player**
-   - After launching the sub-agent (which runs in background), the master agent:
-     - Creates its own Playwright browser instance
+3. **First Agent ("Master") Coordinates with Second Agent**
+   - After launching the parallel agent, the first agent:
+     - Launches its own Puppeteer instance with incognito mode
      - Signs in as a guest user
-     - Queues for a game
-     - Plays against the sub-agent
+     - Sends coordination messages to synchronize actions
+     - Queues for a game when both agents are ready
+     - Plays against the other agent with message-based coordination
 
-### Agent Communication Protocol:
-- **Master → Sub**: Messages appear in green "MASTER AGENT" scroll area
-- **Sub → Master**: Messages appear in blue "SUB AGENT" scroll area
+### Agent Communication Protocol (Peer-to-Peer Coordination):
+- **Agent 1 → Agent 2**: Messages appear in green "MASTER AGENT" scroll area
+- **Agent 2 → Agent 1**: Messages appear in blue "SUB AGENT" scroll area
 - **Send messages via**: `window.sendMasterMessage()` or `window.sendSubMessage()`
 - **Messages stored in**: `/public/master-messages.json` and `/public/sub-messages.json`
 - **Real-time sync**: Messages poll every 500ms for updates
+- **Coordination, not control**: Messages are signals for coordination, not commands
+- **Autonomous responses**: Each agent decides independently how to respond
 
 #### Example Communication:
 ```javascript
 // Master agent:
-await page.evaluate(() => window.sendMasterMessage("Master: Ready, queuing now"));
+await mcp__puppeteer__puppeteer_evaluate({ 
+  script: 'window.sendMasterMessage("Master: Ready, queuing now")'
+});
 
 // Sub agent (in concurrent Task):
-await page.evaluate(() => window.sendSubMessage("Sub: Authenticated as user_xyz"));
-await page.evaluate(() => window.sendSubMessage("Sub: In queue"));
+await mcp__puppeteer__puppeteer_evaluate({ 
+  script: 'window.sendSubMessage("Sub: Authenticated as user_xyz")'
+});
+await mcp__puppeteer__puppeteer_evaluate({ 
+  script: 'window.sendSubMessage("Sub: In queue")'
+});
 ```
 
-### Why This Works:
-- **CONCURRENT EXECUTION**: Sub-agent runs in parallel, not blocking master
+### Why This Parallel Architecture Works:
+- **TRUE CONCURRENCY**: Both agents run as independent parallel processes
+- **NO BLOCKING**: Neither agent blocks the other - they run simultaneously
 - **SEPARATE CONTEXTS**: Each agent has its own browser (no auth conflicts)
-- **REAL-TIME COORDINATION**: Agents communicate via JSON files (not localStorage!)
-- **MASTER STAYS FREE**: Can interact with its browser while sub-agent plays
+- **MESSAGE-BASED COORDINATION**: Agents sync via JSON files, not direct control
+- **AUTONOMOUS OPERATION**: Each agent makes its own decisions based on messages
+- **PEER-TO-PEER**: Despite "master/sub" naming, they're equal parallel agents
 
 ### Common Mistakes to Avoid:
-❌ **NEVER use tabs** - They share authentication state (line 453!)
-❌ **NEVER control both players sequentially** - Use concurrent Task
+❌ **NEVER use tabs** - They share authentication state
+❌ **NEVER control both players sequentially** - Use parallel Tasks
 ❌ **NEVER use same browser context** - Each agent needs its own
 ❌ **NEVER attempt local game mode** - Returns 404
 ❌ **NEVER use localStorage for agent comms** - Doesn't sync between contexts
+❌ **NEVER think one agent controls the other** - They coordinate as peers
+❌ **NEVER wait for direct responses** - Use polling for message updates
 
 ## Clean Context Testing Procedure (CRITICAL FOR REPRODUCIBLE TESTS)
 
@@ -747,13 +795,13 @@ await waitForServerReady();
 await clearAgentMessages();
 ```
 
-#### 2. Launch Sub-Agent with Strict Instructions
+#### 2. Launch Parallel Agent with Coordination Protocol
 ```javascript
 await Task({
-  description: 'Control second player - WAIT for instructions',
+  description: 'Second player agent - coordinate with first',
   subagent_type: 'general-purpose',
   prompt: `
-    CRITICAL: You are the sub-agent for chess testing.
+    CRITICAL: You are an independent agent coordinating with another agent for chess testing.
     
     1. VERIFY CLEAN CONTEXT:
        - Navigate to http://localhost:3000
@@ -761,61 +809,69 @@ await Task({
        - If you see a username in header, THROW ERROR immediately
        - Send: "Sub: Clean context confirmed"
     
-    2. WAIT FOR MASTER INSTRUCTIONS:
-       - DO NOT sign in until instructed
-       - DO NOT click anything until instructed
-       - Monitor green MASTER AGENT panel for commands
-       - Acknowledge each command received
+    2. MONITOR FOR COORDINATION SIGNALS:
+       - Watch the green MASTER AGENT panel for coordination messages
+       - These are NOT commands - they are coordination signals
+       - You decide independently how to respond
+       - Acknowledge signals to maintain sync
     
-    3. EXECUTE ONLY ON COMMAND:
-       - When master says "SUB_LOGIN" → Click "Continue as Guest"
-       - When master says "SUB_QUEUE" → Click "Play Now"
-       - When master says "SUB_BAN <move>" → Enter move in test input
-       - When master says "SUB_MOVE <move>" → Enter move in test input
+    3. COORDINATE ACTIONS (not commanded!):
+       - When you see "READY_TO_LOGIN" → Decide to click "Continue as Guest"
+       - When you see "READY_TO_QUEUE" → Decide to click "Play Now"
+       - When you see "YOUR_TURN_TO_BAN" → Analyze board and ban a move
+       - When you see "YOUR_TURN_TO_MOVE" → Analyze board and make a move
     
-    4. REPORT STATUS:
-       - Send status after each action
+    4. REPORT YOUR DECISIONS:
+       - Send status after each action YOU decide to take
        - Include username once authenticated
        - Report game ID when matched
-       - Report all moves made/banned
+       - Report all moves you choose to make/ban
+       - You are an autonomous agent making your own decisions!
   `
 });
 ```
 
-#### 3. Master Agent Control Flow (REAL MCP TOOL USAGE)
-```
-// THIS IS WHAT THE MASTER AGENT ACTUALLY DOES - NOT A SCRIPT!
+#### 3. First Agent Coordination Flow (PARALLEL AGENT #1)
+```javascript
+// THIS IS WHAT THE FIRST PARALLEL AGENT DOES - NOT CONTROLLING THE OTHER!
 
-// 1. Close any existing browser for clean state
-mcp__playwright__browser_close()
-
-// 2. Navigate to app (creates new browser)
-mcp__playwright__browser_navigate({ url: 'http://localhost:3000' })
-
-// 3. Take snapshot to see current state
-snapshot = mcp__playwright__browser_snapshot()
-// Analyze snapshot to find "Continue as Guest" button
-
-// 4. Click guest login using element from snapshot
-mcp__playwright__browser_click({ 
-  element: 'Continue as Guest button',
-  ref: 'button[data-testid="guest-auth-button"]'  // from snapshot
+// 1. Navigate to app with incognito mode
+mcp__puppeteer__puppeteer_navigate({ 
+  url: 'http://localhost:3000',
+  launchOptions: { 
+    headless: false,
+    args: ['--incognito', '--no-sandbox']
+  }
 })
 
-// 5. Wait and verify authentication
-mcp__playwright__browser_wait_for({ time: 2 })
-snapshot = mcp__playwright__browser_snapshot()
-// Check for username in header
+// 2. Take screenshot to see current state
+mcp__puppeteer__puppeteer_screenshot({ 
+  name: 'initial-state',
+  encoded: true
+})
+
+// 3. Click guest login button
+mcp__puppeteer__puppeteer_click({ 
+  selector: '[data-testid="guest-auth-button"]'
+})
+
+// 4. Wait for authentication to complete
+await new Promise(resolve => setTimeout(resolve, 2000));
+
+// 5. Take screenshot to verify auth
+mcp__puppeteer__puppeteer_screenshot({ 
+  name: 'after-auth',
+  encoded: true  
+})
 
 // 6. Click Play Now to queue
-mcp__playwright__browser_click({
-  element: 'Play Now button',
-  ref: 'button[data-testid="queue-button"]'
+mcp__puppeteer__puppeteer_click({
+  selector: '[data-testid="queue-button"]'
 })
 
 // 7. Send message to sub-agent
-mcp__playwright__browser_evaluate({
-  function: '() => window.sendMasterMessage("Master: In queue")'
+mcp__puppeteer__puppeteer_evaluate({
+  script: 'window.sendMasterMessage("Master: In queue")'
 })
 
 // 8. Command sub-agent to login and queue
@@ -859,26 +915,35 @@ The test input field accepts **ONLY algebraic notation**:
 4. **Placeholder Text**: Shows context-appropriate hints
 
 #### How Agents Enter Moves (Using MCP Tools):
-```
-// AGENTS USE MCP TOOLS, NOT PLAYWRIGHT API DIRECTLY!
+```javascript
+// AGENTS USE MCP TOOLS, NOT PUPPETEER API DIRECTLY!
 
-// 1. Take snapshot to find test input
-snapshot = mcp__playwright__browser_snapshot()
-// Analyze snapshot for input element with ref
-
-// 2. Type move in test input
-mcp__playwright__browser_type({
-  element: 'Board test input field',
-  ref: 'input[data-testid="board-test-input"]',  // from snapshot
-  text: 'e4'
+// 1. Take screenshot to see board state
+mcp__puppeteer__puppeteer_screenshot({ 
+  name: 'board-state',
+  encoded: true
 })
 
-// 3. Submit the move
-mcp__playwright__browser_press_key({ key: 'Enter' })
+// 2. Type move in test input
+mcp__puppeteer__puppeteer_fill({
+  selector: 'input[data-testid="board-test-input"]',
+  value: 'e4'
+})
 
-// 4. Verify move was made
-snapshot = mcp__playwright__browser_snapshot()
-// Check board state changed
+// 3. Submit the move by pressing Enter
+mcp__puppeteer__puppeteer_evaluate({
+  script: `
+    const input = document.querySelector('input[data-testid="board-test-input"]');
+    const event = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13 });
+    input.dispatchEvent(event);
+  `
+})
+
+// 4. Verify move was made with screenshot
+mcp__puppeteer__puppeteer_screenshot({ 
+  name: 'after-move',
+  encoded: true
+})
 ```
 
 ### Validation Checklist

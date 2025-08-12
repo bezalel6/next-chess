@@ -102,6 +102,35 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setMyColor(color);
   }, [game, user, setMyColor]);
 
+  // Sync currentBannedMove from game data to store
+  useEffect(() => {
+    if (!game) return;
+    
+    console.log('[GameContextV2] Game object:', game);
+    console.log('[GameContextV2] Syncing banned move:', game.currentBannedMove);
+    
+    // If game has a current banned move, update the store
+    if (game.currentBannedMove) {
+      const store = useGameStore.getState();
+      // Only update if it's different from what's in the store
+      if (!store.currentBannedMove || 
+          store.currentBannedMove.from !== game.currentBannedMove.from ||
+          store.currentBannedMove.to !== game.currentBannedMove.to) {
+        console.log('[GameContextV2] Updating store with banned move:', game.currentBannedMove);
+        useGameStore.setState({ 
+          currentBannedMove: game.currentBannedMove 
+        });
+      }
+    } else {
+      // Clear banned move if game doesn't have one
+      const store = useGameStore.getState();
+      if (store.currentBannedMove) {
+        console.log('[GameContextV2] Clearing banned move from store');
+        useGameStore.setState({ currentBannedMove: null });
+      }
+    }
+  }, [game?.currentBannedMove]);
+
   // Update phase based on game state
   useEffect(() => {
     if (!game) return;

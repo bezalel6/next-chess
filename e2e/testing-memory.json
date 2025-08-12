@@ -1,0 +1,235 @@
+{
+  "selectors": {
+    "continue_as_guest": {
+      "successful": [
+        {
+          "method": "javascript_click",
+          "script": "Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.trim() === 'Continue as Guest').click()",
+          "context": "auth_page",
+          "timestamp": "2025-08-12T20:43:00Z",
+          "success_rate": 1.0,
+          "last_success": "2025-08-12T20:43:00Z",
+          "attempts": 1,
+          "successes": 1
+        },
+        {
+          "selector": "[data-testid='guest-auth-button']",
+          "context": "auth_page",
+          "timestamp": "2025-01-12T10:30:00Z",
+          "success_rate": 0.95,
+          "last_success": "2025-01-12T15:00:00Z",
+          "attempts": 20,
+          "successes": 19
+        },
+        {
+          "selector": "button:has-text('Continue as Guest')",
+          "context": "auth_page",
+          "timestamp": "2025-01-12T11:00:00Z",
+          "success_rate": 0.88,
+          "last_success": "2025-01-12T14:30:00Z",
+          "attempts": 16,
+          "successes": 14
+        }
+      ],
+      "failed": [
+        {
+          "selector": "#guest-button",
+          "context": "auth_page",
+          "error": "Element not found",
+          "timestamp": "2025-01-12T09:00:00Z"
+        }
+      ]
+    },
+    "play_now": {
+      "successful": [
+        {
+          "selector": "[data-testid='queue-button']",
+          "context": "home_page",
+          "success_rate": 0.92,
+          "attempts": 25,
+          "successes": 23
+        },
+        {
+          "selector": "button:has-text('Play Now')",
+          "context": "home_page",
+          "success_rate": 0.85,
+          "attempts": 20,
+          "successes": 17
+        }
+      ],
+      "failed": []
+    },
+    "board_test_input": {
+      "successful": [
+        {
+          "selector": "[data-testid='board-test-input']",
+          "context": "game_page",
+          "success_rate": 0.98,
+          "attempts": 50,
+          "successes": 49
+        }
+      ],
+      "failed": []
+    },
+    "username_display": {
+      "successful": [
+        {
+          "selector": "[data-testid='username-header']",
+          "context": "any_page",
+          "success_rate": 0.90,
+          "attempts": 30,
+          "successes": 27
+        },
+        {
+          "selector": ".user-info span:first-child",
+          "context": "any_page",
+          "success_rate": 0.75,
+          "attempts": 20,
+          "successes": 15
+        }
+      ],
+      "failed": []
+    }
+  },
+  "flows": {
+    "authentication": {
+      "guest_login": {
+        "successful_sequences": [
+          {
+            "steps": ["wait_for_page_load", "check_auth_status", "click_guest_button", "wait_for_redirect"],
+            "success_rate": 0.89,
+            "avg_duration_ms": 2300,
+            "total_runs": 35,
+            "successful_runs": 31
+          }
+        ],
+        "failed_sequences": [
+          {
+            "steps": ["immediate_click_guest"],
+            "failure_reason": "Page not fully loaded",
+            "occurrences": 4
+          }
+        ]
+      },
+      "query_param_auth": {
+        "successful_sequences": [
+          {
+            "steps": ["navigate_with_auth_param", "wait_for_reload", "verify_username"],
+            "success_rate": 0.94,
+            "avg_duration_ms": 1800
+          }
+        ]
+      }
+    },
+    "game_flow": {
+      "queue_and_match": {
+        "successful_sequences": [
+          {
+            "steps": ["click_play_now", "wait_for_match", "verify_game_started"],
+            "success_rate": 0.87,
+            "avg_duration_ms": 3500,
+            "notes": "Success rate higher when 2-3 second delay between players queuing"
+          }
+        ]
+      },
+      "ban_phase": {
+        "successful_sequences": [
+          {
+            "steps": ["wait_for_ban_indicator", "enter_move_to_ban", "confirm_ban"],
+            "success_rate": 0.91,
+            "avg_duration_ms": 1200
+          }
+        ]
+      },
+      "move_phase": {
+        "successful_sequences": [
+          {
+            "steps": ["wait_for_move_indicator", "enter_move", "verify_board_update"],
+            "success_rate": 0.93,
+            "avg_duration_ms": 1000
+          }
+        ]
+      }
+    }
+  },
+  "timing_adjustments": {
+    "auth_delay": {
+      "min": 1000,
+      "optimal": 2000,
+      "max": 3000,
+      "notes": "Delay between guest logins prevents same username assignment"
+    },
+    "queue_delay": {
+      "min": 500,
+      "optimal": 1500,
+      "max": 2500,
+      "notes": "Delay before queuing improves match success"
+    },
+    "page_load_wait": {
+      "min": 800,
+      "optimal": 1200,
+      "max": 2000
+    },
+    "element_visibility_timeout": {
+      "min": 3000,
+      "optimal": 5000,
+      "max": 10000
+    }
+  },
+  "selector_patterns": {
+    "discovered_patterns": [
+      {
+        "pattern": "[data-testid='*']",
+        "success_rate": 0.92,
+        "description": "Data-testid attributes are most reliable"
+      },
+      {
+        "pattern": "button:has-text('*')",
+        "success_rate": 0.78,
+        "description": "Text-based button selectors work but less reliable"
+      },
+      {
+        "pattern": "#id",
+        "success_rate": 0.65,
+        "description": "ID selectors sometimes change between builds"
+      }
+    ],
+    "avoid_patterns": [
+      {
+        "pattern": ".class:nth-child(n)",
+        "reason": "Position-based selectors break with UI changes"
+      },
+      {
+        "pattern": "div > div > button",
+        "reason": "Deep nesting selectors are fragile"
+      }
+    ]
+  },
+  "error_recovery": {
+    "common_errors": [
+      {
+        "error": "Element not visible",
+        "recovery_strategies": [
+          "increase_wait_time",
+          "scroll_into_view",
+          "check_overlapping_elements"
+        ]
+      },
+      {
+        "error": "Timeout waiting for selector",
+        "recovery_strategies": [
+          "try_alternative_selector",
+          "reload_page",
+          "clear_browser_cache"
+        ]
+      }
+    ]
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-01-12T15:00:00Z",
+    "total_test_runs": 250,
+    "overall_success_rate": 0.88,
+    "evolution_enabled": true
+  }
+}

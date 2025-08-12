@@ -35,6 +35,7 @@ interface AuthContextType {
     signInWithGoogle: () => Promise<void>;
     signInWithMagicLink: (email: string, captchaToken?: string) => Promise<void>;
     signInWithTestUsername: (username: string) => Promise<void>;
+    resetTestAccount: (username: string) => Promise<void>;
     isGuest: boolean;
     updateUsername: (username: string) => Promise<void>;
     checkUsernameExists: (username: string) => Promise<boolean>;
@@ -441,6 +442,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabaseBrowser().auth.setSession(session);
     };
 
+    const resetTestAccount = async (username: string) => {
+        // Only allow in test mode
+        if (process.env.NEXT_PUBLIC_USE_TEST_AUTH !== 'true') {
+            throw new Error('Test authentication is disabled');
+        }
+
+        const response = await fetch('/api/test/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'reset-acc',
+                username: username.toLowerCase().trim()
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Account reset failed');
+        }
+    };
+
     const updateUsername = async (username: string) => {
         if (!user) throw new Error("User not authenticated");
 
@@ -476,6 +498,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle,
         signInWithMagicLink,
         signInWithTestUsername,
+        resetTestAccount,
         isGuest,
         updateUsername,
         checkUsernameExists

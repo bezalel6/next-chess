@@ -21,8 +21,6 @@ export default async function handler(
 
   const { action, email, password, username } = req.body;
   
-  console.log('Test auth request:', { action, email: email ? 'provided' : 'missing', password: password ? 'provided' : 'missing' });
-
   if (!action) {
     return res.status(400).json({ error: 'Missing action' });
   }
@@ -206,6 +204,47 @@ export default async function handler(
       return res.status(200).json({
         user: authData.user,
         session: authData.session
+      });
+    }
+
+    if (action === 'reset-acc') {
+      const { username } = req.body;
+      
+      if (!username) {
+        return res.status(400).json({ error: 'Username is required' });
+      }
+
+      // Get user by username
+      const { data: profile, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .ilike('username', username)
+        .single();
+
+      if (profileError || !profile) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Delete all games where user is a player
+      const { error: deleteError } = await supabaseAdmin
+        .from('games')
+        .delete()
+        .or(`white_player_id.eq.${profile.id},black_player_id.eq.${profile.id}`);
+
+      if (deleteError) {
+        console.error('Failed to delete games:', deleteError);
+        return res.status(500).json({ error: 'Failed to reset account' });
+      }
+
+      // Also delete from matchmaking queue if present
+      await supabaseAdmin
+        .from('matchmaking_queue')
+        .delete()
+        .eq('player_id', profile.id);
+
+      return res.status(200).json({ 
+        message: 'Account reset successfully',
+        userId: profile.id
       });
     }
 

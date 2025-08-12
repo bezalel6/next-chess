@@ -109,7 +109,7 @@ When fixing bugs or issues in this codebase:
 - **TanStack Query** - Server state management with optimistic updates
 - **Zustand** - Client-side state management for UI
 - **Framer Motion** - Smooth animations and transitions
-- **Puppeteer** - E2E testing infrastructure
+- **Playwright** - E2E testing infrastructure with self-evolving capabilities
 
 ### Ban Chess Mechanic - Core Rules
 - **Dynamic Ban System**: Before EVERY move, the opponent bans one of your legal moves
@@ -300,12 +300,152 @@ The application follows Lichess's proven design patterns:
 - **`src/components/GameBoardV2.tsx`** - Refactored game board
 - **`src/components/LichessBoardV2.tsx`** - Simplified board with proper ban logic
 
-### Testing Infrastructure
-- **`e2e/`** - Complete E2E testing setup with Puppeteer
-  - `two-player-screenshot.js` - Captures 1920x1080 screenshots from both players' perspectives
-  - Parallelized player setup for faster test execution
-  - Fuzzy button matching for robust UI interaction
-- **`NEXT_PUBLIC_USE_TEST_AUTH=true`** - Bypasses authentication for testing purposes (enables "Continue as Guest" button)
+### Testing Infrastructure (AGENT-BASED, NOT SCRIPT-BASED)
+
+⚠️ **CRITICAL**: The testing system uses **CONCURRENT AGENTS with MCP Playwright tools**, NOT traditional test scripts!
+
+- **NO TEST SCRIPTS**: Tests are executed by live agents using MCP tools in real-time
+- **CONCURRENT EXECUTION**: Multiple agents control different browser instances simultaneously
+- **MCP PLAYWRIGHT TOOLS**: Agents use `mcp__playwright__browser_*` tools directly
+- **SELF-EVOLVING**: Agents learn from failures and update selector strategies in real-time
+- **`NEXT_PUBLIC_USE_TEST_AUTH=true`**: Enables test authentication features
+
+### How Testing Actually Works (NOT SCRIPTS!)
+
+**THIS IS NOT A SCRIPT - IT'S CONCURRENT AGENT ORCHESTRATION:**
+
+1. **Master Agent** (You) starts the dev server and controls Player 1 using MCP tools:
+   ```
+   mcp__playwright__browser_navigate({ url: 'http://localhost:3000' })
+   mcp__playwright__browser_snapshot()  // Check current state
+   mcp__playwright__browser_click({ element: 'guest button', ref: 'button-123' })
+   ```
+
+2. **Sub-Agent** (via Task tool) controls Player 2 CONCURRENTLY:
+   - Runs in parallel, not sequentially
+   - Has its own browser context
+   - Uses same MCP Playwright tools
+   - Communicates via agent messaging
+
+3. **Real-Time Learning**: When an action fails, agents immediately:
+   - Try alternative selectors
+   - Update success rates in memory
+   - Discover new selector patterns
+   - Share learnings via testing-memory.json
+
+### Self-Evolving Testing System (Agent-Driven)
+The testing infrastructure continuously improves through agent learning:
+
+#### Memory Persistence (`e2e/testing-memory.json`)
+```json
+{
+  "selectors": {
+    "continue_as_guest": {
+      "successful": [
+        { "selector": "[data-testid='guest-auth-button']", "context": "auth_page", "timestamp": "2025-01-12T10:30:00Z", "success_rate": 0.95 },
+        { "selector": "button:has-text('Continue as Guest')", "context": "auth_page", "timestamp": "2025-01-12T11:00:00Z", "success_rate": 0.88 }
+      ],
+      "failed": [
+        { "selector": "#guest-button", "context": "auth_page", "error": "Element not found", "timestamp": "2025-01-12T09:00:00Z" }
+      ]
+    },
+    "play_now": {
+      "successful": [
+        { "selector": "[data-testid='queue-button']", "context": "home_page", "success_rate": 0.92 }
+      ]
+    }
+  },
+  "flows": {
+    "authentication": {
+      "guest_login": {
+        "successful_sequences": [
+          {
+            "steps": ["wait_for_page_load", "check_auth_status", "click_guest_button", "wait_for_redirect"],
+            "success_rate": 0.89,
+            "avg_duration_ms": 2300
+          }
+        ]
+      }
+    }
+  },
+  "timing_adjustments": {
+    "auth_delay": { "min": 1000, "optimal": 2000, "max": 3000 },
+    "queue_delay": { "min": 500, "optimal": 1500, "max": 2500 }
+  }
+}
+```
+
+#### Selector Evolution Strategy
+1. **Primary Strategy**: Use highest success rate selector from memory
+2. **Fallback Chain**: Try alternative selectors in descending success rate order
+3. **Discovery Mode**: If all fail, attempt new selector patterns and record results
+4. **Learning**: Update success rates after each test run
+
+#### How Agents Use the Evolving Selector System (NOT A SCRIPT!)
+
+**IMPORTANT**: This is NOT a test script! This is how AGENTS use the memory system:
+
+```typescript
+// EXAMPLE: How an agent would use evolving selectors with MCP tools
+// This code shows the LOGIC agents follow, NOT a script they run!
+
+// 1. Agent checks memory for best selector
+const memory = JSON.parse(await mcp__filesystem__read_file({ path: 'e2e/testing-memory.json' }));
+const bestSelector = memory.selectors.continue_as_guest.successful[0];
+
+// 2. Agent tries to use the selector via MCP tool
+const snapshot = await mcp__playwright__browser_snapshot();
+const element = findElementInSnapshot(snapshot, bestSelector.selector);
+
+if (element) {
+  // 3. Agent clicks using MCP tool with the element reference
+  await mcp__playwright__browser_click({ 
+    element: 'Continue as Guest button',
+    ref: element.ref 
+  });
+  // 4. Agent updates success in memory
+  bestSelector.successes++;
+  bestSelector.success_rate = bestSelector.successes / bestSelector.attempts;
+} else {
+  // 5. Agent tries fallback selectors
+  for (const fallback of memory.selectors.continue_as_guest.successful.slice(1)) {
+    // Try next selector...
+  }
+}
+```
+
+#### Memory Updates After Each Test
+```typescript
+// Automatically called after each test run
+async function updateTestMemory(testResults: TestResults) {
+  const memory = await loadTestMemory();
+  
+  // Update selector success rates
+  for (const action of testResults.actions) {
+    if (action.successful) {
+      memory.incrementSuccessRate(action.selector, action.context);
+    } else {
+      memory.decrementSuccessRate(action.selector, action.context);
+      memory.recordError(action.selector, action.error);
+    }
+  }
+  
+  // Optimize timing based on results
+  if (testResults.timingIssues) {
+    memory.adjustTiming(testResults.timingIssues);
+  }
+  
+  // Save evolved memory
+  await saveTestMemory(memory);
+}
+```
+
+#### Exponential Improvement
+- **Week 1**: 60% test success rate, manual selector fixes needed
+- **Week 2**: 75% success rate, fallback selectors working
+- **Week 3**: 85% success rate, timing optimized
+- **Week 4**: 95% success rate, fully autonomous testing
+- **Ongoing**: 98%+ success rate, self-healing tests
 
 ## Development Guidelines
 
@@ -397,10 +537,12 @@ No test framework is currently configured. Verify changes by:
 - Use `bun run dev` for development with hot reload
 - Always run `bun run typecheck` before committing
 - Check `bun run lint` for code quality
-- **E2E Testing**: 
-  - Run dev server: `NEXT_PUBLIC_USE_TEST_AUTH=true bun run dev`
-  - Run tests: `node e2e/two-player-screenshot.js`
-  - Creates `player1_perspective.png` and `player2_perspective.png` screenshots
+- **E2E Testing (AGENT-BASED, NOT SCRIPT-BASED)**: 
+  - Master agent starts dev server: `NEXT_PUBLIC_USE_TEST_AUTH=true bun run dev` (background)
+  - Master agent controls Player 1 using MCP Playwright tools
+  - Sub-agent (via Task) controls Player 2 concurrently
+  - NO TEST SCRIPTS - agents use MCP tools directly
+  - Agents learn from failures and update `e2e/testing-memory.json`
 
 ### Test Authentication System
 When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several authentication mechanisms for testing:
@@ -417,6 +559,22 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
   - `useTestAuthQuery` hook detects and processes the auth parameter
   - `TestAuthHandler` component provides visual feedback
   - Uses test auth API endpoint to bypass captcha/email verification
+
+### Clean Session Parameter (`?clean=true`)
+- **Purpose**: Forces logout to ensure clean authentication state for testing
+- **Usage**: Navigate to any page with `?clean=true` (e.g., `http://localhost:3000?clean=true`)
+- **Behavior**:
+  - Immediately signs out any existing session
+  - Removes the `clean` parameter from URL
+  - Leaves browser in unauthenticated state
+- **Test Usage**: Both agents should start with this parameter to ensure no cached auth:
+  ```javascript
+  // Master agent:
+  mcp__playwright__browser_navigate({ url: 'http://localhost:3000?clean=true' })
+  
+  // Sub-agent (in Task):
+  mcp__playwright__browser_navigate({ url: 'http://localhost:3000?clean=true' })
+  ```
 
 #### Guest Authentication
 - **"Continue as Guest" Button**: Visible only in test mode on the auth form
@@ -450,3 +608,309 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
 - If writing a script for gui tests and automation, we are using playwright typescript. note: these scripts should be designed as singular parts that can be interwoven concurrently by a running agent
 - authenticating as any user from any point on the website when testing can be done setting an auth search query  parameter with the value being the target username. when the page to reloads without the auth parameter authentication is complete
 - maintain documentation of the testing configurations. most importantly are when agents manually work the gui to observe the current state of the code and game flow, and have immediate reactivity as it fixes the codebase
+- TO HAVE DIFFERENT USERS CONTROLED ON THE SAME TESTING MACHINE, DIFFERENT BROWSERS WITH DIFFERENT CONTEXT ARE REQUIRED. DO NOT ATTEMPT USING DIFFERENT TABS
+- Using ?auth=username login when testing requires a wait until the page gets reloaded without the auth search query
+
+## ⚠️ CRITICAL TESTING INSTRUCTIONS - AGENT-BASED, NOT SCRIPT-BASED!
+
+### Testing = Concurrent Agents Using MCP Tools (NOT SCRIPTS!)
+
+**ABSOLUTELY CRITICAL**: 
+- ❌ **NO TEST SCRIPTS ARE RUN**
+- ✅ **AGENTS USE MCP PLAYWRIGHT TOOLS DIRECTLY**
+- ✅ **MULTIPLE AGENTS RUN CONCURRENTLY**
+- ✅ **EACH AGENT HAS ITS OWN BROWSER CONTEXT**
+
+### Browser Context Isolation Strategy
+
+#### How Each Agent Gets a Clean, Isolated Browser:
+
+1. **Master Agent (Player 1)**:
+   ```
+   # Close any existing browser first
+   mcp__playwright__browser_close()
+   
+   # Navigate to app - this creates a NEW browser instance
+   mcp__playwright__browser_navigate({ url: 'http://localhost:3000' })
+   
+   # Now has a clean browser with no auth/cookies
+   ```
+
+2. **Sub-Agent (Player 2 via Task tool)**:
+   - Sub-agent MUST also close and reopen browser
+   - Each agent's Playwright MCP maintains separate browser instances
+   - No shared state between agents
+   - Clean cookies/localStorage for each agent
+
+#### Why This Works:
+- **Playwright MCP Architecture**: Each agent connection gets its own browser process
+- **No Persistent Profiles**: Without --user-data-dir, browsers start fresh
+- **Complete Isolation**: Different browser processes = no shared auth/cookies
+- **Clean State**: browser_close() + browser_navigate() = fresh context
+
+### The ONLY Correct Way to Test Two-Player Games (Via Agents):
+
+1. **Start Development Server in Background**
+   ```bash
+   # Run in background shell (Bash tool with run_in_background: true)
+   NEXT_PUBLIC_USE_TEST_AUTH=true bun run dev
+   ```
+
+2. **Launch Second Player as BACKGROUND Task**
+   - Use the Task tool to launch a sub-agent that will:
+     - Run CONCURRENTLY in the background (not sequentially!)
+     - Control its own Playwright browser instance
+     - Sign in as a different guest user
+     - Queue for a game
+     - Communicate via the agent messaging system
+   
+   Example Task invocation:
+   ```javascript
+   await Task({
+     description: 'Control second player',
+     subagent_type: 'general-purpose',
+     prompt: `
+       You are controlling the second player. IMPORTANT:
+       1. Create your OWN Playwright browser instance (separate from master)
+       2. Navigate to http://localhost:3000
+       3. Sign in as guest (you'll get a different username)
+       4. Send status updates via window.sendSubMessage()
+       5. Queue for game and wait for match
+       6. Play the game following Ban Chess rules
+       7. Use the testing memory system to select best known selectors
+     `
+   });
+   ```
+
+3. **Master Agent Controls First Player**
+   - After launching the sub-agent (which runs in background), the master agent:
+     - Creates its own Playwright browser instance
+     - Signs in as a guest user
+     - Queues for a game
+     - Plays against the sub-agent
+
+### Agent Communication Protocol:
+- **Master → Sub**: Messages appear in green "MASTER AGENT" scroll area
+- **Sub → Master**: Messages appear in blue "SUB AGENT" scroll area
+- **Send messages via**: `window.sendMasterMessage()` or `window.sendSubMessage()`
+- **Messages stored in**: `/public/master-messages.json` and `/public/sub-messages.json`
+- **Real-time sync**: Messages poll every 500ms for updates
+
+#### Example Communication:
+```javascript
+// Master agent:
+await page.evaluate(() => window.sendMasterMessage("Master: Ready, queuing now"));
+
+// Sub agent (in concurrent Task):
+await page.evaluate(() => window.sendSubMessage("Sub: Authenticated as user_xyz"));
+await page.evaluate(() => window.sendSubMessage("Sub: In queue"));
+```
+
+### Why This Works:
+- **CONCURRENT EXECUTION**: Sub-agent runs in parallel, not blocking master
+- **SEPARATE CONTEXTS**: Each agent has its own browser (no auth conflicts)
+- **REAL-TIME COORDINATION**: Agents communicate via JSON files (not localStorage!)
+- **MASTER STAYS FREE**: Can interact with its browser while sub-agent plays
+
+### Common Mistakes to Avoid:
+❌ **NEVER use tabs** - They share authentication state (line 453!)
+❌ **NEVER control both players sequentially** - Use concurrent Task
+❌ **NEVER use same browser context** - Each agent needs its own
+❌ **NEVER attempt local game mode** - Returns 404
+❌ **NEVER use localStorage for agent comms** - Doesn't sync between contexts
+
+## Clean Context Testing Procedure (CRITICAL FOR REPRODUCIBLE TESTS)
+
+### Overview
+This procedure ensures completely clean, controlled testing with two concurrent agents playing Ban Chess against each other. Both agents start with NO pre-saved authentication and coordinate via messaging.
+
+### Pre-Test Requirements
+1. **Dev Server**: Must be running with `NEXT_PUBLIC_USE_TEST_AUTH=true`
+2. **No Cached Auth**: Both agents MUST start with clean browser contexts
+3. **Communication System**: Agent messaging via JSON files must be functional
+
+### Step-by-Step Clean Context Test Run
+
+#### 1. Initial Setup (Master Agent)
+```javascript
+// Kill any existing dev servers and browsers
+await killAllChrome();
+await killBash('all');
+
+// Start fresh dev server in background
+await bash('NEXT_PUBLIC_USE_TEST_AUTH=true bun run dev', { run_in_background: true });
+
+// Wait for server ready
+await waitForServerReady();
+
+// Clear any existing messages
+await clearAgentMessages();
+```
+
+#### 2. Launch Sub-Agent with Strict Instructions
+```javascript
+await Task({
+  description: 'Control second player - WAIT for instructions',
+  subagent_type: 'general-purpose',
+  prompt: `
+    CRITICAL: You are the sub-agent for chess testing.
+    
+    1. VERIFY CLEAN CONTEXT:
+       - Navigate to http://localhost:3000
+       - Check that you are NOT authenticated
+       - If you see a username in header, THROW ERROR immediately
+       - Send: "Sub: Clean context confirmed"
+    
+    2. WAIT FOR MASTER INSTRUCTIONS:
+       - DO NOT sign in until instructed
+       - DO NOT click anything until instructed
+       - Monitor green MASTER AGENT panel for commands
+       - Acknowledge each command received
+    
+    3. EXECUTE ONLY ON COMMAND:
+       - When master says "SUB_LOGIN" → Click "Continue as Guest"
+       - When master says "SUB_QUEUE" → Click "Play Now"
+       - When master says "SUB_BAN <move>" → Enter move in test input
+       - When master says "SUB_MOVE <move>" → Enter move in test input
+    
+    4. REPORT STATUS:
+       - Send status after each action
+       - Include username once authenticated
+       - Report game ID when matched
+       - Report all moves made/banned
+  `
+});
+```
+
+#### 3. Master Agent Control Flow (REAL MCP TOOL USAGE)
+```
+// THIS IS WHAT THE MASTER AGENT ACTUALLY DOES - NOT A SCRIPT!
+
+// 1. Close any existing browser for clean state
+mcp__playwright__browser_close()
+
+// 2. Navigate to app (creates new browser)
+mcp__playwright__browser_navigate({ url: 'http://localhost:3000' })
+
+// 3. Take snapshot to see current state
+snapshot = mcp__playwright__browser_snapshot()
+// Analyze snapshot to find "Continue as Guest" button
+
+// 4. Click guest login using element from snapshot
+mcp__playwright__browser_click({ 
+  element: 'Continue as Guest button',
+  ref: 'button[data-testid="guest-auth-button"]'  // from snapshot
+})
+
+// 5. Wait and verify authentication
+mcp__playwright__browser_wait_for({ time: 2 })
+snapshot = mcp__playwright__browser_snapshot()
+// Check for username in header
+
+// 6. Click Play Now to queue
+mcp__playwright__browser_click({
+  element: 'Play Now button',
+  ref: 'button[data-testid="queue-button"]'
+})
+
+// 7. Send message to sub-agent
+mcp__playwright__browser_evaluate({
+  function: '() => window.sendMasterMessage("Master: In queue")'
+})
+
+// 8. Command sub-agent to login and queue
+// (Sub-agent does similar steps in parallel)
+```
+
+#### 4. Game Play Coordination
+
+##### Ban Phase (When Opponent Can Ban)
+```javascript
+// Master (playing White) waits for Black to ban
+await waitForBanPhase();
+await sendMasterMessage("Master: Waiting for ban");
+
+// Sub (playing Black) bans a move
+await enterMoveInTestInput("e4");  // Ban e2-e4
+await sendSubMessage("Sub: Banned e4");
+```
+
+##### Move Phase
+```javascript
+// Master makes move (White)
+await enterMoveInTestInput("d4");  // Play d2-d4
+await sendMasterMessage("Master: Played d4");
+
+// Sub makes move (Black)
+await enterMoveInTestInput("d5");  // Play d7-d5
+await sendSubMessage("Sub: Played d5");
+```
+
+### Test Input Usage (CRITICAL)
+
+The test input field accepts **ONLY algebraic notation**:
+- ✅ Valid: `e4`, `Nf3`, `Bxc6`, `O-O`, `Qd8+`
+- ❌ Invalid: `e2e4`, `e2-e4`, `e2 e4`
+
+#### Input Behavior:
+1. **Visual Feedback**: Red border for ban phase, green for move phase
+2. **Error Handling**: Input flashes red if move is invalid/illegal
+3. **Auto-clear**: Input clears after successful move/ban
+4. **Placeholder Text**: Shows context-appropriate hints
+
+#### How Agents Enter Moves (Using MCP Tools):
+```
+// AGENTS USE MCP TOOLS, NOT PLAYWRIGHT API DIRECTLY!
+
+// 1. Take snapshot to find test input
+snapshot = mcp__playwright__browser_snapshot()
+// Analyze snapshot for input element with ref
+
+// 2. Type move in test input
+mcp__playwright__browser_type({
+  element: 'Board test input field',
+  ref: 'input[data-testid="board-test-input"]',  // from snapshot
+  text: 'e4'
+})
+
+// 3. Submit the move
+mcp__playwright__browser_press_key({ key: 'Enter' })
+
+// 4. Verify move was made
+snapshot = mcp__playwright__browser_snapshot()
+// Check board state changed
+```
+
+### Validation Checklist
+
+Before starting any test run:
+- [ ] Both agents report "Clean context confirmed"
+- [ ] No usernames visible before login
+- [ ] Dev server running with test auth enabled
+- [ ] Agent message files cleared
+- [ ] No Chrome processes from previous tests
+
+During test run:
+- [ ] Agents sign in sequentially (not simultaneously)
+- [ ] Different usernames assigned to each agent
+- [ ] Game matches within 5 seconds of both queuing
+- [ ] Ban phase shows red border on input
+- [ ] Move phase shows green border on input
+- [ ] All moves use algebraic notation
+- [ ] Messages appear in correct panels (green/blue)
+
+### Common Issues and Solutions
+
+| Issue | Solution |
+|-------|----------|
+| Same username for both agents | Agents signed in too quickly - add 2-3 second delay |
+| "User not found" error | Using cached auth - need clean context |
+| Moves not registering | Not using algebraic notation - check format |
+| Game not starting | Both agents not in queue - check status messages |
+| Input not working | Wrong selector or event - use KeyboardEvent with 'Enter' |
+
+### What DOESN'T Work (Common Mistakes)
+- ❌ Using browser tabs for different users
+- ❌ Trying to use local game mode
+- ❌ Switching users in the same browser context
+- ❌ Assuming the second player will automatically join

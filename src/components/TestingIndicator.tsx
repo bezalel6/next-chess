@@ -37,7 +37,9 @@ export default function TestingIndicator() {
   }, []);
 
   // Only show in development/test mode
-  if (!status?.testAuthEnabled) {
+  // never display, temp visual help
+
+  if (true || !status?.testAuthEnabled) {
     return null;
   }
 

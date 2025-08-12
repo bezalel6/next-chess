@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-import { useMemo, useCallback, type ComponentProps } from 'react';
+import { useMemo, useCallback, useRef, useEffect, type ComponentProps } from 'react';
 import { Box } from '@mui/material';
 import { useGame } from '@/contexts/GameContextV2';
 import { useGameStore } from '@/stores/gameStore';
@@ -26,6 +26,9 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     previewBan,
     previewMove,
   } = useGameStore();
+  
+  // Test input refs for automation
+  const testInputRef = useRef<HTMLInputElement>(null);
 
   // Parse current position
   const chess = useMemo(() => {
@@ -142,6 +145,67 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     }
   }, [canBan, canMove, banMove, makeMove, chess]);
 
+  // Handle algebraic notation input (e.g., "e4", "Nf3", "Bxc6")
+  const handleAlgebraicMove = useCallback((notation: string) => {
+    if (!chess) return false;
+    
+    try {
+      // Try to parse the move
+      const move = chess.move(notation);
+      if (move) {
+        // Undo the local move (server will handle it)
+        chess.undo();
+        
+        // Execute the move/ban
+        handleMove(move.from, move.to);
+        
+        // Clear input
+        if (testInputRef.current) {
+          testInputRef.current.value = '';
+        }
+        return true;
+      }
+    } catch (e) {
+      // Invalid move notation
+      if (testInputRef.current) {
+        testInputRef.current.value = '';
+        testInputRef.current.style.borderColor = '#ff0000';
+        setTimeout(() => {
+          if (testInputRef.current) {
+            testInputRef.current.style.borderColor = canBan ? '#ff6b6b' : '#4CAF50';
+          }
+        }, 500);
+      }
+    }
+    return false;
+  }, [chess, handleMove, canBan]);
+
+  // Test input handler for automation
+  useEffect(() => {
+    const handleTestInput = () => {
+      const input = testInputRef.current;
+      if (!input || !input.value.trim()) return;
+      
+      // Process the algebraic notation
+      handleAlgebraicMove(input.value.trim());
+    };
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleTestInput();
+      }
+    };
+    
+    const input = testInputRef.current;
+    if (input) {
+      input.addEventListener('keydown', handleKeyDown);
+      return () => {
+        input.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [handleAlgebraicMove]);
+
   // Chessground configuration
   const config = useMemo<Config>(() => ({
     fen: chess?.fen() || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
@@ -189,7 +253,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     orientation, 
     game?.turn, 
     lastMove, 
-    check, 
+    check,
     canMove, 
     canBan,
     myColor, 
@@ -198,6 +262,36 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     shapes,
     previewBan,
   ]);
+
+  // Calculate banned square positions for overlay
+  const bannedSquareOverlays = useMemo(() => {
+    console.log('[LichessBoardV2] currentBannedMove:', currentBannedMove, 'canBan:', canBan);
+    
+    if (!currentBannedMove || canBan) return null;
+    
+    const squareSize = 100 / 8; // 12.5% of board size
+    const fileToX = (file: string) => (file.charCodeAt(0) - 97) * squareSize;
+    const rankToY = (rank: string) => (8 - parseInt(rank)) * squareSize;
+    
+    const fromFile = currentBannedMove.from[0];
+    const fromRank = currentBannedMove.from[1];
+    const toFile = currentBannedMove.to[0];
+    const toRank = currentBannedMove.to[1];
+    
+    const overlays = {
+      from: {
+        left: `${fileToX(fromFile)}%`,
+        top: `${rankToY(fromRank)}%`,
+      },
+      to: {
+        left: `${fileToX(toFile)}%`,
+        top: `${rankToY(toRank)}%`,
+      }
+    };
+    
+    console.log('[LichessBoardV2] bannedSquareOverlays:', overlays);
+    return overlays;
+  }, [currentBannedMove, canBan]);
 
   return (
     <>
@@ -225,6 +319,47 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
         )}
       </AnimatePresence>
       
+      {/* Banned move overlay indicators */}
+      {bannedSquareOverlays && (
+        <>
+          {/* From square indicator */}
+          <div
+            style={{
+              position: 'absolute',
+              left: bannedSquareOverlays.from.left,
+              top: bannedSquareOverlays.from.top,
+              width: '12.5%',
+              height: '12.5%',
+              background: 'radial-gradient(circle, rgba(255,0,0,0.6) 20%, rgba(255,0,0,0.3) 80%)',
+              pointerEvents: 'none',
+              zIndex: 5,
+            }}
+          />
+          {/* To square indicator with X */}
+          <div
+            style={{
+              position: 'absolute',
+              left: bannedSquareOverlays.to.left,
+              top: bannedSquareOverlays.to.top,
+              width: '12.5%',
+              height: '12.5%',
+              background: 'radial-gradient(circle, rgba(255,0,0,0.8) 30%, rgba(255,0,0,0.4) 90%)',
+              pointerEvents: 'none',
+              zIndex: 5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <span style={{
+              fontSize: '2rem',
+              color: 'rgba(255,255,255,0.9)',
+              fontWeight: 'bold',
+            }}>✕</span>
+          </div>
+        </>
+      )}
+      
       <Box
         sx={{
           position: 'absolute',
@@ -240,6 +375,24 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
             width: '100% !important',
             height: '100% !important',
             borderRadius: 'inherit',
+          },
+          // Styles for banned move squares
+          '& .cg-wrap square.banned-from': {
+            background: 'radial-gradient(circle, rgba(255,0,0,0.6) 20%, rgba(255,0,0,0.3) 80%) !important',
+          },
+          '& .cg-wrap square.banned-to': {
+            background: 'radial-gradient(circle, rgba(255,0,0,0.8) 30%, rgba(255,0,0,0.4) 90%) !important',
+            '&::after': {
+              content: '"✕"',
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              fontSize: '3rem',
+              color: 'rgba(255,255,255,0.9)',
+              fontWeight: 'bold',
+              pointerEvents: 'none',
+            }
           },
           '& .cg-container': {
             position: 'absolute !important',
@@ -257,6 +410,51 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
         }}
       >
         <Chessground config={config} />
+      </Box>
+      
+      {/* Test input for move/ban selection */}
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: '-50px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          textAlign: 'center',
+          zIndex: 10,
+        }}
+      >
+        <input
+          ref={testInputRef}
+          type="text"
+          data-testid="board-test-input"
+          placeholder={canBan ? "Ban a move (e.g., e4, Nf3)" : "Make a move (e.g., e4, Nf3)"}
+          style={{
+            width: '200px',
+            padding: '6px 10px',
+            fontSize: '13px',
+            fontFamily: 'monospace',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            color: '#fff',
+            border: `2px solid ${canBan ? '#ff6b6b' : '#4CAF50'}`,
+            borderRadius: '4px',
+            outline: 'none',
+            textAlign: 'center',
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = canBan ? '#ff4444' : '#66BB6A';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = canBan ? '#ff6b6b' : '#4CAF50';
+          }}
+        />
+        <div style={{
+          fontSize: '10px',
+          color: '#888',
+          marginTop: '4px',
+          fontFamily: 'monospace',
+        }}>
+          Press Enter to submit • Algebraic notation only
+        </div>
       </Box>
     </>
   );

@@ -151,7 +151,9 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     check,
     movable: {
       free: false,
-      color: canMove ? myColor || undefined : undefined,
+      color: canBan 
+        ? (myColor === 'white' ? 'black' : 'white') // During ban phase, allow moving opponent's pieces
+        : (canMove ? myColor || undefined : undefined), // During move phase, allow moving own pieces
       dests: legalMoves,
       showDests: true,
     },
@@ -159,7 +161,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       enabled: canBan,
     },
     draggable: {
-      enabled: canMove,
+      enabled: canMove || canBan, // Enable dragging during both move and ban phases
     },
     events: {
       move: handleMove,

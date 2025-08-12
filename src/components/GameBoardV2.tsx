@@ -77,7 +77,6 @@ export default function GameBoardV2({ orientation }: { orientation?: 'white' | '
     >
       <BanPhaseOverlay 
         isMyTurnToBan={canBan}
-        timeRemaining={30}
       />
       
       <Box sx={{ 

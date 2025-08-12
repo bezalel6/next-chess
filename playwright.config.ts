@@ -41,8 +41,9 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'dotenv -e .env -v NEXT_PUBLIC_USE_TEST_AUTH=true -- bun run dev --turbo',
+    command: 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
   },
 });

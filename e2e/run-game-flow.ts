@@ -13,11 +13,14 @@ async function main() {
   try {
     await orchestrator.runGameFlow(10);
     console.log('\n✅ Test completed successfully!');
+    process.exit(0);
   } catch (error) {
     console.error('\n❌ Test failed:', error);
     process.exit(1);
   } finally {
     await orchestrator.cleanup();
+    // Force exit to ensure all child processes terminate
+    setTimeout(() => process.exit(0), 1000);
   }
 }
 

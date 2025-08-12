@@ -84,11 +84,22 @@ app.prepare().then(async () => {
       console.log("[Server Queue] Presence leave:", payload);
     });
 
-  createServer((req, res) => {
+  const server = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true);
     handle(req, res, parsedUrl);
   }).listen(port, (err?: Error) => {
     if (err) throw err;
     console.log(`> Ready on http://${hostname}:${port}`);
+  });
+
+  // Minimal cleanup on process termination
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, closing server...');
+    server.close(() => process.exit(0));
+  });
+  
+  process.on('SIGINT', () => {
+    console.log('SIGINT received, closing server...');
+    server.close(() => process.exit(0));
   });
 });

@@ -449,3 +449,4 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
 - before commiting a package.json update that involved a dependency modification, make sure to get package-lock.json updated as well
 - If writing a script for gui tests and automation, we are using playwright typescript. note: these scripts should be designed as singular parts that can be interwoven concurrently by a running agent
 - authenticating as any user from any point on the website when testing can be done setting an auth search query  parameter with the value being the target username. when the page to reloads without the auth parameter authentication is complete
+- maintain documentation of the testing configurations. most importantly are when agents manually work the gui to observe the current state of the code and game flow, and have immediate reactivity as it fixes the codebase

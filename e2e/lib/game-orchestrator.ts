@@ -176,8 +176,12 @@ export class GameOrchestrator {
   async cleanup(): Promise<void> {
     console.log('Cleaning up...');
     for (const player of this.players) {
-      await player.context.close();
-      await player.browser.close();
+      try {
+        await player.context.close();
+        await player.browser.close();
+      } catch (error) {
+        console.error(`Error closing player ${player.playerNumber}:`, error);
+      }
     }
     console.log('Cleanup complete');
   }

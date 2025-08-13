@@ -284,8 +284,7 @@ const HowToPlayDialog = () => (
         color: "rgba(255, 255, 255, 0.85)",
       }}
     >
-      BanChess is an exciting variant of chess where strategy begins before the
-      first move.
+      In BanChess, every move starts with the opponent selecting a legal movw
     </Typography>
     <Typography
       variant="subtitle1"
@@ -316,7 +315,8 @@ const HowToPlayDialog = () => (
           <strong style={{ color: "rgba(255, 255, 255, 0.95)" }}>
             Turn Sequence:
           </strong>{" "}
-          Before EVERY move throughout the entire game, your opponent sees all your legal moves and selects ONE to ban.
+          Before EVERY move throughout the entire game, your opponent sees all
+          your legal moves and selects ONE to ban.
         </Typography>
       </li>
       <li>
@@ -324,7 +324,8 @@ const HowToPlayDialog = () => (
           <strong style={{ color: "rgba(255, 255, 255, 0.95)" }}>
             Continuous Banning:
           </strong>{" "}
-          After each move is made, the other player now becomes the banning player for their opponent's next turn.
+          After each move is made, the other player now becomes the banning
+          player for their opponent's next turn.
         </Typography>
       </li>
       <li>
@@ -332,7 +333,8 @@ const HowToPlayDialog = () => (
           <strong style={{ color: "rgba(255, 255, 255, 0.95)" }}>
             Strategic Depth:
           </strong>{" "}
-          You must constantly predict what your opponent wants to play and ban their most dangerous moves.
+          You must constantly predict what your opponent wants to play and ban
+          their most dangerous moves.
         </Typography>
       </li>
       <li>

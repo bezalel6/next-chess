@@ -157,6 +157,17 @@ async function handleMakeMove(
     if (!moveResult.valid) {
       return errorResponse(moveResult.error, 400);
     }
+    
+    // Create chess instance to get move details
+    const chess = new Chess(game.current_fen);
+    if (game.pgn) {
+      try {
+        chess.loadPgn(game.pgn);
+      } catch (e) {
+        // Continue with fresh instance if PGN load fails
+      }
+    }
+    chess.move(move as any);
 
     // Check game over conditions using PGN to account for banned moves
     const gameOverState = isGameOver(moveResult.newFen, moveResult.newPgn);
@@ -192,12 +203,30 @@ async function handleMakeMove(
       );
     }
 
-    // Record the move in move history - using direct untyped call since moves table isn't defined in typed schemas
+    // Calculate move details for the moves table
+    const moveHistory = chess.history({ verbose: true });
+    const lastMove = moveHistory[moveHistory.length - 1];
+    const plyNumber = moveHistory.length - 1;
+    const moveNumber = Math.floor(plyNumber / 2) + 1;
+    
+    // Get any banned move for this ply from the game state
+    const bannedMove = game.current_banned_move;
+    
+    // Record the move in move history table
     const { error: moveError } = await (supabase as any).from("moves").insert({
       game_id: gameId,
-      move: move,
+      move_number: moveNumber,
+      ply_number: plyNumber,
+      player_color: playerColor,
+      from_square: move.from,
+      to_square: move.to,
+      promotion: move.promotion || null,
+      san: lastMove?.san || "",
+      fen_after: moveResult.newFen,
+      banned_from: bannedMove?.from || null,
+      banned_to: bannedMove?.to || null,
+      banned_by: bannedMove ? (playerColor === "white" ? "black" : "white") : null,
       created_by: user.id,
-      position_fen: moveResult.newFen,
     });
 
     logOperation("record move", moveError);

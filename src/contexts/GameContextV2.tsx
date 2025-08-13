@@ -195,12 +195,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, [game, myColor, setPhase]);
 
-  // Set up realtime subscription
+  // Set up realtime subscription with Broadcast for instant updates
   useEffect(() => {
     if (!gameId) return;
 
     const channel = supabase
       .channel(`game:${gameId}`)
+      // Subscribe to game updates (fallback)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -209,6 +210,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }, () => {
         // Invalidate to trigger refetch
         queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+      })
+      // Subscribe to move broadcasts for instant updates
+      .on('broadcast', { event: 'move' }, (payload) => {
+        // Optimistically update move history
+        console.log('[GameContext] Received move broadcast:', payload);
+        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+        queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
+      })
+      // Subscribe to ban broadcasts
+      .on('broadcast', { event: 'ban' }, (payload) => {
+        console.log('[GameContext] Received ban broadcast:', payload);
+        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+        queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
       })
       .subscribe();
 

@@ -1,6 +1,6 @@
 import { Box, Typography, IconButton, Tooltip, Button } from '@mui/material';
 import { useGame } from '@/contexts/GameContextV2';
-import MoveHistory from './MoveHistory';
+import MoveHistoryV2 from './MoveHistoryV2';
 import TimeControl from './TimeControl';
 import CachedIcon from '@mui/icons-material/Cached';
 import FlagIcon from '@mui/icons-material/Flag';
@@ -132,7 +132,7 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
         borderRadius: 0.5,
         overflow: 'hidden',
       }}>
-        <MoveHistory />
+        <MoveHistoryV2 />
       </Box>
 
       {/* Game Actions - only show for active games */}

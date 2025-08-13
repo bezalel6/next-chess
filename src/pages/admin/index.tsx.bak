@@ -105,7 +105,7 @@ export default function AdminDashboard() {
 
     try {
       // Check if user is admin by querying the admins table
-      const { data: adminRecord, error: adminError } = await supabase
+      const { data: adminRecord, error: adminError } = await (supabase as any)
         .from("admins")
         .select("id")
         .eq("user_id", user.id)
@@ -217,11 +217,7 @@ export default function AdminDashboard() {
     try {
       const { data: gamesData } = await supabase
         .from("games")
-        .select(`
-          *,
-          white_profile:profiles!games_white_player_id_fkey(username),
-          black_profile:profiles!games_black_player_id_fkey(username)
-        `)
+        .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -239,10 +235,23 @@ export default function AdminDashboard() {
               .select("*", { count: "exact", head: true })
               .eq("game_id", game.id);
 
+            // Fetch usernames separately
+            const { data: whiteProfile } = await supabase
+              .from("profiles")
+              .select("username")
+              .eq("id", game.white_player_id)
+              .single();
+            
+            const { data: blackProfile } = await supabase
+              .from("profiles")
+              .select("username")
+              .eq("id", game.black_player_id)
+              .single();
+
             return {
               ...game,
-              white_username: game.white_profile?.username,
-              black_username: game.black_profile?.username,
+              white_username: whiteProfile?.username || "Unknown",
+              black_username: blackProfile?.username || "Unknown",
               total_moves: moveCount || 0,
               total_bans: banCount || 0,
             };

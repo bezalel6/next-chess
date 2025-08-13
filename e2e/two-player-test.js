@@ -3,15 +3,15 @@ import { chromium } from 'playwright';
 async function runTwoPlayerGame() {
   console.log('Starting two-player Ban Chess test...');
   
-  // Launch two separate browser instances
+  // Launch two separate browser instances with incognito mode
   const browser1 = await chromium.launch({
     headless: false,
-    args: ['--user-data-dir=C:\\temp\\player1-' + Date.now()]
+    args: ['--incognito']
   });
   
   const browser2 = await chromium.launch({
     headless: false,
-    args: ['--user-data-dir=C:\\temp\\player2-' + Date.now(), '--incognito']
+    args: ['--incognito']
   });
 
   try {

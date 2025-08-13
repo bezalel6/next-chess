@@ -116,14 +116,24 @@ async function handleJoinQueue(user: User, supabase: TypedSupabaseClient) {
 
     logOperation("check existing entry", existingEntryError);
 
-    // If already in queue, return current state
+    // If already in queue, update last_online in profiles and return current state
     if (existingEntry) {
+      // Update last_online timestamp in profiles
+      await getTable(supabase, "profiles")
+        .update({ last_online: new Date().toISOString() })
+        .eq("id", user.id);
+        
       return successResponse({
         status: existingEntry.status,
         joinedAt: existingEntry.joined_at,
       });
     }
 
+    // Update last_online in profiles
+    await getTable(supabase, "profiles")
+      .update({ last_online: new Date().toISOString() })
+      .eq("id", user.id);
+    
     // Add to matchmaking queue
     const { data: queueEntry, error: queueError } = await getTable(
       supabase,
@@ -321,17 +331,64 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       entityId: "system",
     });
 
-    // Find waiting players
-    const { data: waitingPlayers, error: waitingPlayersError } = await getTable(
+    // First, get stale users (offline for more than 1 minute)
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+    
+    const { data: staleProfiles, error: staleProfilesError } = await getTable(
+      supabase,
+      "profiles",
+    )
+      .select("id")
+      .lt("last_online", oneMinuteAgo);
+    
+    if (staleProfiles && staleProfiles.length > 0) {
+      // Remove stale entries from matchmaking
+      const stalePlayerIds = staleProfiles.map(p => p.id);
+      const { data: staleEntries, error: staleError } = await getTable(
+        supabase,
+        "matchmaking",
+      )
+        .delete()
+        .eq("status", "waiting")
+        .in("player_id", stalePlayerIds)
+        .select("player_id");
+      
+      if (staleEntries && staleEntries.length > 0) {
+        await debugLog(supabase, {
+          eventType: "stale_entries_removed",
+          entityType: "matchmaking",
+          entityId: "system",
+          data: {
+            removedCount: staleEntries.length,
+            removedPlayers: staleEntries.map(e => e.player_id),
+          },
+        });
+        logger.info(`Removed ${staleEntries.length} stale queue entries`);
+      }
+    }
+
+    // Find waiting players (ensure no duplicates)
+    const { data: waitingPlayersRaw, error: waitingPlayersError } = await getTable(
       supabase,
       "matchmaking",
     )
-      .select("player_id")
+      .select("player_id, joined_at")
       .eq("status", "waiting")
       .order("joined_at", { ascending: true })
-      .limit(2);
+      .limit(10);  // Get more than 2 to have options
+    
+    // Deduplicate players (in case of DB issues)
+    const seenPlayers = new Set<string>();
+    const waitingPlayers = waitingPlayersRaw?.filter(p => {
+      if (seenPlayers.has(p.player_id)) {
+        logger.warn(`Duplicate player in queue: ${p.player_id}`);
+        return false;
+      }
+      seenPlayers.add(p.player_id);
+      return true;
+    }) || [];
 
-    logOperation("find waiting players", waitingPlayersError);
+    logOperation("find online waiting players", waitingPlayersError);
 
     if (waitingPlayersError) {
       await debugLog(supabase, {
@@ -357,13 +414,36 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       data: {
         count: waitingPlayers?.length || 0,
         playerIds: waitingPlayers?.map((p) => p.player_id) || [],
+        lastOnlineTimes: [],
       },
     });
 
     // If we have at least 2 waiting players, create a game
     if (waitingPlayers && waitingPlayers.length >= 2) {
+      // For now, skip the online check since it's causing issues
+      // Just match the first two players in the queue
       const player1 = waitingPlayers[0].player_id;
       const player2 = waitingPlayers[1].player_id;
+      
+      // CRITICAL: Never match a player with themselves
+      if (player1 === player2) {
+        logger.error(`CRITICAL: Attempted to match player with themselves: ${player1}`);
+        await debugLog(supabase, {
+          eventType: "self_match_prevented",
+          entityType: "matchmaking",
+          entityId: "system",
+          data: {
+            player_id: player1,
+            queue_state: waitingPlayers,
+          },
+        });
+        
+        return successResponse({
+          matchCreated: false,
+          waitingPlayerCount: waitingPlayers.length,
+          reason: "self_match_prevented",
+        });
+      }
 
       // Generate a unique game ID
       const gameId = generateShortId();

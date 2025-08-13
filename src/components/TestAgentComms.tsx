@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Paper, Typography, TextField, Checkbox, FormControlLabel } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/router';
 
 interface Message {
   text: string;
@@ -13,6 +14,7 @@ export function TestAgentComms() {
     return null;
   }
 
+  const router = useRouter();
   const [masterMessages, setMasterMessages] = useState<Message[]>([]);
   const [subMessages, setSubMessages] = useState<Message[]>([]);
   const [masterInput, setMasterInput] = useState('');
@@ -21,6 +23,19 @@ export function TestAgentComms() {
   const [isSubAgent, setIsSubAgent] = useState(false);
   const masterScrollRef = useRef<HTMLDivElement>(null);
   const subScrollRef = useRef<HTMLDivElement>(null);
+  
+  // Clear messages when page loads with ?clean=true
+  useEffect(() => {
+    if (router.query.clean === 'true') {
+      fetch('/api/test/clear-messages', { method: 'POST' })
+        .then(() => {
+          setMasterMessages([]);
+          setSubMessages([]);
+          console.log('[TestAgentComms] Messages cleared due to ?clean=true');
+        })
+        .catch(err => console.error('[TestAgentComms] Failed to clear messages:', err));
+    }
+  }, [router.query.clean]);
 
   // Fetch messages periodically
   useEffect(() => {
@@ -262,10 +277,27 @@ export function TestAgentComms() {
                     border: '1px solid rgba(0,255,0,0.3)',
                     overflow: 'auto',
                     p: 1,
+                    pt: '2px',
                     pointerEvents: 'auto',
+                    position: 'relative',
                   }}
                 >
-                  <Typography variant="caption" sx={{ color: '#0f0', display: 'block', mb: 0.5, fontSize: '12px' }}>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      color: '#0f0', 
+                      display: 'block', 
+                      fontSize: '12px',
+                      position: 'absolute',
+                      top: '-18px',
+                      left: '8px',
+                      bgcolor: 'rgba(0,0,0,0.9)',
+                      px: 1,
+                      borderRadius: '4px 4px 0 0',
+                      border: '1px solid rgba(0,255,0,0.3)',
+                      borderBottom: 'none',
+                    }}
+                  >
                     MASTER AGENT
                   </Typography>
                   {masterMessages.filter(msg => msg.text !== '__CLEAR__').map((msg, i) => (
@@ -312,10 +344,27 @@ export function TestAgentComms() {
                     border: '1px solid rgba(0,100,255,0.3)',
                     overflow: 'auto',
                     p: 1,
+                    pt: '2px',
                     pointerEvents: 'auto',
+                    position: 'relative',
                   }}
                 >
-                  <Typography variant="caption" sx={{ color: '#00f', display: 'block', mb: 0.5, fontSize: '12px' }}>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      color: '#00f', 
+                      display: 'block', 
+                      fontSize: '12px',
+                      position: 'absolute',
+                      top: '-18px',
+                      left: '8px',
+                      bgcolor: 'rgba(0,0,0,0.9)',
+                      px: 1,
+                      borderRadius: '4px 4px 0 0',
+                      border: '1px solid rgba(0,100,255,0.3)',
+                      borderBottom: 'none',
+                    }}
+                  >
                     SUB AGENT
                   </Typography>
                   {subMessages.filter(msg => msg.text !== '__CLEAR__').map((msg, i) => (
@@ -378,19 +427,19 @@ export function TestAgentComms() {
                   ease: [0.22, 0.61, 0.36, 1],
                   delay: 0.15,
                 }}
-                style={{ flex: 1, display: 'flex' }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
               >
                 <Paper
                   ref={isMasterAgent ? subScrollRef : masterScrollRef}
                   sx={{
                     flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
                     bgcolor: isMasterAgent ? 'rgba(0,0,100,0.2)' : 'rgba(0,100,0,0.2)',
                     border: isMasterAgent ? '1px solid rgba(0,100,255,0.3)' : '1px solid rgba(0,255,0,0.3)',
-                    overflow: 'hidden',
+                    overflow: 'auto',
                     p: 1,
+                    pt: '2px',
                     pointerEvents: 'auto',
+                    position: 'relative',
                   }}
                 >
                   <Typography 
@@ -398,33 +447,37 @@ export function TestAgentComms() {
                     sx={{ 
                       color: isMasterAgent ? '#00f' : '#0f0',
                       display: 'block',
-                      mb: 0.5,
                       fontSize: '14px',
                       fontWeight: 'bold',
-                      flexShrink: 0,
+                      position: 'absolute',
+                      top: '-20px',
+                      left: '8px',
+                      bgcolor: 'rgba(0,0,0,0.9)',
+                      px: 1,
+                      borderRadius: '4px 4px 0 0',
+                      border: isMasterAgent ? '1px solid rgba(0,100,255,0.3)' : '1px solid rgba(0,255,0,0.3)',
+                      borderBottom: 'none',
                     }}
                   >
                     INCOMING FROM {isMasterAgent ? 'SUB' : 'MASTER'}
                   </Typography>
-                  <Box sx={{ flex: 1, overflow: 'auto' }}>
-                    {(isMasterAgent ? subMessages : masterMessages)
-                      .filter(msg => msg.text !== '__CLEAR__')
-                      .map((msg, i) => (
-                        <Typography
-                          key={i}
-                          variant="caption"
-                          sx={{
-                            color: isMasterAgent ? '#88f' : '#8f8',
-                            display: 'block',
-                            fontSize: '13px',
-                            lineHeight: 1.4,
-                            fontFamily: 'monospace',
-                          }}
-                        >
-                          [{new Date(msg.timestamp).toLocaleTimeString()}] {msg.text}
-                        </Typography>
-                      ))}
-                  </Box>
+                  {(isMasterAgent ? subMessages : masterMessages)
+                    .filter(msg => msg.text !== '__CLEAR__')
+                    .map((msg, i) => (
+                      <Typography
+                        key={i}
+                        variant="caption"
+                        sx={{
+                          color: isMasterAgent ? '#88f' : '#8f8',
+                          display: 'block',
+                          fontSize: '13px',
+                          lineHeight: 1.4,
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        [{new Date(msg.timestamp).toLocaleTimeString()}] {msg.text}
+                      </Typography>
+                    ))}
                 </Paper>
               </motion.div>
 

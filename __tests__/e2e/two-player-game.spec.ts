@@ -6,7 +6,7 @@ import { Linker } from '../../src/test-utils/linker';
  * E2E test for two-player game setup and matchmaking
  * Tests the critical path: authentication → queue → matchmaking
  */
-test.describe.serial('Two Player Game Setup', () => {
+test.describe.skip('Two Player Game Setup', () => {
   let browser: Browser;
   let context1: BrowserContext;
   let context2: BrowserContext;

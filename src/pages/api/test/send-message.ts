@@ -30,6 +30,13 @@ export default async function handler(
     const filename = agent === 'master' ? 'master-messages.json' : 'sub-messages.json';
     const filepath = path.join(process.cwd(), 'public', filename);
     
+    // Handle special __CLEAR__ message
+    if (message === '__CLEAR__') {
+      // Clear the messages file
+      fs.writeFileSync(filepath, JSON.stringify([], null, 2));
+      return res.status(200).json({ success: true, message: 'Messages cleared' });
+    }
+    
     let messages = [];
     try {
       const data = fs.readFileSync(filepath, 'utf8');

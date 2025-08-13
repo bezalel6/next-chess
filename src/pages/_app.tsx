@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { TestAuthHandler } from '@/components/TestAuthHandler';
 import { TestAgentComms } from '@/components/TestAgentComms';
 import { TestDataCollector } from '@/components/TestDataCollector';
+import { HeartbeatProvider } from '@/components/HeartbeatProvider';
 
 export type PageProps = {
   title?: string;
@@ -62,13 +63,15 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
       </Head>
       <AuthProvider>
         <TestAuthHandler />
-        <ConnectionProvider>
-          <GameProvider>
-            <Layout>
-              <Component {...pageProps} />
-            </Layout>
-          </GameProvider>
-        </ConnectionProvider>
+        <HeartbeatProvider>
+          <ConnectionProvider>
+            <GameProvider>
+              <Layout>
+                <Component {...pageProps} />
+              </Layout>
+            </GameProvider>
+          </ConnectionProvider>
+        </HeartbeatProvider>
       </AuthProvider>
       <TestAgentComms />
       <TestDataCollector />

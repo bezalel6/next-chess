@@ -2,7 +2,6 @@ import { Box, Fade } from "@mui/material";
 import Header from "./Header";
 import Footer from "./Footer";
 import DevelopmentNotice from "./DevelopmentNotice";
-import TestingIndicator from "./TestingIndicator";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
@@ -87,7 +86,6 @@ const Layout = ({ children }: LayoutProps) => {
           {children}
         </Box>
       </Fade>
-      <TestingIndicator />
       <DevelopmentNotice />
       <Footer />
     </Box>

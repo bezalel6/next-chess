@@ -18,15 +18,12 @@ CREATE TABLE IF NOT EXISTS public.ban_history (
 -- Index for fast lookups
 CREATE INDEX idx_ban_history_game_id ON public.ban_history(game_id, move_number);
 
--- Update the game flow: Remove incorrect initial ban phase
+-- Update the game flow: Correct ban phase
 -- Games should start with turn='white' and banning_player='black' (Black bans before White's first move)
 UPDATE public.games 
-SET banning_player = 
-    CASE 
-        WHEN turn = 'white' THEN 'black'::player_color
-        WHEN turn = 'black' THEN 'white'::player_color
-    END
-WHERE status = 'active' AND banning_player IS NOT NULL;
+SET banning_player = 'black'::player_color  -- Black bans before White's first move
+WHERE status = 'active' 
+  AND (pgn IS NULL OR pgn = '');  -- No moves made yet
 
 -- Add RLS policies for ban_history
 ALTER TABLE public.ban_history ENABLE ROW LEVEL SECURITY;

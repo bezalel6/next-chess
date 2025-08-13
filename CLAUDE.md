@@ -8,13 +8,15 @@ Real-time multiplayer chess application with a unique "ban move" mechanic. In Ba
 
 ## Ban Chess Rules
 
-- **Continuous Banning**: Opponent bans ONE move before EVERY move throughout the entire game (except the first move)
+- **Continuous Banning**: Opponent bans ONE move before EVERY move throughout the entire game
 - **Turn Sequence**: 
-  1. White makes first move (no ban)
-  2. Black bans one of White's possible next moves
-  3. Black makes their move
-  4. White bans one of Black's possible next moves
-  5. Pattern continues: Move → Opponent bans → Opponent moves → You ban
+  1. Black bans one of White's possible first moves
+  2. White makes first move (avoiding the ban)
+  3. White bans one of Black's possible moves
+  4. Black makes their move (avoiding the ban)
+  5. Black bans one of White's possible next moves
+  6. White makes their move (avoiding the ban)
+  7. Pattern continues: After each move, the player who just moved bans one of opponent's next moves
 - **Time Management**: Ban selection counts against the banning player's clock
 - **Status**: Core mechanic fully implemented and working correctly
 

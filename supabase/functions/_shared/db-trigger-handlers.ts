@@ -208,7 +208,7 @@ export async function createGameFromMatchedPlayers(
         current_fen: INITIAL_FEN,
         pgn: "",
         turn: "white",
-        banning_player: null, // No ban needed for the first move
+        banning_player: "black", // Black bans before White's first move
         time_control: {
           initial_time: timeControl.initialTime,
           increment: timeControl.increment,

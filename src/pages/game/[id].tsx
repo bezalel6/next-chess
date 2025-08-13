@@ -100,22 +100,12 @@ export default function GamePage() {
     const [accessError, setAccessError] = useState<string | null>(null);
     const [boardFlipped, setBoardFlipped] = useState(false);
 
-    // Handle board orientation based on ?as parameter or actual player color
+    // Handle board orientation based on player color
     useEffect(() => {
-        const colorParam = asParam as string;
-        
-        // In test mode with ?as parameter, set board orientation
-        if (process.env.NEXT_PUBLIC_USE_TEST_AUTH === 'true' && colorParam) {
-            if (colorParam === 'white') {
-                setBoardFlipped(false); // White on bottom
-            } else if (colorParam === 'black') {
-                setBoardFlipped(true); // Black on bottom
-            }
-        } else if (myColor) {
-            // Use actual player color for board orientation
+        if (myColor) {
             setBoardFlipped(myColor === 'black');
         }
-    }, [asParam, myColor]);
+    }, [myColor]);
 
     // Title based on game state
     const pageTitle = game

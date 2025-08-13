@@ -118,15 +118,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    // In test mode, if no user, default to viewing as white player
+    // If no user, they're a spectator
     if (!user) {
-      // Check if we're in test mode
-      const isTestMode = process.env.NEXT_PUBLIC_USE_TEST_AUTH === 'true';
-      if (isTestMode) {
-        // For test mode, alternate perspective or default to white
-        setMyColor('white');
-        return;
-      }
       setMyColor(null);
       return;
     }

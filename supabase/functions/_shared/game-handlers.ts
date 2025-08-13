@@ -497,7 +497,7 @@ async function handleGameOffer(
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
           pgn: "",
           turn: "white",
-          banning_player: "black",
+          banning_player: "black", // Black always bans before White's first move
           parent_game_id: gameId,
         })
         .select("*")

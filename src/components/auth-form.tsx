@@ -12,14 +12,10 @@ import {
 import { Google } from "@mui/icons-material";
 import {
   useAuth,
-  type SignUpStatus,
   UsernameExistsError,
 } from "@/contexts/AuthContext";
 import { z } from "zod";
 import { debounce } from "lodash";
-import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-import { TURNSTILE_CONFIG } from "@/config/turnstile";
-import { Linker } from "@/test-utils/linker";
 
 // Zod schema for username validation
 const usernameSchema = z
@@ -37,7 +33,6 @@ export type AuthFormProps = {
   onModeChange?: (newMode: 'login' | 'signup') => void;
 };
 
-
 export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onModeChange }: AuthFormProps) {
   const {
     signIn,
@@ -48,13 +43,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
     checkUsernameExists,
   } = useAuth();
   
-  // Use mode prop to determine if we're in signup or login mode
   const [isSignUp, setIsSignUp] = useState(mode === 'signup');
-  
-  // Sync isSignUp state with mode prop changes
-  useEffect(() => {
-    setIsSignUp(mode === 'signup');
-  }, [mode]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -62,92 +51,22 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [submitAction, setSubmitAction] = useState<
-    "signin" | "signup" | "guest" | "magiclink" | null
-  >(null);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  // In test mode, captcha is never loading
-  const [captchaLoading, setCaptchaLoading] = useState(!TURNSTILE_CONFIG.isTestMode());
   const [showMagicLink, setShowMagicLink] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
-  const turnstileRef = useRef<TurnstileInstance>(null);
-  
-  // Refs for input elements to detect autofill
-  const usernameInputRef = useRef<HTMLInputElement>(null);
-  const emailInputRef = useRef<HTMLInputElement>(null);
-  const loginUsernameInputRef = useRef<HTMLInputElement>(null);
-  const passwordInputRef = useRef<HTMLInputElement>(null);
-  const magicLinkEmailInputRef = useRef<HTMLInputElement>(null);
-  const [shrinkStates, setShrinkStates] = useState({
-    username: false,
-    email: false,
-    loginUsername: false,
-    password: false,
-    magicLinkEmail: false,
-  });
 
   useEffect(() => {
-    // In test mode, set a dummy token immediately
-    if (TURNSTILE_CONFIG.isTestMode()) {
-      setCaptchaToken('test-mode-bypass');
-      setCaptchaLoading(false);
-    }
-  }, []);
+    setIsSignUp(mode === 'signup');
+  }, [mode]);
 
   useEffect(() => {
-    // Check for autofill on mount and periodically
-    const checkAutofill = () => {
-      const refs = {
-        username: usernameInputRef.current,
-        email: emailInputRef.current,
-        loginUsername: loginUsernameInputRef.current,
-        password: passwordInputRef.current,
-        magicLinkEmail: magicLinkEmailInputRef.current,
-      };
-
-      const newShrinkStates = { ...shrinkStates };
-      let hasChanges = false;
-
-      Object.entries(refs).forEach(([key, ref]) => {
-        if (ref) {
-          const isAutofilled = ref.matches?.(':-webkit-autofill') || 
-                              ref.matches?.(':autofill') ||
-                              ref.value !== '';
-          if (newShrinkStates[key as keyof typeof shrinkStates] !== isAutofilled) {
-            newShrinkStates[key as keyof typeof shrinkStates] = isAutofilled;
-            hasChanges = true;
-          }
-        }
-      });
-
-      if (hasChanges) {
-        setShrinkStates(newShrinkStates);
-      }
-    };
-
-    // Check immediately and then periodically for a short time
-    checkAutofill();
-    const interval = setInterval(checkAutofill, 200);
-    const timeout = setTimeout(() => clearInterval(interval), 2000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [isSignUp, showMagicLink]);
-
-  useEffect(() => {
-    // Clear messages when changing auth mode
     setError(null);
     setSuccess(null);
     setUsernameError(null);
-    // Don't reset captcha when just switching modes
   }, [isSignUp]);
 
   // Debounced function to check if username exists
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedUsernameCheck = useCallback(
     debounce(async (username: string) => {
       try {
@@ -170,8 +89,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
       try {
         usernameSchema.parse(username);
         setUsernameError(null);
-
-        // After basic validation passes, check if the username is unique
         setCheckingUsername(true);
         debouncedUsernameCheck(username);
       } catch (err) {
@@ -183,7 +100,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
       setUsernameError(null);
     }
 
-    // Cleanup function for debounce
     return () => {
       debouncedUsernameCheck.cancel();
     };
@@ -194,7 +110,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
     setError(null);
     setSuccess(null);
     setIsLoading(true);
-    setSubmitAction(isSignUp ? "signup" : "signin");
 
     try {
       if (isSignUp) {
@@ -209,14 +124,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
           }
         }
 
-        if (!captchaToken && process.env.NEXT_PUBLIC_USE_TEST_AUTH !== 'true') {
-          setError("Please wait for security verification to complete");
-          setIsLoading(false);
-          return;
-        }
-
-        const result = await signUp(email, password, username, captchaToken);
-
+        const result = await signUp(email, password, username);
         if (result.confirmEmail) {
           setSuccess(result.message);
         } else {
@@ -224,13 +132,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
           redirectOnSuccess && setTimeout(() => window.location.href = "/", 1500);
         }
       } else {
-        if (!captchaToken && process.env.NEXT_PUBLIC_USE_TEST_AUTH !== 'true') {
-          setError("Please wait for security verification to complete");
-          setIsLoading(false);
-          return;
-        }
-
-        await signIn(loginUsername, password, captchaToken);
+        await signIn(loginUsername, password);
         setSuccess("Sign in successful! Redirecting...");
         redirectOnSuccess && setTimeout(() => window.location.href = "/", 1500);
       }
@@ -240,10 +142,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
       } else {
         setError(err instanceof Error ? err.message : "An error occurred");
       }
-      // Reset captcha on error
-      setCaptchaToken(null);
-      setCaptchaLoading(true);
-      turnstileRef.current?.reset();
     } finally {
       setIsLoading(false);
     }
@@ -253,28 +151,13 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
     setError(null);
     setSuccess(null);
     setIsLoading(true);
-    setSubmitAction("guest");
 
     try {
-      // Only check captcha if it's required
-      if (!captchaToken && TURNSTILE_CONFIG.isRequired()) {
-        setError("Please wait for security verification to complete");
-        setIsLoading(false);
-        return;
-      }
-      
-      // Skip captcha in test environment
-      const token = TURNSTILE_CONFIG.isEnabled() ? captchaToken : 'test-token';
-      await signInAsGuest(token);
+      await signInAsGuest();
       setSuccess("Signed in as guest! Redirecting...");
-      // Redirect after successful guest signin
       redirectOnSuccess && setTimeout(() => window.location.href = "/", 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
-      // Reset captcha on error
-      setCaptchaToken(null);
-      setCaptchaLoading(true);
-      turnstileRef.current?.reset();
     } finally {
       setIsLoading(false);
     }
@@ -299,25 +182,14 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
     setError(null);
     setSuccess(null);
     setIsLoading(true);
-    setSubmitAction("magiclink");
     
     try {
-      if (!captchaToken && TURNSTILE_CONFIG.isRequired()) {
-        setError("Please wait for security verification to complete");
-        setIsLoading(false);
-        return;
-      }
-
-      await signInWithMagicLink(magicLinkEmail, captchaToken);
+      await signInWithMagicLink(magicLinkEmail);
       setSuccess("Magic link sent! Check your email to sign in.");
       setShowMagicLink(false);
       setMagicLinkEmail("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
-      // Reset captcha on error
-      setCaptchaToken(null);
-      setCaptchaLoading(true);
-      turnstileRef.current?.reset();
     } finally {
       setIsLoading(false);
     }
@@ -329,83 +201,21 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
     setError(null);
     setSuccess(null);
     setUsernameError(null);
-    // Don't reset captcha when just toggling sign up/sign in
-    // Clear username when switching to sign in
     if (isSignUp) {
       setUsername("");
     }
     
-    // Notify parent component of mode change if callback provided
     if (onModeChange) {
       onModeChange(newIsSignUp ? 'signup' : 'login');
     }
   };
 
-  const getButtonText = () => {
-    if (isLoading) {
-      switch (submitAction) {
-        case "signin":
-          return "Signing in...";
-        case "signup":
-          return "Creating account...";
-        case "guest":
-          return "Continuing as guest...";
-        default:
-          return "Loading...";
-      }
-    }
-    if (captchaLoading && isFormValid()) {
-      return isSignUp ? "Verifying..." : "Verifying...";
-    }
-    return isSignUp ? "Sign Up" : "Sign In";
-  };
-
   const isFormValid = () => {
     if (isSignUp) {
-      return (
-        email &&
-        password &&
-        username &&
-        !usernameError &&
-        !checkingUsername
-      );
+      return email && password && username && !usernameError && !checkingUsername;
     }
     return loginUsername && password;
   };
-
-  const handleTurnstileVerify = (token: string) => {
-    setCaptchaToken(token);
-    setCaptchaLoading(false);
-  };
-
-  const handleTurnstileExpire = () => {
-    // Token expired, need to re-verify
-    setCaptchaToken(null);
-    setCaptchaLoading(true);
-    // Turnstile will automatically refresh with refreshExpired: 'auto'
-  };
-
-  const handleTurnstileError = (error?: Error | string) => {
-    console.error('Turnstile error:', error);
-    setCaptchaToken(null);
-    setCaptchaLoading(false);
-    
-    // Error 110200 means domain not configured properly
-    if (error?.toString().includes('110200')) {
-      setError("Captcha configuration error. Please check domain settings in Cloudflare dashboard.");
-    } else {
-      setError("Captcha verification failed. Please try again.");
-    }
-  };
-
-  // Check if Turnstile is configured
-  useEffect(() => {
-    if (!TURNSTILE_CONFIG.isEnabled()) {
-      console.warn('Turnstile not configured properly');
-      setCaptchaLoading(false);
-      setCaptchaToken('bypass'); // Allow form submission without captcha in dev
-    }
-  }, []);
 
   return (
     <Box
@@ -444,25 +254,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
           </Alert>
         )}
 
-        {/* Single Turnstile widget for all auth methods - Skip in test mode */}
-        {TURNSTILE_CONFIG.isEnabled() && process.env.NEXT_PUBLIC_USE_TEST_AUTH !== 'true' && (
-          <Box sx={{ 
-            display: "flex", 
-            justifyContent: "center",
-            height: 0,
-            overflow: "hidden"
-          }}>
-            <Turnstile
-              ref={turnstileRef}
-              siteKey={TURNSTILE_CONFIG.siteKey}
-              onSuccess={handleTurnstileVerify}
-              onExpire={handleTurnstileExpire}
-              onError={handleTurnstileError}
-              options={TURNSTILE_CONFIG.options}
-            />
-          </Box>
-        )}
-
         {showMagicLink && !isSignUp ? (
           <Box
             component="form"
@@ -478,30 +269,15 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
               fullWidth
               disabled={isLoading}
               helperText="We'll send you a sign-in link to this email"
-              inputRef={magicLinkEmailInputRef}
-              InputLabelProps={{
-                shrink: shrinkStates.magicLinkEmail || !!magicLinkEmail,
-              }}
             />
             <Button
               type="submit"
               variant="contained"
               fullWidth
-              disabled={isLoading || !magicLinkEmail || !captchaToken}
-              startIcon={
-                (isLoading && submitAction === "magiclink") || (captchaLoading && magicLinkEmail) ? (
-                  <CircularProgress size={18} color="inherit" />
-                ) : null
-              }
-              sx={{
-                opacity: captchaLoading && magicLinkEmail && !isLoading ? 0.8 : 1,
-              }}
+              disabled={isLoading || !magicLinkEmail}
+              startIcon={isLoading ? <CircularProgress size={18} color="inherit" /> : null}
             >
-              {isLoading && submitAction === "magiclink"
-                ? "Sending link..."
-                : captchaLoading && magicLinkEmail
-                ? "Verifying..."
-                : "Send Magic Link"}
+              {isLoading ? "Sending link..." : "Send Magic Link"}
             </Button>
             <Button
               variant="text"
@@ -510,7 +286,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
                 setMagicLinkEmail("");
                 setError(null);
                 setSuccess(null);
-                // Don't reset captcha when just closing magic link form
               }}
               disabled={isLoading}
             >
@@ -539,16 +314,11 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
                   : usernameError ||
                     "3-20 characters, letters, numbers, _ and - only"
               }
-              inputRef={usernameInputRef}
               InputProps={{
                 endAdornment: checkingUsername && (
                   <CircularProgress size={20} color="inherit" />
                 ),
               }}
-              InputLabelProps={{
-                shrink: shrinkStates.username || !!username,
-              }}
-              {...Linker.auth.usernameInput()}
             />
           )}
           {isSignUp ? (
@@ -560,11 +330,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
               required
               fullWidth
               disabled={isLoading}
-              inputRef={emailInputRef}
-              InputLabelProps={{
-                shrink: shrinkStates.email || !!email,
-              }}
-              {...Linker.auth.emailInput()}
             />
           ) : (
             <TextField
@@ -576,10 +341,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
               fullWidth
               disabled={isLoading}
               helperText="Enter your username to sign in"
-              inputRef={loginUsernameInputRef}
-              InputLabelProps={{
-                shrink: shrinkStates.loginUsername || !!loginUsername,
-              }}
             />
           )}
           <TextField
@@ -593,34 +354,22 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
             helperText={
               isSignUp ? "Password must be at least 6 characters" : ""
             }
-            inputRef={passwordInputRef}
-            InputLabelProps={{
-              shrink: shrinkStates.password || !!password,
-            }}
-            {...Linker.auth.passwordInput()}
           />
           <Button
             type="submit"
             variant="contained"
             fullWidth
-            disabled={isLoading || !isFormValid() || !captchaToken}
-            startIcon={
-              (isLoading && submitAction !== "guest") || (captchaLoading && isFormValid()) ? (
-                <CircularProgress size={18} color="inherit" />
-              ) : null
-            }
-            sx={{
-              opacity: captchaLoading && isFormValid() && !isLoading ? 0.8 : 1,
-            }}
-            {...(isSignUp ? Linker.auth.signupButton() : Linker.auth.loginButton())}
+            disabled={isLoading || !isFormValid()}
+            startIcon={isLoading ? <CircularProgress size={18} color="inherit" /> : null}
           >
-            {getButtonText()}
+            {isLoading 
+              ? (isSignUp ? "Creating account..." : "Signing in...")
+              : (isSignUp ? "Sign Up" : "Sign In")}
           </Button>
           <Button 
             variant="text" 
             onClick={toggleSignUp} 
             disabled={isLoading}
-            {...(isSignUp ? Linker.auth.switchToLogin() : Linker.auth.switchToSignup())}
           >
             {isSignUp
               ? "Already have an account? Sign In"
@@ -655,22 +404,10 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
             variant="outlined"
             fullWidth
             onClick={handleGuestSignIn}
-            disabled={isLoading || (TURNSTILE_CONFIG.isEnabled() && !captchaToken)}
-            startIcon={
-              (isLoading && submitAction === "guest") || captchaLoading ? (
-                <CircularProgress size={18} color="inherit" />
-              ) : null
-            }
-            sx={{
-              opacity: captchaLoading && !isLoading ? 0.8 : 1,
-            }}
-            {...Linker.auth.signInAsGuest()}
+            disabled={isLoading}
+            startIcon={isLoading ? <CircularProgress size={18} color="inherit" /> : null}
           >
-            {submitAction === "guest" && isLoading
-              ? "Continuing..."
-              : captchaLoading
-              ? "Verifying..."
-              : "Continue as Guest"}
+            {isLoading ? "Continuing..." : "Continue as Guest"}
           </Button>
         </Box>
         )}

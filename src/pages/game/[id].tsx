@@ -2,13 +2,14 @@ import { useGame } from "@/contexts/GameContextV2";
 import { Box, Typography } from "@mui/material";
 import { useRouter } from 'next/compat/router';
 import Head from "next/head";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import GameBoardV2 from "@/components/GameBoardV2";
 import GameLoading from "@/components/GameLoading";
 import LoadingScreen from "@/components/LoadingScreen";
 import RightSidebar from "@/components/RightSidebar";
 import NotFoundScreen from "@/components/NotFoundScreen";
+import BoardMoveInput from "@/components/BoardMoveInput";
 
 // Left sidebar components
 const LeftSidebar = () => {
@@ -83,11 +84,38 @@ const LeftSidebar = () => {
 };
 
 export default function GamePage() {
-    const { game, loading, myColor, playerUsernames, isLocalGame } = useGame();
+    const { 
+        game, 
+        loading, 
+        myColor, 
+        playerUsernames, 
+        isLocalGame,
+        localGameOrientation,
+        canMove,
+        makeMove,
+        currentBannedMove
+    } = useGame();
     const router = useRouter();
-    const { id } = router.query;
+    const { id, as: asParam } = router.query;
     const [accessError, setAccessError] = useState<string | null>(null);
     const [boardFlipped, setBoardFlipped] = useState(false);
+
+    // Handle board orientation based on ?as parameter or actual player color
+    useEffect(() => {
+        const colorParam = asParam as string;
+        
+        // In test mode with ?as parameter, set board orientation
+        if (process.env.NEXT_PUBLIC_USE_TEST_AUTH === 'true' && colorParam) {
+            if (colorParam === 'white') {
+                setBoardFlipped(false); // White on bottom
+            } else if (colorParam === 'black') {
+                setBoardFlipped(true); // Black on bottom
+            }
+        } else if (myColor) {
+            // Use actual player color for board orientation
+            setBoardFlipped(myColor === 'black');
+        }
+    }, [asParam, myColor]);
 
     // Title based on game state
     const pageTitle = game
@@ -132,29 +160,34 @@ export default function GamePage() {
                         {/* Left sidebar */}
                         {!isLocalGame && <LeftSidebar />}
                         
-                        {/* Center - Game board */}
-                        <Box sx={{ 
+                        {/* Center container - Board and controls */}
+                        <Box sx={{
                             display: 'flex',
-                            justifyContent: 'center',
+                            flexDirection: 'column',
                             alignItems: 'center',
-                            flexShrink: 0,
+                            gap: 1,
                         }}>
                             <GameBoardV2 
+                                game={game}
                                 orientation={boardFlipped 
-                                    ? (myColor === 'white' ? 'black' : 'white')
-                                    : (myColor || 'white')
+                                    ? (localGameOrientation === 'white' ? 'black' : 'white')
+                                    : localGameOrientation
                                 }
+                                allowMoves={canMove}
+                                onMove={makeMove}
+                                bannedMove={currentBannedMove}
                             />
+                            <BoardMoveInput />
                         </Box>
                         
-                        {/* Right sidebar - Player info, moves, actions */}
+                        {/* Right sidebar */}
                         <RightSidebar 
                             boardFlipped={boardFlipped}
                             onFlipBoard={() => setBoardFlipped(!boardFlipped)}
                         />
                     </Box>
                 ) : (
-                    <NotFoundScreen message={accessError || "Game not found"} />
+                    <NotFoundScreen />
                 )}
             </Box>
         </>

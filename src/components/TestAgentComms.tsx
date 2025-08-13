@@ -175,7 +175,7 @@ export function TestAgentComms() {
           position: 'fixed',
           bottom: 145,
           left: 10,
-          display: 'flex',
+          display: 'none', // Hidden to avoid distraction
           gap: 2,
           zIndex: 10000,
           bgcolor: 'rgba(0,0,0,0.8)',
@@ -245,7 +245,7 @@ export function TestAgentComms() {
           left: 0,
           right: 0,
           height: isIdentified ? '140px' : '120px',
-          display: 'flex',
+          display: 'none', // Hidden to avoid distraction
           gap: 1,
           p: 1,
           bgcolor: 'rgba(0,0,0,0.9)',

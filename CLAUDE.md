@@ -48,19 +48,59 @@ Real-time multiplayer chess application with a unique "ban move" mechanic. In Ba
 - **Query Parameter Auth**: Navigate with `?auth=username` to authenticate as existing user
 - **Guest Authentication**: "Continue as Guest" button for anonymous users
 - **Clean Session**: Use `?clean=true` to force logout
+- **Color-Based Testing**: Use `?as=white` or `?as=black` to quickly test as specific color:
+  - `/game?as=white` - Creates new game, authenticates as white player
+  - `/game?as=black` - Creates new game, authenticates as black player
+  - `/game/[id]?as=white` - Switches auth to white player of existing game
+  - `/game/[id]?as=black` - Switches auth to black player of existing game
+  - Board orientation automatically matches the selected color
+  - Parameter persists throughout the session (never removed)
 
 ## Testing Infrastructure
 
-### Dual-Agent System
-- Uses **Playwright MCP** (and potentially other browser automation MCPs)
-- Master agent controls Player 1 and coordinates the game
-- Sub-agent controls Player 2 based on master's instructions
-- Both run as concurrent sub-agents after dev server is confirmed running
+### Two-Player Debugging Setup
+Full two-player debugging with parallel sub-agents for testing multiplayer functionality.
 
-### Running Tests
-1. Start dev server: `NEXT_PUBLIC_USE_TEST_AUTH=true bun run dev`
-2. Master agent launches and controls game flow
-3. Sub-agent follows master's coordination signals
+#### Browser Configuration
+- **Player 1**: Playwright MCP browser
+- **Player 2**: Puppeteer MCP browser with proper window resizing
+
+#### Initialization Process
+1. Start dev server with test auth enabled:
+   ```bash
+   npx dotenv -v NEXT_PUBLIC_USE_TEST_AUTH=true -- bun run dev
+   ```
+
+2. Launch two parallel sub-agents using Task tool:
+   ```
+   Sub-agent 1 (Playwright MCP):
+   - Navigate to http://localhost:3000?clean=true
+   - Click "Continue as Guest" to authenticate
+   - Controls Player 1
+   
+   Sub-agent 2 (Puppeteer MCP):
+   - Navigate with launch options for proper resizing:
+     launchOptions: {
+       "headless": false,
+       "defaultViewport": null,
+       "args": ["--window-size=1200,800", "--start-maximized"]
+     }
+   - Navigate to http://localhost:3000?clean=true
+   - Click "Continue as Guest" to authenticate
+   - Controls Player 2
+   ```
+
+#### Test Agent Communication
+- TestAgentComms panel appears at bottom when `NEXT_PUBLIC_USE_TEST_AUTH=true`
+- Master/Sub checkboxes for agent identification
+- Message channels for coordination between agents
+- Messages cleared automatically with `?clean=true` parameter
+
+#### Authentication Flow
+1. Use `?clean=true` to force logout and clear sessions
+2. Both agents authenticate as guest users independently
+3. Each agent gets unique guest username (e.g., user_xxxxx)
+4. Agents can now interact as separate players
 
 ## Development Commands
 

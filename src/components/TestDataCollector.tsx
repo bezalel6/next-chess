@@ -207,7 +207,7 @@ export function TestDataCollector() {
         borderRadius: 1,
         p: 1,
         zIndex: 9998,
-        display: 'flex',
+        display: 'none', // Hidden to avoid distraction
         flexDirection: 'column',
         gap: 1,
       }}

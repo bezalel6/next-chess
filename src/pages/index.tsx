@@ -2,6 +2,7 @@ import Head from "next/head";
 import LichessBoardV2 from "@/components/LichessBoardV2";
 import QueueSystem from "@/components/QueueSystem";
 import AuthForm from "@/components/auth-form";
+import BoardMoveInput from "@/components/BoardMoveInput";
 import { Box, Container, Typography, Fade, Paper } from "@mui/material";
 import { useGame } from "@/contexts/GameContextV2";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,7 +39,10 @@ export default function Home() {
               py: 4,
             }}
           >
-            <LichessBoardV2 orientation="white" />
+            <Box sx={{ position: "relative" }}>
+              <LichessBoardV2 orientation="white" />
+            </Box>
+            <BoardMoveInput />
           </Box>
         </Container>
       </>

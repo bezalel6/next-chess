@@ -87,7 +87,13 @@ errs.log
 
 # Scripts and configurations
 scripts/
+!scripts/setup-admins.js
+!scripts/create-test-admin.js
 start-database.sh
+
+# Database dumps
+prod_data.sql
+*.dump
 
 # VSCode
 .vscode/

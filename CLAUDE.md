@@ -309,6 +309,8 @@ The application follows Lichess's proven design patterns:
 - **COORDINATION NOT CONTROL**: The "master" agent coordinates with (not controls) the "sub" agent via messaging
 - **MCP PUPPETEER TOOLS**: Each agent uses `mcp__puppeteer__puppeteer_*` tools independently
 - **INCOGNITO MODE**: Each agent launches its own Puppeteer with incognito context for complete isolation
+- **TEXT-INPUT ONLY**: All agent communication via text inputs, NO JavaScript execution
+- **AGENT IDENTIFICATION**: Agents identify themselves via visible checkboxes that trigger UI transformations
 - **MESSAGING-BASED SYNC**: Agents coordinate actions through JSON file messaging, not direct control
 - **SELF-EVOLVING**: Agents learn from failures and update selector strategies in real-time
 - **`NEXT_PUBLIC_USE_TEST_AUTH=true`**: Enables test authentication features
@@ -319,27 +321,42 @@ The application follows Lichess's proven design patterns:
 
 1. **"Master" Agent (Player 1)** - A sub-agent that:
    - Starts the dev server
+   - **Identifies itself** by clicking `[data-testid="master-agent-checkbox"]`
+   - UI transforms with horizontal criss-cross animation (0.35s)
    - Controls Player 1's browser using MCP tools
-   - Sends coordination messages via `window.sendMasterMessage()`
-   - Waits for responses from the other agent
+   - Sends coordination messages via text input `[data-testid="master-message-input"]`
+   - No JavaScript execution - only text inputs and Enter key
    ```
    mcp__puppeteer__puppeteer_navigate({ 
      url: 'http://localhost:3000',
      launchOptions: { headless: false, args: ['--incognito'] }
    })
-   mcp__puppeteer__puppeteer_evaluate({ 
-     script: 'window.sendMasterMessage("READY_TO_START")'
+   mcp__puppeteer__puppeteer_click({
+     selector: '[data-testid="master-agent-checkbox"]'
    })
+   mcp__puppeteer__puppeteer_fill({
+     selector: '[data-testid="master-message-input"]',
+     value: 'Master: Ready to start'
+   })
+   // Press Enter to send
    ```
 
 2. **"Sub" Agent (Player 2)** - Another sub-agent running IN PARALLEL that:
    - Runs concurrently via Task tool (NOT controlled by master)
+   - **Identifies itself** by clicking `[data-testid="sub-agent-checkbox"]`
+   - UI transforms to show only Master messages and Sub input
    - Has its own independent Puppeteer instance
    - Makes its own decisions based on received messages
-   - Sends status updates via `window.sendSubMessage()`
+   - Sends status updates via text input `[data-testid="sub-message-input"]`
    - Acts autonomously while coordinating with master
 
-3. **Real-Time Learning**: When an action fails, agents immediately:
+3. **Agent Identification Animation**:
+   - Log panel slides from left (-100% → 0) with height expansion (60% → 100%)
+   - Input field slides from right (100% → 0)
+   - Container height increases (120px → 140px)
+   - Each agent sees only what they need after identification
+
+4. **Real-Time Learning**: When an action fails, agents immediately:
    - Try alternative selectors
    - Update success rates in memory
    - Discover new selector patterns
@@ -708,9 +725,10 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
        You are controlling the second player. IMPORTANT:
        1. Launch Puppeteer with incognito mode using mcp__puppeteer__puppeteer_navigate
        2. Navigate to http://localhost:3000 with launchOptions: { headless: false, args: ['--incognito'] }
-       3. Sign in as guest (you'll get a different username)
-       4. Send status updates via mcp__puppeteer__puppeteer_evaluate with window.sendSubMessage()
-       5. Queue for game and wait for match
+       3. Click [data-testid="sub-agent-checkbox"] to identify as Sub agent
+       4. Sign in as guest (you'll get a different username)
+       5. Send status updates via text input [data-testid="sub-message-input"] + Enter
+       6. Queue for game and wait for match
        6. Play the game following Ban Chess rules
        7. Use the testing memory system to select best known selectors
      `
@@ -725,10 +743,11 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
      - Queues for a game when both agents are ready
      - Plays against the other agent with message-based coordination
 
-### Agent Communication Protocol (Peer-to-Peer Coordination):
-- **Agent 1 → Agent 2**: Messages appear in green "MASTER AGENT" scroll area
-- **Agent 2 → Agent 1**: Messages appear in blue "SUB AGENT" scroll area
-- **Send messages via**: `window.sendMasterMessage()` or `window.sendSubMessage()`
+### Agent Communication Protocol (Text-Input Based):
+- **Agent 1 → Agent 2**: Messages typed in Master input, appear in Sub's log
+- **Agent 2 → Agent 1**: Messages typed in Sub input, appear in Master's log
+- **No JS execution**: All communication via text inputs only
+- **Submit with Enter**: Type message and press Enter key to send
 - **Messages stored in**: `/public/master-messages.json` and `/public/sub-messages.json`
 - **Real-time sync**: Messages poll every 500ms for updates
 - **Coordination, not control**: Messages are signals for coordination, not commands
@@ -736,17 +755,30 @@ When `NEXT_PUBLIC_USE_TEST_AUTH=true` is set, the application provides several a
 
 #### Example Communication:
 ```javascript
-// Master agent:
-await mcp__puppeteer__puppeteer_evaluate({ 
-  script: 'window.sendMasterMessage("Master: Ready, queuing now")'
+// Master agent (after identifying with checkbox):
+await mcp__puppeteer__puppeteer_fill({ 
+  selector: '[data-testid="master-message-input"]',
+  value: 'Master: Ready, queuing now'
+});
+// Press Enter to send (via evaluate or key press)
+await mcp__puppeteer__puppeteer_evaluate({
+  script: `
+    const input = document.querySelector('[data-testid="master-message-input"]');
+    input.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', code:'Enter', keyCode:13}));
+  `
 });
 
-// Sub agent (in concurrent Task):
-await mcp__puppeteer__puppeteer_evaluate({ 
-  script: 'window.sendSubMessage("Sub: Authenticated as user_xyz")'
+// Sub agent (after identifying with checkbox):
+await mcp__puppeteer__puppeteer_fill({ 
+  selector: '[data-testid="sub-message-input"]',
+  value: 'Sub: Authenticated as user_xyz'
 });
-await mcp__puppeteer__puppeteer_evaluate({ 
-  script: 'window.sendSubMessage("Sub: In queue")'
+// Press Enter to send
+await mcp__puppeteer__puppeteer_evaluate({
+  script: `
+    const input = document.querySelector('[data-testid="sub-message-input"]');
+    input.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', code:'Enter', keyCode:13}));
+  `
 });
 ```
 

@@ -72,19 +72,33 @@ Located on the game board when in a game.
 
 ## Agent Architecture
 
+### Agent Identification System
+Agents identify themselves using visible checkboxes at the bottom-left of the screen:
+- **Master Checkbox** (Green): `[data-testid="master-agent-checkbox"]`
+- **Sub Checkbox** (Blue): `[data-testid="sub-agent-checkbox"]`
+
+**When an agent identifies itself:**
+1. The UI transforms with a horizontal criss-cross animation
+2. Other agent's input disappears, only incoming messages remain
+3. Log panel slides in from the left and expands in height
+4. Own input field slides in from the right
+5. Container height increases from 120px to 140px
+
 ### Master Agent (Opus 4.1)
 - **Role**: Primary decision maker and coordinator
 - **Responsibilities**:
+  - Check the Master checkbox to identify
   - Navigate and authenticate
   - Queue for games
   - Make strategic decisions
-  - Send coordination commands via master input
+  - Send coordination messages via master input
   - Submit test data for successful flows
 
 ### Sub Agent (Sonnet 3.5)
-- **Role**: Executor and data collector
+- **Role**: Parallel executor and data collector
 - **Responsibilities**:
-  - Follow master's commands
+  - Check the Sub checkbox to identify
+  - Execute tasks independently
   - Report status via sub input
   - Collect timing data
   - Report errors and recovery attempts
@@ -203,6 +217,9 @@ await Task({
     You are the MASTER agent using Opus 4.1.
     Use ONLY text inputs - no JavaScript execution.
     
+    First action: Click [data-testid="master-agent-checkbox"] to identify yourself.
+    This will transform the UI to show only incoming sub messages and your input.
+    
     Inputs to use:
     - [data-testid="master-message-input"] for messages
     - [data-testid="test-data-input"] for test data
@@ -219,6 +236,9 @@ await Task({
   prompt: `
     You are the SUB agent using Sonnet 3.5.
     Use ONLY text inputs - no JavaScript execution.
+    
+    First action: Click [data-testid="sub-agent-checkbox"] to identify yourself.
+    This will transform the UI to show only incoming master messages and your input.
     
     Inputs to use:
     - [data-testid="sub-message-input"] for messages

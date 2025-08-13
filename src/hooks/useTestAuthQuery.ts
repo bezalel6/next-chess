@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export function useTestAuthQuery() {
     const router = useRouter();
-    const { signInWithTestUsername, resetTestAccount, user, signOut } = useAuth();
+    const { signInWithTestUsername, resetTestAccount, user, profile, signOut } = useAuth();
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isResetting, setIsResetting] = useState(false);
@@ -74,7 +74,7 @@ export function useTestAuthQuery() {
         }
 
         // Check if user is already signed in as this username
-        if (user?.username === authParam) {
+        if (profile?.username === authParam) {
             // Just remove the query param without any authentication
             const removeQueryParam = async () => {
                 const { auth, ...restQuery } = router.query;
@@ -119,7 +119,7 @@ export function useTestAuthQuery() {
         };
 
         authenticate();
-    }, [router.query.auth, router, signInWithTestUsername, isAuthenticating, user]);
+    }, [router.query.auth, router, signInWithTestUsername, isAuthenticating, user, profile]);
 
     // Handle reset query parameter
     useEffect(() => {
@@ -142,7 +142,7 @@ export function useTestAuthQuery() {
             try {
                 // Use the provided username or current user's username
                 const username = resetParam === 'true' 
-                    ? user?.username 
+                    ? profile?.username 
                     : resetParam;
                     
                 if (!username) {
@@ -177,7 +177,7 @@ export function useTestAuthQuery() {
         };
 
         performReset();
-    }, [router.query.reset, router, resetTestAccount, isResetting, user]);
+    }, [router.query.reset, router, resetTestAccount, isResetting, user, profile]);
 
     return { isAuthenticating, error, isResetting };
 }

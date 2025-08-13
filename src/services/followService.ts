@@ -111,7 +111,7 @@ export class FollowService {
 
       if (error) throw error;
 
-      return data || [];
+      return (data as unknown as FollowedUser[]) || [];
     } catch (error) {
       console.error("Error fetching following list:", error);
       throw error;
@@ -157,7 +157,7 @@ export class FollowService {
 
       if (error) throw error;
 
-      return data || { followers_count: 0, following_count: 0 };
+      return (data as { followers_count: number; following_count: number }) || { followers_count: 0, following_count: 0 };
     } catch (error) {
       console.error("Error fetching follow stats:", error);
       return { followers_count: 0, following_count: 0 };

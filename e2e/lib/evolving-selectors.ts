@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import type { Page, Locator } from '@playwright/test';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 

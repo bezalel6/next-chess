@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useGameStore } from '@/stores/gameStore';
+import { useGameStore, type GamePhase, type BannedMove } from '@/stores/gameStore';
 import { GameService } from '@/services/gameService';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/utils/supabase';
@@ -25,6 +25,19 @@ interface GameContextType {
     white: string;
     black: string;
   };
+  
+  // Zustand store state (exposed for components)
+  phase: GamePhase;
+  currentBannedMove: { from: Square; to: Square } | null;
+  banHistory: BannedMove[];
+  moveHistory: Array<{ from: Square; to: Square; san: string }>;
+  highlightedSquares: Square[];
+  possibleBans: Array<{ from: Square; to: Square }>;
+  isAnimating: boolean;
+  optimisticMove: { from: Square; to: Square } | null;
+  optimisticBan: { from: Square; to: Square } | null;
+  
+  // Actions
   makeMove: (from: string, to: string, promotion?: string) => void;
   banMove: (from: string, to: string) => void;
   resign: () => void;
@@ -32,6 +45,14 @@ interface GameContextType {
   acceptDraw: () => void;
   declineDraw: () => void;
   setPgn: (pgn: string) => void;
+  
+  // UI Actions from store
+  setHighlightedSquares: (squares: Square[]) => void;
+  clearHighlights: () => void;
+  previewBan: (from: Square, to: Square) => void;
+  previewMove: (from: Square, to: Square) => void;
+  startBanSelection: (possibleMoves: Array<{ from: Square; to: Square }>) => void;
+  
   actions: {
     resetGame: () => void;
     flipBoardOrientation?: () => void;
@@ -65,6 +86,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
     receiveMove,
     myColor,
     phase,
+    currentBannedMove,
+    banHistory,
+    moveHistory,
+    highlightedSquares,
+    possibleBans,
+    isAnimating,
+    optimisticMove,
+    optimisticBan,
+    setHighlightedSquares,
+    clearHighlights,
+    previewBan,
+    previewMove,
+    startBanSelection,
   } = useGameStore();
 
   // Fetch game data
@@ -271,6 +305,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
     localGameOrientation: 'white', // Default to white for local games
     playerUsernames,
     
+    // Zustand store state
+    phase,
+    currentBannedMove,
+    banHistory,
+    moveHistory,
+    highlightedSquares,
+    possibleBans,
+    isAnimating,
+    optimisticMove,
+    optimisticBan,
+    
+    // Actions
     makeMove: (from: string, to: string, promotion?: string) => {
       makeMoveMutation.mutate({ 
         from: from as Square, 
@@ -309,6 +355,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
       // For now, we'll keep it as a no-op since the V2 context uses TanStack Query
       console.log('setPgn called with:', pgn);
     },
+    
+    // UI Actions from store
+    setHighlightedSquares,
+    clearHighlights,
+    previewBan,
+    previewMove,
+    startBanSelection,
 
     actions: {
       resetGame: () => {

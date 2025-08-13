@@ -1,4 +1,5 @@
-import { chromium, Browser, BrowserContext, Page } from '@playwright/test';
+import { chromium } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { PlayerActions } from './player-actions';
 
 export interface PlayerContext {

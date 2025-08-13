@@ -2,7 +2,6 @@ import dynamic from 'next/dynamic';
 import { useMemo, useCallback, useRef, useEffect, type ComponentProps } from 'react';
 import { Box } from '@mui/material';
 import { useGame } from '@/contexts/GameContextV2';
-import { useGameStore } from '@/stores/gameStore';
 import { Chess } from 'chess.ts';
 import type { Square } from 'chess.ts/dist/types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,14 +17,19 @@ interface LichessBoardV2Props {
 }
 
 export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
-  const { game, myColor, canBan, canMove, makeMove, banMove } = useGame();
   const { 
+    game, 
+    myColor, 
+    canBan, 
+    canMove, 
+    makeMove, 
+    banMove,
     phase, 
     currentBannedMove, 
     highlightedSquares,
     previewBan,
     previewMove,
-  } = useGameStore();
+  } = useGame();
   
   // Test input refs for automation
   const testInputRef = useRef<HTMLInputElement>(null);

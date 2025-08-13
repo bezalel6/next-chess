@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -49,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (userError) {
           // User might already exist, try to get them
           const { data: { users } } = await supabase.auth.admin.listUsers();
-          const existingUser = users?.find(u => u.email === `${username}@test.local`);
+          const existingUser = users?.find((u: any) => u.email === `${username}@test.local`);
           
           if (existingUser) {
             // Update or create profile for existing user

@@ -71,9 +71,9 @@ Dockerfile*
 docker/
 
 # Deployment and hosting configurations
+deployment-docs/
 *coolify*
 *COOLIFY*
-!docker-compose.coolify-full.yml
 *deployment*
 *DEPLOYMENT*
 *DEPLOY*
@@ -109,6 +109,7 @@ SELF_HOSTED_README.md
 cookies.txt
 test-query-auth.js
 test-results.json
+e2escreenshots/
 
 # IDE settings
 .vscode/settings.json

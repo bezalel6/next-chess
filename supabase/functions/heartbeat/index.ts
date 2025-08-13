@@ -11,14 +11,19 @@ import { successResponse } from "../_shared/response-utils.ts";
 
 const logger = createLogger("HEARTBEAT");
 
-// Update user's last_online timestamp
+// Update user's heartbeat and presence
 async function updateHeartbeat(user: any, supabase: any) {
   try {
     const now = new Date().toISOString();
     
-    // Update last_online in profiles
+    // Update heartbeat, last_active, and mark as online
     const { error } = await getTable(supabase, "profiles")
-      .update({ last_online: now })
+      .update({ 
+        last_heartbeat: now,
+        last_active: now,
+        is_online: true,
+        last_online: now // Keep for backward compatibility
+      })
       .eq("id", user.id);
     
     if (error) {
@@ -28,8 +33,16 @@ async function updateHeartbeat(user: any, supabase: any) {
     
     logger.debug(`Heartbeat updated for user ${user.id}`);
     
+    // Also clean up stale users periodically (1 in 10 chance)
+    if (Math.random() < 0.1) {
+      await supabase.rpc('mark_stale_users_offline');
+      await supabase.rpc('remove_stale_from_matchmaking');
+      logger.debug("Cleaned up stale users");
+    }
+    
     return successResponse({ 
       success: true,
+      last_heartbeat: now,
       last_online: now 
     });
   } catch (error) {

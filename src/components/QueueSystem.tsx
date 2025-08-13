@@ -35,7 +35,6 @@ import { GameService } from "@/services/gameService";
 import { UserService } from "@/services/userService";
 import { useRouter } from "next/router";
 import type { Game } from "@/types/game";
-import { Linker } from "@/test-utils/linker";
 
 interface GameWithOpponent extends Game {
   opponentName: string;
@@ -43,7 +42,7 @@ interface GameWithOpponent extends Game {
 
 const QueueSystem = () => {
   const { queue, matchDetails, handleQueueToggle, stats } = useConnection();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { actions: gameActions } = useGame();
   const [activeGames, setActiveGames] = useState<GameWithOpponent[]>([]);
   const [hasActiveGames, setHasActiveGames] = useState(false);
@@ -242,7 +241,6 @@ const QueueSystem = () => {
               startIcon={<StopCircle />}
               onClick={handleQueueToggle}
               size="large"
-              {...Linker.queue.cancelButton()}
               sx={{
                 px: 4,
                 py: 1.5,
@@ -287,7 +285,14 @@ const QueueSystem = () => {
           </Typography>
         </Box>
 
-        <Box sx={{ display: "flex", gap: 2, flexDirection: "column", alignItems: "center" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <Button
             variant="contained"
             color="primary"
@@ -295,7 +300,6 @@ const QueueSystem = () => {
             onClick={handleQueueToggle}
             size="large"
             disabled={hasActiveGames || checking}
-            {...Linker.queue.findGameButton()}
             sx={{
               px: 6,
               py: 2,
@@ -317,11 +321,11 @@ const QueueSystem = () => {
           >
             Play Now
           </Button>
-          
+
           <Typography variant="body2" color="text.secondary" sx={{ my: 1 }}>
             or
           </Typography>
-          
+
           <Button
             variant="outlined"
             color="secondary"
@@ -379,7 +383,7 @@ const QueueSystem = () => {
         >
           <Chip
             icon={<People />}
-            label={`${stats.activeUsers} ${stats.activeUsers === 1 ? 'Player' : 'Players'} Online`}
+            label={`${stats.activeUsers} ${stats.activeUsers === 1 ? "Player" : "Players"} Online`}
             color="primary"
             variant="outlined"
             sx={{
@@ -397,7 +401,8 @@ const QueueSystem = () => {
         elevation={8}
         sx={{
           p: 3,
-          background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
           backdropFilter: "blur(10px)",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           borderRadius: 3,
@@ -466,9 +471,7 @@ const QueueSystem = () => {
                           ? "rgba(76, 175, 80, 0.08)"
                           : "transparent",
                         borderBottom:
-                          index < activeGames.length - 1
-                            ? "1px solid"
-                            : "none",
+                          index < activeGames.length - 1 ? "1px solid" : "none",
                         borderColor: "divider",
                         py: 2,
                         transition: "all 0.2s ease",
@@ -479,7 +482,9 @@ const QueueSystem = () => {
                         },
                       }}
                     >
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                      >
                         <Avatar
                           sx={{
                             bgcolor: isMyTurn ? "success.main" : "grey.700",

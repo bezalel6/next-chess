@@ -30,7 +30,7 @@ function useScrollEffect() {
 }
 
 const Header = () => {
-  const { profile } = useAuth();
+  const { profileUsername } = useAuth();
   const { game, loading, myColor } = useGame();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -46,12 +46,12 @@ const Header = () => {
   const displayUserInfo = () => {
     if (game && !loading) {
       if (myColor) {
-        return `${profile?.username || "You"} (${myColor})`;
+        return `${profileUsername || "You"} (${myColor})`;
       } else {
         return "Spectator";
       }
     }
-    return profile?.username || "";
+    return profileUsername || "";
   };
 
   const navigationItems = [
@@ -121,7 +121,7 @@ const Header = () => {
                 </Fade>
 
                 {/* Mobile User Menu */}
-                {profile && (
+                {profileUsername && (
                   <Fade in={mounted} timeout={1000}>
                     <Box>
                       <UserMenu />
@@ -207,7 +207,7 @@ const Header = () => {
                 }}
               >
                 {/* Desktop User Menu */}
-                {profile && (
+                {profileUsername && (
                   <Fade in={mounted} timeout={1000}>
                     <Box>
                       <UserMenu />

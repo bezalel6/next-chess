@@ -158,14 +158,10 @@ export default function GamePage() {
                             gap: 1,
                         }}>
                             <GameBoardV2 
-                                game={game}
                                 orientation={boardFlipped 
                                     ? (localGameOrientation === 'white' ? 'black' : 'white')
                                     : localGameOrientation
                                 }
-                                allowMoves={canMove}
-                                onMove={makeMove}
-                                bannedMove={currentBannedMove}
                             />
                             <BoardMoveInput />
                         </Box>

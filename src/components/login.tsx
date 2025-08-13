@@ -6,11 +6,11 @@ import AuthForm from "@/components/auth-form";
 import { useState } from "react";
 
 function Login() {
-    const { user, profile, signOut, isLoading } = useAuth();
+    const { user, profileUsername, signOut, loading } = useAuth();
     const [error, setError] = useState<string | null>(null);
     const [signingOut, setSigningOut] = useState(false);
 
-    if (isLoading) {
+    if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
                 <CircularProgress color="primary" />
@@ -20,7 +20,7 @@ function Login() {
 
     if (user) {
         // Use username if available, otherwise fall back to email
-        const displayName = profile?.username || user.email;
+        const displayName = profileUsername || user.email;
 
         return (
             <Paper

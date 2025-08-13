@@ -24,7 +24,7 @@ import { useRouter } from "next/router";
 import { FollowService } from "@/services/followService";
 
 const UserMenu = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profileUsername, signOut } = useAuth();
   const router = useRouter();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -54,8 +54,8 @@ const UserMenu = () => {
 
   const handleProfile = () => {
     handleClose();
-    if (profile?.username) {
-      router.push(`/@${profile.username}`);
+    if (profileUsername) {
+      router.push(`/@${profileUsername}`);
     }
   };
 
@@ -75,9 +75,9 @@ const UserMenu = () => {
     fetchFollowingCount();
   }, [user]);
 
-  if (!user || !profile) return null;
+  if (!user) return null;
 
-  const displayName = profile.username || user.email;
+  const displayName = profileUsername || user.email;
   const initials = displayName
     ? displayName
         .split(" ")
@@ -169,25 +169,32 @@ const UserMenu = () => {
           </ListItemIcon>
           <Typography variant="body2">Profile</Typography>
         </MenuItem>
-        
+
         <MenuItem onClick={() => router.push("/following")}>
           <ListItemIcon>
             <AccountCircle fontSize="small" />
           </ListItemIcon>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              width: "100%",
+            }}
+          >
             <Typography variant="body2">Following</Typography>
             {followingCount > 0 && (
-              <Badge 
-                badgeContent={followingCount} 
-                color="primary" 
-                sx={{ 
-                  "& .MuiBadge-badge": { 
+              <Badge
+                badgeContent={followingCount}
+                color="primary"
+                sx={{
+                  "& .MuiBadge-badge": {
                     position: "static",
                     transform: "none",
                     fontSize: "0.75rem",
                     height: 18,
                     minWidth: 18,
-                  } 
+                  },
                 }}
               />
             )}

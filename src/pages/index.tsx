@@ -10,7 +10,7 @@ import { useState, useEffect } from "react";
 
 export default function Home() {
   const { game } = useGame();
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -130,7 +130,7 @@ export default function Home() {
                   justifyContent: "center",
                 }}
               >
-                {isLoading ? (
+                {loading ? (
                   <Paper
                     elevation={8}
                     sx={{

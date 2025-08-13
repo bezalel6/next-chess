@@ -21,7 +21,7 @@ export function useHeartbeat() {
     // Send initial heartbeat
     const sendHeartbeat = async () => {
       try {
-        await invokeWithAuth("heartbeat", {});
+        await invokeWithAuth("heartbeat", { body: {} });
       } catch (error) {
         console.error("[Heartbeat] Failed to send heartbeat:", error);
       }

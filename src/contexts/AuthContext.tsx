@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import type { User, Session } from '@supabase/supabase-js';
+import { supabaseBrowser } from '@/utils/supabase-browser';
 import { useRouter } from 'next/router';
 
 // Custom error classes

@@ -14,20 +14,20 @@ export function withAuth<P extends object>(
     const { requireAuth = true, redirectTo = '/auth' } = options;
 
     return function WithAuthComponent(props: P) {
-        const { user, isLoading } = useAuth();
+        const { user, loading } = useAuth();
         const router = useRouter();
 
         useEffect(() => {
-            if (!isLoading) {
+            if (!loading) {
                 if (requireAuth && !user) {
                     router.replace(redirectTo);
                 } else if (!requireAuth && user) {
                     router.replace('/');
                 }
             }
-        }, [user, isLoading, requireAuth, redirectTo, router]);
+        }, [user, loading, requireAuth, redirectTo, router]);
 
-        if (isLoading) {
+        if (loading) {
             return (
                 <Box
                     sx={{

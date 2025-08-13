@@ -8,13 +8,15 @@ Real-time multiplayer chess application with a unique "ban move" mechanic. In Ba
 
 ## Ban Chess Rules
 
-- **Continuous Banning**: Opponent bans ONE move before EVERY move throughout the entire game
+- **Continuous Banning**: Opponent bans ONE move before EVERY move throughout the entire game (except the first move)
 - **Turn Sequence**: 
-  1. Your turn to move → Opponent sees all legal moves
-  2. Opponent selects one move to ban
-  3. You play any remaining legal move
+  1. White makes first move (no ban)
+  2. Black bans one of White's possible next moves
+  3. Black makes their move
+  4. White bans one of Black's possible next moves
+  5. Pattern continues: Move → Opponent bans → Opponent moves → You ban
 - **Time Management**: Ban selection counts against the banning player's clock
-- **Status**: Core mechanic implemented but not working correctly
+- **Status**: Core mechanic fully implemented and working correctly
 
 ## Tech Stack
 
@@ -23,6 +25,21 @@ Real-time multiplayer chess application with a unique "ban move" mechanic. In Ba
 - **Material-UI** + **Framer Motion** for UI
 - **Chess.ts** for game logic
 - **Lichess-inspired** UI design
+
+## Game Flow Implementation
+
+### Ban Chess State Machine
+The game follows this state progression:
+1. **Initial State**: `banning_player: null`, `turn: 'white'` → White makes first move freely
+2. **After Move**: Sets `banning_player` to opponent, keeping same `turn` → Opponent bans
+3. **After Ban**: Clears `banning_player`, keeps same `turn` → Player makes move
+4. **After Move**: Switches `turn`, sets `banning_player` to new opponent → Cycle continues
+
+### Key Implementation Details
+- `banning_player` field in database determines current phase
+- When `banning_player` is null → Move phase for `turn` player
+- When `banning_player` is set → Ban phase for that player
+- First move has no ban (game starts with `banning_player: null`)
 
 ## State Management Architecture
 

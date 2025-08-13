@@ -111,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         black_player_id: blackPlayerId,
         status: 'active',
         turn: 'white',
-        banning_player: 'black', // Black bans first (White's opening move)
+        banning_player: null, // No ban needed for the first move
         current_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         pgn: ''
       })

@@ -34,7 +34,7 @@ const LocalGameBoard: React.FC = () => {
 
     moves.forEach((move) => {
       if (move.from === square) {
-        const isBanned = isMoveBanned(move.from, move.to);
+        const isBanned = isMoveBanned(move.from as Square, move.to as Square);
         newSquares[move.to] = {
           background: isBanned 
             ? 'radial-gradient(circle, rgba(255,0,0,0.3) 25%, transparent 25%)'

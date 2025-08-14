@@ -84,7 +84,7 @@ export const LocalGameProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     try {
-      const move = gameState.chess.move({ from, to, promotion });
+      const move = gameState.chess.move({ from, to, promotion: promotion as any });
       if (!move) return false;
 
       const newMoveHistory = [...gameState.moveHistory];

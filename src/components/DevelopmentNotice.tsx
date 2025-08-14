@@ -62,8 +62,10 @@ const DevelopmentNotice = () => {
                         py: { xs: 1, sm: 1.5 },
                     }}
                 >
-                    <strong>🚧 Active Development</strong> — This website is under active development. 
-                    Expect bugs, visual quirks, and occasional disruptions. Thank you for your patience!
+                    <Box component="span">
+                        <strong>🚧 Active Development</strong> — This website is under active development. 
+                        Expect bugs, visual quirks, and occasional disruptions. Thank you for your patience!
+                    </Box>
                 </Alert>
             </Box>
         </Collapse>

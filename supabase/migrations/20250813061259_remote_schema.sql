@@ -298,7 +298,7 @@ drop index if exists "public"."idx_profiles_last_online";
 
 alter table "public"."matchmaking" add column "last_online" timestamp with time zone not null default now();
 
-alter table "public"."profiles" drop column "last_online";
+-- alter table "public"."profiles" drop column "last_online"; -- Column doesn't exist in local db
 
 CREATE INDEX idx_matchmaking_last_online ON public.matchmaking USING btree (last_online);
 

@@ -284,7 +284,8 @@ const HowToPlayDialog = () => (
         color: "rgba(255, 255, 255, 0.85)",
       }}
     >
-      In BanChess, every move starts with the opponent selecting a legal movw
+      In BanChess, every move starts with the opponent selecting a legal move to
+      become
     </Typography>
     <Typography
       variant="subtitle1"

@@ -9,6 +9,7 @@ export default function LocalGameStatus() {
   const game = useUnifiedGameStore(s => s.game);
   const phase = useUnifiedGameStore(s => s.phase);
   const currentBannedMove = useUnifiedGameStore(s => s.currentBannedMove);
+  const moveHistory = useUnifiedGameStore(s => s.moveHistory);
   
   if (!game) return null;
   
@@ -65,7 +66,7 @@ export default function LocalGameStatus() {
   };
   
   // Count moves - in the beginning there are no moves yet
-  const moveCount = game.ply || 0;
+  const moveCount = moveHistory.length;
   
   return (
     <Paper sx={{ 

@@ -347,16 +347,14 @@ export function useGame(gameId: string | undefined, userId: string | undefined) 
   const myColor = useUnifiedGameStore(s => s.myColor);
   const phase = useUnifiedGameStore(s => s.phase);
   const game = useUnifiedGameStore(s => s.game);
-  const localPhase = useUnifiedGameStore(s => s.localPhase);
-  const localGameStatus = useUnifiedGameStore(s => s.localGameStatus);
   
   // Calculate these values outside the selector
   const canMove = mode === 'local'
-    ? (localPhase === 'playing' && localGameStatus === 'active')
+    ? (phase === 'making_move' && game?.status === 'active')
     : (phase === 'making_move' && game?.turn === myColor && game?.status === 'active');
     
   const canBan = mode === 'local' 
-    ? (localPhase === 'banning' && localGameStatus === 'active')
+    ? (phase === 'selecting_ban' && game?.status === 'active')
     : phase === 'selecting_ban';
     
   const isMyTurn = mode === 'local' 
@@ -367,7 +365,7 @@ export function useGame(gameId: string | undefined, userId: string | undefined) 
     if (mode === 'local') {
       // Handle local move
       const store = useUnifiedGameStore.getState();
-      store.makeLocalMove(from as Square, to as Square, promotion);
+      store.executeMove(from as Square, to as Square, promotion);
     } else {
       // Handle online move
       moveMutation.mutate({ from: from as Square, to: to as Square, promotion: promotion as any });
@@ -378,7 +376,7 @@ export function useGame(gameId: string | undefined, userId: string | undefined) 
     if (mode === 'local') {
       // Handle local ban
       const store = useUnifiedGameStore.getState();
-      store.selectLocalBan(from as Square, to as Square);
+      store.executeBan(from as Square, to as Square);
     } else {
       // Handle online ban
       banMutation.mutate({ from, to });

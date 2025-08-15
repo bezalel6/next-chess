@@ -174,11 +174,12 @@ export class TestGameManager {
     const { data, error } = await supabase
       .from('games')
       .insert({
+        id: `test-game-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         white_player_id: whiteUserId,
         black_player_id: blackUserId,
-        status: 'active',
-        turn: 'white',
-        banning_player: 'black',
+        status: 'active' as const,
+        turn: 'white' as const,
+        banning_player: 'black' as const,
         current_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
       })
       .select()

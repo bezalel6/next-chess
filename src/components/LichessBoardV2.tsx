@@ -13,12 +13,12 @@ import { useBanMutation, useMoveMutation } from "@/hooks/useGameQueries";
 import { Chess } from "chess.ts";
 import type { Square } from "chess.ts/dist/types";
 import { motion, AnimatePresence } from "framer-motion";
+import type { Config } from "chessground/config";
+import type { Key } from "chessground/types";
 
 const Chessground = dynamic(() => import("@react-chess/chessground"), {
   ssr: false,
 });
-
-type Config = ComponentProps<typeof Chessground>["config"];
 
 interface LichessBoardV2Props {
   orientation: "white" | "black";
@@ -90,12 +90,16 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   const legalMoves = useMemo(() => {
     if (selectedSquare && possibleMoves.length > 0) {
       // When a square is selected, only show moves from that square
-      const movesMap = new Map<string, string[]>();
-      movesMap.set(selectedSquare, possibleMoves);
+      const movesMap = new Map<Key, Key[]>();
+      movesMap.set(selectedSquare as Key, possibleMoves as Key[]);
       return movesMap;
     }
-    // Otherwise show all legal moves
-    return allLegalMoves;
+    // Otherwise show all legal moves (convert Map<string, string[]> to Map<Key, Key[]>)
+    const convertedMoves = new Map<Key, Key[]>();
+    allLegalMoves.forEach((dests, orig) => {
+      convertedMoves.set(orig as Key, dests as Key[]);
+    });
+    return convertedMoves;
   }, [selectedSquare, possibleMoves, allLegalMoves]);
 
   // Get last move for highlighting

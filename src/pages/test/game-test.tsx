@@ -94,9 +94,9 @@ export default function GameTestPage() {
         id: `direct-test-${Date.now()}`,
         white_player_id: user.id,
         black_player_id: user.id,
-        status: 'active',
-        turn: 'white',
-        banning_player: 'black',
+        status: 'active' as const,
+        turn: 'white' as const,
+        banning_player: 'black' as const,
         current_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         pgn: ''
       };

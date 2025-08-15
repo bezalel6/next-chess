@@ -111,7 +111,7 @@ export default function GamePage() {
     const myColor = useUnifiedGameStore(s => s.myColor);
     const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
     const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
-    const localGameOrientation = useUnifiedGameStore(s => s.localGameOrientation);
+    const boardOrientation = useUnifiedGameStore(s => s.boardOrientation);
     
     const router = useRouter();
     const { id, as: asParam } = router.query;
@@ -177,8 +177,8 @@ export default function GamePage() {
                         }}>
                             <GameBoardV2 
                                 orientation={boardFlipped 
-                                    ? (localGameOrientation === 'white' ? 'black' : 'white')
-                                    : localGameOrientation
+                                    ? (boardOrientation === 'white' ? 'black' : 'white')
+                                    : boardOrientation
                                 }
                             />
                             <BoardMoveInput />

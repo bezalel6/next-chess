@@ -1069,11 +1069,11 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           
           // Game over states
           if (state.game.status === 'finished') {
-            const result = state.game?.result;
+            const result = state.game?.result as any;
             if (!result) return 'Game over';
-            if (result === '1-0') return 'White wins by checkmate!';
-            if (result === '0-1') return 'Black wins by checkmate!';
-            if (result === '1/2-1/2') {
+            if (result === '1-0' || result === 'white') return 'White wins by checkmate!';
+            if (result === '0-1' || result === 'black') return 'Black wins by checkmate!';
+            if (result === '1/2-1/2' || result === 'draw') {
               if (state.game.endReason === 'stalemate') return 'Draw by stalemate!';
               return 'Draw!';
             }
@@ -1140,9 +1140,9 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             }
           } else {
             // Online games: wait for server updates
-            if (state.phase === 'selecting_ban' && state.phase !== 'waiting_for_move') {
+            if (state.phase === 'selecting_ban') {
               set({ phase: 'waiting_for_move' });
-            } else if (state.phase === 'making_move' && state.phase !== 'waiting_for_ban') {
+            } else if (state.phase === 'making_move') {
               set({ phase: 'waiting_for_ban' });
             }
           }
@@ -1151,6 +1151,36 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         setupTestPosition: (fen: string) => {
           const chess = new Chess();
           chess.load(fen);
+          
+          // Check for game-over conditions
+          const legalMoves = chess.moves();
+          const isInCheck = chess.inCheck();
+          let gameStatus: GameStatus = 'active';
+          let result = null;
+          let endReason = null;
+          let phase: GamePhase = 'selecting_ban';
+          
+          if (legalMoves.length === 0) {
+            if (isInCheck) {
+              // Standard checkmate
+              gameStatus = 'finished';
+              result = chess.turn() === 'w' ? '0-1' : '1-0';
+              endReason = 'checkmate';
+              phase = 'game_over';
+            } else {
+              // Stalemate
+              gameStatus = 'finished';
+              result = '1/2-1/2';
+              endReason = 'stalemate';
+              phase = 'game_over';
+            }
+          } else if (chess.inDraw()) {
+            gameStatus = 'finished';
+            result = '1/2-1/2';
+            endReason = 'draw';
+            phase = 'game_over';
+          }
+          
           set({
             chess,
             currentFen: fen,
@@ -1158,8 +1188,17 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             moveHistory: [],
             banHistory: [],
             currentBannedMove: null,
-            phase: 'selecting_ban', // Start with ban selection for Ban Chess
+            phase,
             mode: 'local',
+            game: {
+              ...get().game,
+              status: gameStatus,
+              result,
+              endReason,
+              currentFen: fen,
+              turn: chess.turn() === 'w' ? 'white' : 'black',
+            } as any,
+            showGameOverModal: gameStatus === 'finished',
           });
         },
         

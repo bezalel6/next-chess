@@ -177,7 +177,7 @@ export default function AutoBanTest() {
         },
         {
           name: 'Current banned move is set',
-          passed: gameData?.current_banned_move?.from === 'e2' && gameData?.current_banned_move?.to === 'e4',
+          passed: (gameData?.current_banned_move as any)?.from === 'e2' && (gameData?.current_banned_move as any)?.to === 'e4',
           value: JSON.stringify(gameData?.current_banned_move || {})
         },
         {

@@ -103,16 +103,14 @@ function TestStoreFunctions() {
   const phase = useUnifiedGameStore(s => s.phase);
   const game = useUnifiedGameStore(s => s.game);
   const myColor = useUnifiedGameStore(s => s.myColor);
-  const localPhase = useUnifiedGameStore(s => s.localPhase);
-  const localGameStatus = useUnifiedGameStore(s => s.localGameStatus);
   
   // Calculate values outside the selector
   const canMove = mode === 'local'
-    ? (localPhase === 'playing' && localGameStatus === 'active')
+    ? (phase === 'making_move' && game?.status === 'active')
     : (phase === 'making_move' && game?.turn === myColor && game?.status === 'active');
     
   const canBan = mode === 'local' 
-    ? (localPhase === 'banning' && localGameStatus === 'active')
+    ? (phase === 'selecting_ban' && game?.status === 'active')
     : phase === 'selecting_ban';
     
   const isMyTurn = mode === 'local' 
@@ -152,16 +150,14 @@ function TestGameBoard() {
   const myColor = useUnifiedGameStore(s => s.myColor);
   const phase = useUnifiedGameStore(s => s.phase);
   const mode = useUnifiedGameStore(s => s.mode);
-  const localPhase = useUnifiedGameStore(s => s.localPhase);
-  const localGameStatus = useUnifiedGameStore(s => s.localGameStatus);
   
   // Calculate canBan and canMove based on the state
   const canBan = mode === 'local' 
-    ? (localPhase === 'banning' && localGameStatus === 'active')
+    ? (phase === 'selecting_ban' && game?.status === 'active')
     : phase === 'selecting_ban';
     
   const canMove = mode === 'local'
-    ? (localPhase === 'playing' && localGameStatus === 'active')
+    ? (phase === 'making_move' && game?.status === 'active')
     : (phase === 'making_move' && game?.turn === myColor && game?.status === 'active');
   
   return (

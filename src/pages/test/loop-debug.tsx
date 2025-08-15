@@ -105,17 +105,15 @@ function TestStoreFunctions() {
     phase: s.phase,
     game: s.game,
     myColor: s.myColor,
-    localPhase: s.localPhase,
-    localGameStatus: s.localGameStatus,
   }));
   
   // Calculate values outside
   const canMove = storeState.mode === 'local'
-    ? (storeState.localPhase === 'playing' && storeState.localGameStatus === 'active')
+    ? (storeState.phase === 'making_move' && storeState.game?.status === 'active')
     : (storeState.phase === 'making_move' && storeState.game?.turn === storeState.myColor && storeState.game?.status === 'active');
     
   const canBan = storeState.mode === 'local' 
-    ? (storeState.localPhase === 'banning' && storeState.localGameStatus === 'active')
+    ? (storeState.phase === 'selecting_ban' && storeState.game?.status === 'active')
     : storeState.phase === 'selecting_ban';
   
   return (

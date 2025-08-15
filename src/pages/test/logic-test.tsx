@@ -331,8 +331,10 @@ export default function LogicTestPage() {
                   results[key] = actual === null;
                 } else {
                   // Check if both from and to match
-                  const matches = actual && actual.from === expected.from && actual.to === expected.to;
-                  console.log(`[Test] BannedMove comparison: from match=${actual?.from === expected.from}, to match=${actual?.to === expected.to}, overall=${matches}`);
+                  const expectedMove = expected as {from: string, to: string};
+                  const actualMove = actual as any;
+                  const matches = actualMove && actualMove.from === expectedMove.from && actualMove.to === expectedMove.to;
+                  console.log(`[Test] BannedMove comparison: from match=${actualMove?.from === expectedMove.from}, to match=${actualMove?.to === expectedMove.to}, overall=${matches}`);
                   results[key] = matches;
                 }
                 break;
@@ -345,7 +347,7 @@ export default function LogicTestPage() {
                 results[key] = actual === expected;
                 break;
               case 'gameOver':
-                actual = chess?.isGameOver();
+                actual = chess?.gameOver();
                 results[key] = actual === expected;
                 break;
               case 'banCount':

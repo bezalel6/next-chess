@@ -46,7 +46,7 @@ export default function PlayerPresenceIndicator({
         .single();
 
       if (!error && data) {
-        setPresence(data);
+        setPresence(data as any);
       }
     };
 

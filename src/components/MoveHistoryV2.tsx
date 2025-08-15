@@ -41,7 +41,7 @@ const MoveHistoryV2 = () => {
   const actions = useUnifiedGameStore(s => s.actions);
   const myColor = useUnifiedGameStore(s => s.myColor);
   const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
-  const localGameOrientation = useUnifiedGameStore(s => s.localGameOrientation);
+  const boardOrientation = useUnifiedGameStore(s => s.boardOrientation);
   const [currentPlyIndex, setCurrentPlyIndex] = useState<number>(-1);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
 
@@ -356,11 +356,11 @@ const MoveHistoryV2 = () => {
             sx={{ 
               color: 'white', 
               mx: 1,
-              bgcolor: (isLocalGame ? localGameOrientation === 'black' : myColor === 'black') 
+              bgcolor: (isLocalGame ? boardOrientation === 'black' : myColor === 'black') 
                 ? 'rgba(255,255,255,0.15)' 
                 : 'transparent',
               '&:hover': { 
-                bgcolor: (isLocalGame ? localGameOrientation === 'black' : myColor === 'black')
+                bgcolor: (isLocalGame ? boardOrientation === 'black' : myColor === 'black')
                   ? 'rgba(255,255,255,0.2)'
                   : 'rgba(255,255,255,0.08)',
               },

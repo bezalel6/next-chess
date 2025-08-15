@@ -38,11 +38,12 @@ export default function MoveTestPage() {
       const { data: game, error } = await supabase
         .from('games')
         .insert({
+          id: `test-game-${Date.now()}`,
           white_player_id: userId,
           black_player_id: userId, // Self-play for testing
-          status: 'active',
-          turn: 'white',
-          banning_player: 'black', // Black bans first in Ban Chess
+          status: 'active' as const,
+          turn: 'white' as const,
+          banning_player: 'black' as const, // Black bans first in Ban Chess
           current_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
         })
         .select()

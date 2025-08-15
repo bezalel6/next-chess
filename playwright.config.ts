@@ -82,8 +82,6 @@ export default defineConfig({
     url: 'http://localhost:3000',
     timeout: 120000, // 2 minutes to start
     reuseExistingServer: !process.env.CI,
-    // Kill the server on exit
-    killOnExit: true,
   },
 
   // Global setup and teardown

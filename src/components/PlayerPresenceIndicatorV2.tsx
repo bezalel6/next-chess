@@ -30,6 +30,7 @@ export default function PlayerPresenceIndicatorV2({
   const { myPresence, opponentPresence, isChannelConnected, reconnectAttempts } = useGamePresence();
   const [secondsSinceLastSeen, setSecondsSinceLastSeen] = useState<number>(0);
   const [dbPresence, setDbPresence] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Use realtime presence if available, fallback to database
   const presence: PlayerPresenceData | null = isCurrentUser 
@@ -42,14 +43,23 @@ export default function PlayerPresenceIndicatorV2({
       const supabase = supabaseBrowser();
       
       const fetchPresence = async () => {
-        const { data } = await supabase
-          .from('profiles')
-          .select('is_online, last_heartbeat, last_active, username')
-          .eq('id', playerId)
-          .single();
+        try {
+          const { data, error: fetchError } = await supabase
+            .from('profiles')
+            .select('is_online, last_heartbeat, last_active, username')
+            .eq('id', playerId)
+            .single();
 
-        if (data) {
-          setDbPresence(data);
+          if (fetchError) {
+            console.warn('[PlayerPresence] Fallback fetch failed:', fetchError);
+            setError('Unable to fetch presence');
+          } else if (data) {
+            setDbPresence(data);
+            setError(null);
+          }
+        } catch (err) {
+          console.error('[PlayerPresence] Unexpected error:', err);
+          setError('Connection error');
         }
       };
 
@@ -176,6 +186,33 @@ export default function PlayerPresenceIndicatorV2({
   const StatusIcon = config.icon;
   const showTimer = isCurrentTurn && (status === 'warning' || status === 'abandoned' || status === 'disconnected');
   const showReconnecting = status === 'reconnecting';
+
+  // Error state fallback
+  if (error && !presence && !dbPresence) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          p: 1,
+          borderRadius: 1,
+          bgcolor: 'rgba(255, 152, 0, 0.08)',
+          border: '1px solid rgba(255, 152, 0, 0.3)',
+        }}
+      >
+        <Typography variant="body2">
+          {playerUsername} ({playerColor})
+        </Typography>
+        <Tooltip title="Presence unavailable">
+          <CircleIcon sx={{ fontSize: 12, color: '#9e9e9e' }} />
+        </Tooltip>
+        <Typography variant="caption" color="text.secondary">
+          Status unknown
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box

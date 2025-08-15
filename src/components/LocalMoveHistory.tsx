@@ -1,15 +1,15 @@
 import React from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
-import MoveHistoryV2 from './MoveHistoryV2';
+import GamePanel from './GamePanel';
 
 const LocalMoveHistory: React.FC = () => {
   const mode = useUnifiedGameStore(s => s.mode);
   
-  // For local games, just use the MoveHistoryV2 component
+  // For local games, just use the GamePanel component
   // It already works with the unified store
   if (mode === 'local') {
-    return <MoveHistoryV2 />;
+    return <GamePanel />;
   }
 
   return (

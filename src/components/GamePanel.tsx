@@ -1,4 +1,4 @@
-import { Box, Typography, Tooltip, IconButton } from "@mui/material";
+import { Box, Typography, Tooltip, IconButton, Button } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
@@ -9,9 +9,15 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import FirstPageIcon from "@mui/icons-material/FirstPage";
 import LastPageIcon from "@mui/icons-material/LastPage";
 import CachedIcon from "@mui/icons-material/Cached";
+import FlagIcon from "@mui/icons-material/Flag";
+import HandshakeIcon from "@mui/icons-material/Handshake";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
 import { useSingleKeys, Keys } from "@/hooks/useKeys";
 import { supabase } from "@/utils/supabase";
 import { useQuery } from "@tanstack/react-query";
+import { useGameActions } from "@/hooks/useGameActions";
+import ConfirmActionButton from "./ConfirmActionButton";
 
 type MoveData = {
   id: string;
@@ -35,7 +41,7 @@ type Move = {
   black?: MoveData;
 };
 
-const MoveHistoryV2 = () => {
+const GamePanel = () => {
   const game = useUnifiedGameStore((s) => s.game);
   const setPgn = useUnifiedGameStore((s) => s.setPgn);
   const actions = useUnifiedGameStore((s) => s.actions);
@@ -44,16 +50,17 @@ const MoveHistoryV2 = () => {
   const boardOrientation = useUnifiedGameStore((s) => s.boardOrientation);
   const [currentPlyIndex, setCurrentPlyIndex] = useState<number>(-1);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
+  const gameActions = useGameActions();
 
   // Fetch moves from the database with real-time subscription
   const { data: movesData = [], isLoading } = useQuery({
     queryKey: ["moves", game?.id],
     queryFn: async () => {
-      console.log("[MoveHistoryV2] Fetching moves for game:", game?.id);
-      console.log("[MoveHistoryV2] Current game PGN:", game?.pgn);
+      console.log("[GamePanel] Fetching moves for game:", game?.id);
+      console.log("[GamePanel] Current game PGN:", game?.pgn);
 
       if (!game?.id) {
-        console.log("[MoveHistoryV2] No game ID, returning empty array");
+        console.log("[GamePanel] No game ID, returning empty array");
         return [];
       }
 
@@ -62,11 +69,11 @@ const MoveHistoryV2 = () => {
       });
 
       if (error) {
-        console.error("[MoveHistoryV2] Error fetching moves:", error);
+        console.error("[GamePanel] Error fetching moves:", error);
         return [];
       }
 
-      console.log("[MoveHistoryV2] Fetched moves data:", data);
+      console.log("[GamePanel] Fetched moves data:", data);
       return (data as MoveData[]) || [];
     },
     enabled: !!game?.id,
@@ -88,7 +95,7 @@ const MoveHistoryV2 = () => {
           filter: `game_id=eq.${game.id}`,
         },
         (payload) => {
-          console.log("[MoveHistory] New move received:", payload);
+          console.log("[GamePanel] New move received:", payload);
           // React Query will handle the refetch via invalidation in GameContext
         }
       )
@@ -240,13 +247,69 @@ const MoveHistoryV2 = () => {
     }
   );
 
-  console.log("[MoveHistoryV2] Rendering - isLoading:", isLoading);
-  console.log("[MoveHistoryV2] Rendering - movesData:", movesData);
+  // Draw offer UI
+  const renderDrawControls = () => {
+    if (!myColor || game?.status !== 'active') return null;
+    
+    const opponentColor = myColor === 'white' ? 'black' : 'white';
+    
+    if (game.drawOfferedBy === myColor) {
+      return (
+        <Typography sx={{ color: '#888', fontSize: '0.85rem', fontStyle: 'italic' }}>
+          Draw offer sent
+        </Typography>
+      );
+    }
+    
+    if (game.drawOfferedBy === opponentColor) {
+      return (
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Tooltip title="Accept Draw">
+            <Button
+              size="small"
+              variant="outlined"
+              color="success"
+              onClick={() => gameActions.acceptDraw()}
+              startIcon={<CheckCircleIcon fontSize="small" />}
+              sx={{ fontSize: '0.75rem', py: 0.25 }}
+            >
+              Accept
+            </Button>
+          </Tooltip>
+          <Tooltip title="Decline Draw">
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              onClick={() => gameActions.declineDraw()}
+              startIcon={<CancelIcon fontSize="small" />}
+              sx={{ fontSize: '0.75rem', py: 0.25 }}
+            >
+              Decline
+            </Button>
+          </Tooltip>
+        </Box>
+      );
+    }
+    
+    return (
+      <ConfirmActionButton
+        icon={<HandshakeIcon fontSize="small" />}
+        tooltip="Offer Draw"
+        confirmTooltip="Confirm draw offer"
+        onConfirm={gameActions.offerDraw}
+        color="info"
+      />
+    );
+  };
+
+  console.log("[GamePanel] Rendering - isLoading:", isLoading);
+  console.log("[GamePanel] Rendering - movesData:", movesData);
   console.log(
-    "[MoveHistoryV2] Rendering - movesData length:",
+    "[GamePanel] Rendering - movesData length:",
     movesData.length
   );
-  console.log("[MoveHistoryV2] Rendering - game PGN:", game?.pgn);
+  console.log("[GamePanel] Rendering - game PGN:", game?.pgn);
 
   if (isLoading) {
     return (
@@ -425,6 +488,33 @@ const MoveHistoryV2 = () => {
           ))}
         </Box>
       </Box>
+      
+      {/* Game Actions Bar - only show for active games */}
+      {game?.status === 'active' && myColor && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 0.5,
+            p: 1,
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+            bgcolor: "rgba(0,0,0,0.2)",
+          }}
+        >
+          {/* Draw controls */}
+          {renderDrawControls()}
+          
+          {/* Resign button */}
+          <ConfirmActionButton
+            icon={<FlagIcon fontSize="small" />}
+            tooltip="Resign"
+            confirmTooltip="Confirm resignation"
+            onConfirm={gameActions.resign}
+            color="error"
+          />
+        </Box>
+      )}
     </Box>
   );
 };
@@ -600,4 +690,4 @@ function MoveComponent({ move }: { move: MoveData }) {
   );
 }
 
-export default MoveHistoryV2;
+export default GamePanel;

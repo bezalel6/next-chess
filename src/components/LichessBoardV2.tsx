@@ -56,8 +56,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   // Get navigation state and pending operation from store
   const { navigationFen, navigationBan, viewingPly, pendingOperation, optimisticFen } = useGameStore();
 
-  // Test input refs for automation
-  const testInputRef = useRef<HTMLInputElement>(null);
 
   // Parse current position (use navigation FEN if navigating)
   const chess = useMemo(() => {
@@ -156,84 +154,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     [canBan, canMove, executeGameOperation]
   );
 
-  // Handle square-based input (e.g., "e2" for selection, "e2 e4" for move)
-  const handleSquareInput = useCallback(
-    (input: string) => {
-      if (!chess || !input.trim()) return false;
-
-      const parts = input.trim().toLowerCase().split(/\s+/);
-
-      // Single square - simulate selection
-      if (parts.length === 1) {
-        const square = parts[0];
-        // Validate square format
-        if (!/^[a-h][1-8]$/.test(square)) {
-          return false;
-        }
-
-        // Don't clear input on selection, wait for destination
-        return true;
-      }
-
-      // Two squares - execute move/ban
-      if (parts.length === 2) {
-        const [from, to] = parts;
-        // Validate square formats
-        if (!/^[a-h][1-8]$/.test(from) || !/^[a-h][1-8]$/.test(to)) {
-          return false;
-        }
-
-        // Execute the move/ban
-        handleMove(from, to);
-
-        // Clear input
-        if (testInputRef.current) {
-          testInputRef.current.value = "";
-        }
-        return true;
-      }
-
-      return false;
-    },
-    [chess, handleMove, canBan, legalMoves]
-  );
-
-  // Test input handler for automation
-  const handleTestInput = useCallback(() => {
-    const input = testInputRef.current;
-    if (!input || !input.value.trim()) return;
-
-    const success = handleSquareInput(input.value.trim());
-
-    if (!success && testInputRef.current) {
-      // Invalid input - flash red border
-      testInputRef.current.style.borderColor = "#ff0000";
-      setTimeout(() => {
-        if (testInputRef.current) {
-          testInputRef.current.style.borderColor = canBan
-            ? "#ff6b6b"
-            : "#4CAF50";
-        }
-      }, 500);
-    }
-  }, [handleSquareInput, canBan]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleTestInput();
-      }
-    };
-
-    const input = testInputRef.current;
-    if (input) {
-      input.addEventListener("keydown", handleKeyDown);
-      return () => {
-        input.removeEventListener("keydown", handleKeyDown);
-      };
-    }
-  }, [handleTestInput]);
 
   // Chessground configuration
   const config = useMemo<Config>(
@@ -379,53 +299,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       >
         <Chessground config={config} />
       </Box>
-      
-      {/* Test input for automation - only show in development and local games */}
-      {process.env.NODE_ENV === 'development' && mode === 'local' && (
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: -50,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 100,
-            display: 'flex',
-            gap: 1,
-            alignItems: 'center',
-          }}
-        >
-          <input
-            ref={testInputRef}
-            type="text"
-            placeholder={canBan ? "e2 e4 (ban)" : "e2 e4 (move)"}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: `2px solid ${canBan ? '#ff6b6b' : '#4CAF50'}`,
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              color: '#fff',
-              fontSize: '14px',
-              width: '150px',
-            }}
-            data-testid="board-move-input"
-          />
-          <button
-            onClick={handleTestInput}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '4px',
-              border: 'none',
-              backgroundColor: canBan ? '#ff6b6b' : '#4CAF50',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 'bold',
-            }}
-          >
-            {canBan ? 'Ban' : 'Move'}
-          </button>
-        </Box>
-      )}
     </>
   );
 }

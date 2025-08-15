@@ -1,173 +1,69 @@
-import { useCallback, useRef, useEffect } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
-import { useBanMutation } from "@/hooks/useGameQueries";
-import { Chess } from "chess.ts";
 import type { Square } from "chess.ts/dist/types";
 
 export default function BoardMoveInput() {
-  // Use individual selectors to avoid infinite loops
+  const testInputRef = useRef<HTMLInputElement>(null);
+  
+  // Get game state
   const game = useUnifiedGameStore(s => s.game);
-  const myColor = useUnifiedGameStore(s => s.myColor);
   const mode = useUnifiedGameStore(s => s.mode);
   const phase = useUnifiedGameStore(s => s.phase);
-  const localPhase = useUnifiedGameStore(s => s.localPhase);
-  const localGameStatus = useUnifiedGameStore(s => s.localGameStatus);
-  const makeMove = useUnifiedGameStore(s => s.makeMove);
-  const storeBanMove = useUnifiedGameStore(s => s.banMove); // Rename to avoid conflict
-  const previewBan = useUnifiedGameStore(s => s.previewBan);
+  const executeGameOperation = useUnifiedGameStore(s => s.executeGameOperation);
   
-  // Use ban mutation for online games
-  const banMutation = useBanMutation(game?.id);
+  const canBan = phase === 'selecting_ban' && game?.status === 'active';
+  const canMove = phase === 'making_move' && game?.status === 'active';
   
-  // Calculate canBan and canMove based on the state
-  const canBan = mode === 'local' 
-    ? (localPhase === 'banning' && localGameStatus === 'active')
-    : phase === 'selecting_ban';
+  // Handle square-based input (e.g., "e2 e4" for move/ban)
+  const handleSquareInput = useCallback(() => {
+    const input = testInputRef.current;
+    if (!input || !input.value.trim()) return;
     
-  const canMove = mode === 'local'
-    ? (localPhase === 'playing' && localGameStatus === 'active')
-    : (phase === 'making_move' && game?.turn === myColor && game?.status === 'active');
-  
-  const testInputRef = useRef<HTMLInputElement>(null);
-
-  // Parse current position
-  const chess = game ? new Chess(game.currentFen) : null;
-
-  // Get legal moves map
-  const legalMoves = (() => {
-    if (!chess || !game || game.status !== "active") return new Map();
-    
-    const moves = new Map<string, string[]>();
-    
-    if (canBan) {
-      const opponentColor = myColor === "white" ? "black" : "white";
-      chess.moves({ verbose: true }).forEach(move => {
-        const piece = chess.get(move.from as Square);
-        if (piece && piece.color === (opponentColor === "white" ? "w" : "b")) {
-          const from = move.from;
-          const to = move.to;
-          const dests = moves.get(from) || [];
-          moves.set(from, [...dests, to]);
-        }
-      });
-    } else if (canMove) {
-      chess.moves({ verbose: true }).forEach(move => {
-        const from = move.from;
-        const to = move.to;
-        const dests = moves.get(from) || [];
-        moves.set(from, [...dests, to]);
-      });
-    }
-    
-    return moves;
-  })();
-
-  // Handle piece movement
-  const handleMove = useCallback((from: string, to: string) => {
-    if (canBan) {
-      // Use mutation for online games, store for local games
-      if (mode === 'online') {
-        banMutation.mutate({ from: from as Square, to: to as Square });
-      } else {
-        storeBanMove(from as Square, to as Square);
-      }
-    } else if (canMove) {
-      // Check for promotion
-      const move = chess?.move({ 
-        from: from as Square, 
-        to: to as Square, 
-        promotion: "q" 
-      });
-      if (move) {
-        chess?.undo();
-        if (move.promotion) {
-          makeMove(from as Square, to as Square, "q");
-        } else {
-          makeMove(from as Square, to as Square);
-        }
-      }
-    }
-  }, [canBan, canMove, storeBanMove, makeMove, chess, mode, banMutation]);
-
-  // Handle square-based input
-  const handleSquareInput = useCallback((input: string) => {
-    if (!chess || !input.trim()) return false;
-    
-    const cleanInput = input.trim().toLowerCase();
-    
-    // Try to parse as a move notation (e2e4 or e2 e4)
-    // First check if it's a compact notation like "e2e4"
-    const compactMatch = cleanInput.match(/^([a-h][1-8])([a-h][1-8])$/);
-    if (compactMatch) {
-      const [, from, to] = compactMatch;
-      handleMove(from, to);
-      
-      if (testInputRef.current) {
-        testInputRef.current.value = "";
-      }
-      return true;
-    }
-    
-    // Try space-separated format
-    const parts = cleanInput.split(/\s+/);
-    
-    // Single square - trigger selection
-    if (parts.length === 1 && /^[a-h][1-8]$/.test(parts[0])) {
-      const square = parts[0];
-      
-      if (canBan) {
-        const dests = legalMoves.get(square);
-        if (dests && dests.length > 0) {
-          // Preview ban is visual state, not a function
-          // This would need to be implemented through UI state
-          console.log('Preview ban:', square, dests[0]);
-        }
-      }
-      
-      return true;
-    }
+    const parts = input.value.trim().toLowerCase().split(/\s+/);
     
     // Two squares - execute move/ban
     if (parts.length === 2) {
       const [from, to] = parts;
+      // Validate square formats
       if (!/^[a-h][1-8]$/.test(from) || !/^[a-h][1-8]$/.test(to)) {
-        return false;
+        // Flash red border for invalid input
+        input.style.borderColor = "#ff0000";
+        setTimeout(() => {
+          input.style.borderColor = canBan ? "#ff6b6b" : "#4CAF50";
+        }, 500);
+        return;
       }
       
-      handleMove(from, to);
+      // Execute the move/ban
+      const operation = canBan ? 'ban' : 'move';
+      const success = executeGameOperation(operation, from as Square, to as Square, 'q');
       
-      if (testInputRef.current) {
-        testInputRef.current.value = "";
+      if (success) {
+        // Clear input on success
+        input.value = "";
+      } else {
+        // Flash red border for invalid move/ban
+        input.style.borderColor = "#ff0000";
+        setTimeout(() => {
+          input.style.borderColor = canBan ? "#ff6b6b" : "#4CAF50";
+        }, 500);
       }
-      return true;
-    }
-    
-    return false;
-  }, [chess, handleMove, canBan, legalMoves, previewBan]);
-
-  // Test input handler
-  const handleTestInput = useCallback(() => {
-    const input = testInputRef.current;
-    if (!input || !input.value.trim()) return;
-    
-    const success = handleSquareInput(input.value.trim());
-    
-    if (!success && testInputRef.current) {
-      testInputRef.current.style.borderColor = "#ff0000";
+    } else {
+      // Invalid format - flash red
+      input.style.borderColor = "#ff0000";
       setTimeout(() => {
-        if (testInputRef.current) {
-          testInputRef.current.style.borderColor = canBan ? "#ff6b6b" : "#4CAF50";
-        }
+        input.style.borderColor = canBan ? "#ff6b6b" : "#4CAF50";
       }, 500);
     }
-  }, [handleSquareInput, canBan]);
-
+  }, [canBan, executeGameOperation]);
+  
+  // Handle Enter key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        handleTestInput();
+        handleSquareInput();
       }
     };
     
@@ -178,79 +74,36 @@ export default function BoardMoveInput() {
         input.removeEventListener("keydown", handleKeyDown);
       };
     }
-  }, [handleTestInput]);
-
-  // Don't show input if game is not active
-  if (!game || game.status !== "active") return null;
-
+  }, [handleSquareInput]);
+  
+  if (!game) return null;
+  
   return (
     <Box
       sx={{
-        mt: 1,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        width: "100%",
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <input
-          ref={testInputRef}
-          type="text"
-          data-testid="board-test-input"
-          placeholder={canBan ? "e2 e4 (ban)" : "e2 e4 (move)"}
-          style={{
-            width: "120px",
-            padding: "5px 8px",
-            fontSize: "12px",
-            fontFamily: "monospace",
-            backgroundColor: "rgba(0, 0, 0, 0.85)",
-            color: "#fff",
-            border: `2px solid ${canBan ? "#ff6b6b" : "#4CAF50"}`,
-            borderRadius: "4px",
-            outline: "none",
-            textAlign: "center",
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = canBan ? "#ff4444" : "#66BB6A";
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = canBan ? "#ff6b6b" : "#4CAF50";
-          }}
-        />
-        <button
-          data-testid="board-test-submit"
-          onClick={handleTestInput}
-          style={{
-            padding: "5px 10px",
-            fontSize: "12px",
-            fontFamily: "monospace",
-            backgroundColor: canBan ? "#ff6b6b" : "#4CAF50",
-            color: "#fff",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-            outline: "none",
-            transition: "background-color 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = canBan ? "#ff4444" : "#66BB6A";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = canBan ? "#ff6b6b" : "#4CAF50";
-          }}
-        >
-          {canBan ? "Ban" : "Move"}
-        </button>
-      </div>
-      <div style={{
-        fontSize: "9px",
-        color: "#666",
-        marginTop: "2px",
-        fontFamily: "monospace",
-      }}>
-        square (e2) or move (e2 e4)
-      </div>
+      <input
+        ref={testInputRef}
+        type="text"
+        placeholder={canBan ? "e2 e4 (ban)" : canMove ? "e2 e4 (move)" : "waiting..."}
+        disabled={!canBan && !canMove}
+        style={{
+          padding: '8px 12px',
+          borderRadius: '4px',
+          border: `2px solid ${canBan ? '#ff6b6b' : canMove ? '#4CAF50' : '#666'}`,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          color: canBan || canMove ? '#fff' : '#999',
+          fontSize: '14px',
+          width: '150px',
+          opacity: canBan || canMove ? 1 : 0.6,
+          cursor: canBan || canMove ? 'text' : 'not-allowed',
+        }}
+        data-testid="board-move-input"
+      />
     </Box>
   );
 }

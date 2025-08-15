@@ -4,6 +4,7 @@ import { useGameStore } from "@/stores/gameStore";
 import LichessBoardV2 from "./LichessBoardV2";
 import BanPhaseOverlay from "./BanPhaseOverlay";
 import GameOverOverlay from "./GameOverOverlay";
+import BoardMoveInput from "./BoardMoveInput";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { useState, useEffect, useRef } from "react";
 
@@ -73,72 +74,79 @@ export default function GameBoardV2({
   const boardOrientation = orientation || myColor || "white";
 
   return (
-    <Box
-      sx={{
-        position: "relative",
-        width: boardSize,
-        height: boardSize,
-        bgcolor: "#2a2a2a",
-        borderRadius: 0.5,
-        userSelect: isResizing ? "none" : "auto",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-      ref={boardRef}
-      data-testid="game-board"
-      data-game-phase={canBan ? "ban" : canMove ? "move" : "waiting"}
-      data-my-color={myColor}
-      data-current-turn={game?.turn}
-    >
-      <BanPhaseOverlay isMyTurnToBan={canBan} />
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
       <Box
         sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          overflow: "hidden",
-        }}
-      >
-        <LichessBoardV2 orientation={boardOrientation} />
-      </Box>
-
-      {game.status === "finished" && <GameOverOverlay />}
-
-      {/* Resize handle */}
-      <Box
-        onMouseDown={handleMouseDown}
-        sx={{
-          position: "absolute",
-          bottom: 4,
-          right: 4,
-          width: 24,
-          height: 24,
-          cursor: "nwse-resize",
+          position: "relative",
+          width: boardSize,
+          height: boardSize,
+          bgcolor: "#2a2a2a",
+          borderRadius: 0.5,
+          userSelect: isResizing ? "none" : "auto",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          zIndex: 20,
-          background: "rgba(0, 0, 0, 0.6)",
-          borderRadius: "4px",
-          backdropFilter: "blur(4px)",
-          transition: "all 0.2s",
-          "&:hover": {
-            background: "rgba(0, 0, 0, 0.8)",
-            transform: "scale(1.1)",
-          },
         }}
+        ref={boardRef}
+        data-testid="game-board"
+        data-game-phase={canBan ? "ban" : canMove ? "move" : "waiting"}
+        data-my-color={myColor}
+        data-current-turn={game?.turn}
       >
-        <DragIndicatorIcon
+        <BanPhaseOverlay isMyTurnToBan={canBan} />
+        <Box
           sx={{
-            fontSize: 18,
-            color: "rgba(255, 255, 255, 0.9)",
-            transform: "rotate(45deg)",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            overflow: "hidden",
           }}
-        />
+        >
+          <LichessBoardV2 orientation={boardOrientation} />
+        </Box>
+
+        {game.status === "finished" && <GameOverOverlay />}
+
+        {/* Resize handle */}
+        <Box
+          onMouseDown={handleMouseDown}
+          sx={{
+            position: "absolute",
+            bottom: 4,
+            right: 4,
+            width: 24,
+            height: 24,
+            cursor: "nwse-resize",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 20,
+            background: "rgba(0, 0, 0, 0.6)",
+            borderRadius: "4px",
+            backdropFilter: "blur(4px)",
+            transition: "all 0.2s",
+            "&:hover": {
+              background: "rgba(0, 0, 0, 0.8)",
+              transform: "scale(1.1)",
+            },
+          }}
+        >
+          <DragIndicatorIcon
+            sx={{
+              fontSize: 18,
+              color: "rgba(255, 255, 255, 0.9)",
+              transform: "rotate(45deg)",
+            }}
+          />
+        </Box>
       </Box>
+      
+      {/* Board move input - always visible in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <BoardMoveInput />
+      )}
     </Box>
   );
 }

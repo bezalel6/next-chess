@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
-import { useGamePresence } from '@/contexts/GamePresenceContext';
 import { supabase } from '@/utils/supabase';
 import { useNotification } from '@/contexts/NotificationContext';
 
@@ -9,25 +8,31 @@ import { useNotification } from '@/contexts/NotificationContext';
  * Syncs local game state with server state when connection is restored
  */
 export function useGameStateRecovery(gameId: string | null) {
-  const { isChannelConnected, reconnectAttempts } = useGamePresence();
   const { notifyInfo, notifySuccess } = useNotification();
   const game = useUnifiedGameStore(s => s.game);
   const syncGameState = useUnifiedGameStore(s => s.syncGameState);
   
-  const lastConnectionState = useRef(isChannelConnected);
   const isRecovering = useRef(false);
 
+  // We'll trigger recovery manually when needed
+  // This could be called by the presence service on reconnect
   useEffect(() => {
-    // Detect reconnection (was disconnected, now connected)
-    const wasDisconnected = !lastConnectionState.current;
-    const isNowConnected = isChannelConnected;
+    // Set up a channel to listen for reconnection events
+    if (!gameId) return;
     
-    if (wasDisconnected && isNowConnected && gameId && !isRecovering.current) {
-      handleGameStateRecovery();
-    }
-    
-    lastConnectionState.current = isChannelConnected;
-  }, [isChannelConnected, gameId]);
+    const channel = supabase.channel(`game-recovery:${gameId}`)
+      .on('presence', { event: 'sync' }, () => {
+        // When presence syncs, we might have reconnected
+        if (!isRecovering.current) {
+          handleGameStateRecovery();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [gameId]);
 
   const handleGameStateRecovery = async () => {
     if (!gameId || isRecovering.current) return;

@@ -9,7 +9,8 @@ import FlagIcon from '@mui/icons-material/Flag';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
-import PlayerPresenceIndicatorV2 from './PlayerPresenceIndicatorV2';
+import PlayerStatus from './PlayerStatus';
+import { useGamePresence } from '@/services/presenceService';
 
 interface RightSidebarProps {
   boardFlipped: boolean;
@@ -23,6 +24,7 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
   const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
   const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
   const actions = useGameActions();
+  const { opponentStatus, presenceService } = useGamePresence(game?.id || null);
   
   if (!game) return null;
 
@@ -106,13 +108,12 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
         borderRadius: 0.5,
         p: 1,
       }}>
-        {/* Player Presence */}
-        <PlayerPresenceIndicatorV2
-          playerId={topColor === 'white' ? game?.whitePlayerId || '' : game?.blackPlayerId || ''}
-          playerColor={topColor}
+        {/* Player Status */}
+        <PlayerStatus
+          username={topUsername || 'Player'}
+          color={topColor}
+          status={myColor === topColor ? 'online' : opponentStatus}
           isCurrentTurn={game?.turn === topColor}
-          playerUsername={topUsername}
-          isCurrentUser={myColor === topColor}
         />
         
         {/* Time display */}
@@ -194,13 +195,12 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
           <TimeControl playerColor={bottomColor} />
         </Box>
         
-        {/* Player Presence */}
-        <PlayerPresenceIndicatorV2
-          playerId={bottomColor === 'white' ? game?.whitePlayerId || '' : game?.blackPlayerId || ''}
-          playerColor={bottomColor}
+        {/* Player Status */}
+        <PlayerStatus
+          username={bottomUsername || 'Player'}
+          color={bottomColor}
+          status={myColor === bottomColor ? 'online' : opponentStatus}
           isCurrentTurn={game?.turn === bottomColor}
-          playerUsername={bottomUsername}
-          isCurrentUser={myColor === bottomColor}
         />
       </Box>
     </Box>

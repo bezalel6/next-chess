@@ -1,0 +1,86 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
+import { corsHeaders } from "../_shared/cors.ts";
+
+interface ReconnectRequest {
+  gameId: string;
+  playerId: string;
+}
+
+serve(async (req) => {
+  // Handle CORS
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
+    const { gameId, playerId } = await req.json() as ReconnectRequest;
+
+    // Validate inputs
+    if (!gameId || !playerId) {
+      return new Response(
+        JSON.stringify({ error: "Missing required parameters" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
+    }
+
+    // Call the database function to handle reconnect
+    const { data, error } = await supabaseClient.rpc('handle_player_reconnect', {
+      game_id: gameId,
+      player_id: playerId,
+    });
+
+    if (error) {
+      console.error('Error handling reconnect:', error);
+      return new Response(
+        JSON.stringify({ error: error.message }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        }
+      );
+    }
+
+    // Broadcast reconnect event to game channel
+    const channel = supabaseClient.channel(`game:${gameId}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'player_reconnect',
+      payload: {
+        playerId,
+        ...data,
+      },
+    });
+
+    return new Response(
+      JSON.stringify(data),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
+  } catch (error) {
+    console.error("Error in handle-reconnect:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
+  }
+});

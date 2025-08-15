@@ -12,9 +12,9 @@ import RightSidebar from "@/components/RightSidebar";
 import NotFoundScreen from "@/components/NotFoundScreen";
 import BoardMoveInput from "@/components/BoardMoveInput";
 import DebugLog from "@/components/DebugLog";
-import { GamePresenceProvider } from "@/contexts/GamePresenceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import GameWithRecovery from "@/components/GameWithRecovery";
+import DisconnectHandler from "@/components/DisconnectHandler";
 // Left sidebar components
 const LeftSidebar = () => {
     const game = useUnifiedGameStore(s => s.game);
@@ -155,18 +155,15 @@ export default function GamePage() {
                         <LoadingScreen />
                     )
                 ) : game ? (
-                    // Wrap with GamePresenceProvider for real-time presence
-                    <GamePresenceProvider 
-                        gameId={game.id}
-                        opponentId={myColor === 'white' ? game.blackPlayerId : game.whitePlayerId}
-                        opponentUsername={myColor === 'white' ? playerUsernames.black : playerUsernames.white}
-                    >
+                    <>
                         {/* Use GameWithRecovery component which includes recovery hook */}
                         <GameWithRecovery 
                             boardFlipped={boardFlipped}
                             onFlipBoard={() => setBoardFlipped(!boardFlipped)}
                         />
-                    </GamePresenceProvider>
+                        {/* Disconnect handler overlay */}
+                        <DisconnectHandler gameId={game.id} />
+                    </>
                 ) : (
                     <NotFoundScreen />
                 )}

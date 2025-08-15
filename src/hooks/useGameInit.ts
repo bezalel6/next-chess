@@ -18,6 +18,13 @@ export function useGameInit() {
   const gameId = router.query.id as string | undefined;
   const isLocalGame = router.pathname === '/local-game';
   
+  // Set loading state when starting
+  useEffect(() => {
+    if (gameId && !isLocalGame) {
+      // Loading state will be managed by the query
+    }
+  }, [gameId, isLocalGame]);
+  
   // Initialize local game
   useEffect(() => {
     if (isLocalGame && store.mode !== 'local') {

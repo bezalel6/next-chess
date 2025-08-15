@@ -25,6 +25,11 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
     staleTime: 1000 * 30, // 30 seconds
   });
   
+  // Update loading state
+  useEffect(() => {
+    store.setLoading(query.isLoading);
+  }, [query.isLoading, store]);
+  
   // Initialize store when game data is loaded
   useEffect(() => {
     if (query.data && gameId) {
@@ -35,7 +40,7 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
       
       store.initGame(gameId, game, myColor);
     }
-  }, [query.data, gameId, userId]);
+  }, [query.data, gameId, userId, store]);
   
   // Set up realtime subscription
   useEffect(() => {

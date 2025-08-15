@@ -137,6 +137,7 @@ interface GameActions {
   setPhase: (phase: GamePhase) => void;
   syncWithServer: (game: Game) => void;
   setPgn: (pgn: string) => void;
+  setLoading: (loading: boolean) => void;
   
   // Local game operations
   selectLocalBan: (from: Square, to: Square) => void;
@@ -152,6 +153,12 @@ interface GameActions {
     offerDraw: () => void;
     acceptDraw: () => void;
     declineDraw: () => void;
+    offerRematch: () => void;
+    acceptRematch: () => void;
+    declineRematch: () => void;
+    resetGame: () => void;
+    startLocalGame: () => void;
+    flipBoardOrientation: () => void;
   };
 }
 
@@ -324,16 +331,30 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         // ============= Game Actions =============
         
         initGame: (gameId, game, myColor) => {
+          if (!game || !game.currentFen) {
+            console.error('Invalid game data received:', game);
+            return;
+          }
+          
           const chess = new Chess(game.currentFen);
+          
+          // Extract player usernames
+          const playerUsernames = {
+            white: game.whiteUsername || 'White',
+            black: game.blackUsername || 'Black',
+          };
+          
           set({
             gameId,
             game,
             chess,
             myColor,
+            loading: false,
+            playerUsernames,
             mode: myColor ? 'online' : 'spectator',
             currentFen: game.currentFen,
-            currentTurn: game.turn,
-            currentBannedMove: game.currentBannedMove,
+            currentTurn: game.turn || 'white',
+            currentBannedMove: game.currentBannedMove || null,
             
             // Set phase based on game state
             phase: game.status === 'finished' ? 'game_over' :
@@ -720,6 +741,10 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           if (state.game) {
             set({ game: { ...state.game, pgn } });
           }
+        },
+        
+        setLoading: (loading) => {
+          set({ loading });
         },
         
         selectLocalBan: (from, to) => {

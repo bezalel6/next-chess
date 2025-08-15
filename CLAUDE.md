@@ -18,7 +18,7 @@ Real-time multiplayer chess with Ban Chess variant - Black bans one of White's m
 
 ## Key Files
 - `src/services/gameService.ts` - Game operations
-- `src/contexts/GameContextV2.tsx` - State management  
+- `src/stores/unifiedGameStore.ts` - State management (Zustand)
 - `src/components/GameBoardV2.tsx` - Board UI
 - `supabase/functions/_shared/game-handlers.ts` - Server logic
 

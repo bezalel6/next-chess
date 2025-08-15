@@ -125,3 +125,8 @@ nul
 # Temporary files
 public.games
 .serena/
+
+# Test scripts
+test-*.mjs
+test-*.js
+!test-*.spec.js

@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { PersonOutline as PersonIcon } from "@mui/icons-material";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 import React, { useState, useEffect } from "react";
 import TabDialog from "./TabDialog";
 import UserLink from "./user-link";

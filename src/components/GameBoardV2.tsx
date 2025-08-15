@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 import { useGameStore } from "@/stores/gameStore";
 import LichessBoardV2 from "./LichessBoardV2";
 import BanPhaseOverlay from "./BanPhaseOverlay";

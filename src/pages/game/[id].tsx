@@ -1,4 +1,4 @@
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 import { Box, Typography } from "@mui/material";
 import { useRouter } from 'next/compat/router';
 import Head from "next/head";

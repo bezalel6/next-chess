@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { ComponentType } from 'react';
 import { Typography } from '@mui/material';
-import { useGame } from '@/contexts/GameContextV2';
+import { useGame } from '@/contexts/GameProvider';
 import { formatTime } from '@/utils/timeUtils';
 import type { PlayerColor, Game } from '@/types/game';
 

@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Box, Typography, Chip } from "@mui/material";
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 import BlockIcon from "@mui/icons-material/Block";
 
 interface BanPhaseOverlayProps {

@@ -4,7 +4,7 @@ import QueueSystem from "@/components/QueueSystem";
 import AuthForm from "@/components/auth-form";
 import BoardMoveInput from "@/components/BoardMoveInput";
 import { Box, Container, Typography, Fade, Paper } from "@mui/material";
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 

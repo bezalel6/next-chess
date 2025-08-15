@@ -7,7 +7,7 @@ import {
   type ComponentProps,
 } from "react";
 import { Box } from "@mui/material";
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 import { useGameStore } from "@/stores/gameStore";
 import { Chess } from "chess.ts";
 import type { Square } from "chess.ts/dist/types";

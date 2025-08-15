@@ -4,7 +4,7 @@ import HandshakeIcon from '@mui/icons-material/Handshake';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useState } from "react";
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 
 // Draw offer buttons component
 const DrawButtons = () => {

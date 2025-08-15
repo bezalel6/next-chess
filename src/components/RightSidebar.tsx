@@ -1,5 +1,5 @@
 import { Box, Typography, IconButton, Tooltip, Button } from '@mui/material';
-import { useGame } from '@/contexts/GameContextV2';
+import { useGame } from '@/contexts/GameProvider';
 import MoveHistoryV2 from './MoveHistoryV2';
 import TimeControl from './TimeControl';
 import CachedIcon from '@mui/icons-material/Cached';

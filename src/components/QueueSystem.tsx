@@ -30,7 +30,7 @@ import {
 } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 import { GameService } from "@/services/gameService";
 import { UserService } from "@/services/userService";
 import { useRouter } from "next/router";

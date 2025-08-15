@@ -2,7 +2,7 @@ import { Box, Typography, Button, Stack, Paper, Fade } from "@mui/material";
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
 import HandshakeIcon from '@mui/icons-material/Handshake';
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 import { useMemo, useState, useEffect } from "react";
 import UserLink from '@/components/user-link';
 

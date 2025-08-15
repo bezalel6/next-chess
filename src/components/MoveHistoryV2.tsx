@@ -1,6 +1,6 @@
 import { Box, Typography, Tooltip, IconButton } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 import { useGameStore } from "@/stores/gameStore";
 import type { Square } from 'chess.ts/dist/types';
 import BlockIcon from '@mui/icons-material/Block';

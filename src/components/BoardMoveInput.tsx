@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from "react";
 import { Box } from "@mui/material";
-import { useGame } from "@/contexts/GameContextV2";
+import { useGame } from "@/contexts/GameProvider";
 import { Chess } from "chess.ts";
 import type { Square } from "chess.ts/dist/types";
 

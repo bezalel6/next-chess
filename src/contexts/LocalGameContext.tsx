@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Chess } from 'chess.ts';
 import type { Square, PartialMove } from 'chess.ts/dist/types';
+import { useChessSounds } from '@/hooks/useChessSounds';
 
 interface BannedMove {
   from: string;
@@ -44,6 +45,7 @@ const LocalGameContext = createContext<LocalGameContextType | undefined>(undefin
 
 export const LocalGameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<LocalGameState | null>(null);
+  const { playMoveSound, playGameStart, playGameEnd, playBan } = useChessSounds();
 
   const initializeGame = useCallback(() => {
     const chess = new Chess();
@@ -56,7 +58,8 @@ export const LocalGameProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       gameStatus: 'active',
       winner: null,
     });
-  }, []);
+    playGameStart();
+  }, [playGameStart]);
 
   const selectBan = useCallback((from: Square, to: Square) => {
     if (!gameState || gameState.phase !== 'banning') return;
@@ -71,7 +74,9 @@ export const LocalGameProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         phase: 'playing',
       };
     });
-  }, [gameState]);
+    
+    playBan();
+  }, [gameState, playBan]);
 
   const makeMove = useCallback((from: Square, to: Square, promotion?: string): boolean => {
     if (!gameState || gameState.phase !== 'playing') return false;
@@ -86,6 +91,9 @@ export const LocalGameProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const move = gameState.chess.move({ from, to, promotion: promotion as any });
       if (!move) return false;
+
+      // Play move sound
+      playMoveSound(move, gameState.chess);
 
       const newMoveHistory = [...gameState.moveHistory];
       const moveNumber = Math.floor(gameState.moveHistory.length / 2) + 1;
@@ -108,10 +116,13 @@ export const LocalGameProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (gameState.chess.inCheckmate()) {
         gameStatus = 'checkmate';
         winner = gameState.currentPlayer;
+        playGameEnd();
       } else if (gameState.chess.inStalemate()) {
         gameStatus = 'stalemate';
+        playGameEnd();
       } else if (gameState.chess.inDraw()) {
         gameStatus = 'draw';
+        playGameEnd();
       }
 
       const nextPlayer = gameState.currentPlayer === 'white' ? 'black' : 'white';
@@ -131,7 +142,7 @@ export const LocalGameProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.error('Invalid move:', error);
       return false;
     }
-  }, [gameState]);
+  }, [gameState, playMoveSound, playGameEnd]);
 
   const resetGame = useCallback(() => {
     initializeGame();

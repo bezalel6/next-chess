@@ -82,6 +82,13 @@ const LocalGameBoard: React.FC = () => {
           setOptionSquares(getMoveOptions(square));
         }
       } else {
+        // If clicking the same square, deselect it
+        if (moveFrom === square) {
+          setMoveFrom(null);
+          setOptionSquares({});
+          return;
+        }
+        
         // Second click - select destination to ban
         const moves = getPossibleMoves();
         const moveExists = moves.some(m => m.from === moveFrom && m.to === square);
@@ -91,9 +98,16 @@ const LocalGameBoard: React.FC = () => {
           setMoveFrom(null);
           setOptionSquares({});
         } else {
-          // Reset selection if invalid
-          setMoveFrom(null);
-          setOptionSquares({});
+          // Check if clicking another piece to select instead
+          const piece = gameState.chess.get(square);
+          if (piece && piece.color === gameState.chess.turn()) {
+            setMoveFrom(square);
+            setOptionSquares(getMoveOptions(square));
+          } else {
+            // Reset selection if invalid
+            setMoveFrom(null);
+            setOptionSquares({});
+          }
         }
       }
     } 
@@ -107,6 +121,13 @@ const LocalGameBoard: React.FC = () => {
           setOptionSquares(getMoveOptions(square));
         }
       } else {
+        // If clicking the same square, deselect it
+        if (moveFrom === square) {
+          setMoveFrom(null);
+          setOptionSquares({});
+          return;
+        }
+        
         // Second click - make the move
         const success = makeMove(moveFrom, square);
         
@@ -128,13 +149,52 @@ const LocalGameBoard: React.FC = () => {
     }
   }, [gameState, moveFrom, selectBan, makeMove, getPossibleMoves, getMoveOptions]);
 
-  // Handle drag and drop for playing phase only
-  const onDrop = useCallback((sourceSquare: Square, targetSquare: Square) => {
-    if (!gameState || gameState.phase !== 'playing') return false;
+  // Handle drag start - show available moves
+  const onPieceDragBegin = useCallback((piece: string, sourceSquare: Square) => {
+    if (!gameState) return;
     
-    const success = makeMove(sourceSquare, targetSquare);
-    return success;
-  }, [gameState, makeMove]);
+    // Show moves for both playing and banning phases
+    const pieceData = gameState.chess.get(sourceSquare);
+    if (pieceData && pieceData.color === gameState.chess.turn()) {
+      setMoveFrom(sourceSquare); // Track the source for ban selection
+      setOptionSquares(getMoveOptions(sourceSquare));
+    }
+  }, [gameState, getMoveOptions]);
+
+  // Handle drag end - clear highlights
+  const onPieceDragEnd = useCallback(() => {
+    setOptionSquares({});
+    // Don't clear moveFrom here as we might need it for ban selection
+  }, []);
+
+  // Handle drag and drop for both playing and banning phases
+  const onDrop = useCallback((sourceSquare: Square, targetSquare: Square) => {
+    if (!gameState) return false;
+    
+    if (gameState.phase === 'playing') {
+      const success = makeMove(sourceSquare, targetSquare);
+      setOptionSquares({});
+      setMoveFrom(null);
+      return success;
+    } else if (gameState.phase === 'banning') {
+      // Check if this is a valid move to ban
+      const moves = getPossibleMoves();
+      const moveExists = moves.some(m => m.from === sourceSquare && m.to === targetSquare);
+      
+      if (moveExists) {
+        selectBan(sourceSquare, targetSquare);
+        setOptionSquares({});
+        setMoveFrom(null);
+        return true;
+      }
+      
+      setOptionSquares({});
+      setMoveFrom(null);
+      return false;
+    }
+    
+    return false;
+  }, [gameState, makeMove, selectBan, getPossibleMoves]);
 
   const customSquareStyles = {
     ...optionSquares,
@@ -241,7 +301,7 @@ const LocalGameBoard: React.FC = () => {
         {/* Instructions */}
         <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.8 }}>
           {gameState.phase === 'banning' 
-            ? `Click on a ${gameState.currentPlayer} piece and then a destination square to ban that move.`
+            ? `Click or drag a ${gameState.currentPlayer} piece to a destination square to ban that move.`
             : `${gameState.currentPlayer === 'white' ? 'White' : 'Black'}'s turn. Click or drag to move.`}
         </Typography>
       </Paper>
@@ -252,6 +312,8 @@ const LocalGameBoard: React.FC = () => {
           position={gameState.chess.fen()}
           onSquareClick={onSquareClick}
           onPieceDrop={onDrop}
+          onPieceDragBegin={onPieceDragBegin}
+          onPieceDragEnd={onPieceDragEnd}
           boardOrientation={boardOrientation}
           customSquareStyles={allSquareStyles}
           customBoardStyle={{
@@ -259,7 +321,7 @@ const LocalGameBoard: React.FC = () => {
             boxShadow: '0 5px 15px rgba(0, 0, 0, 0.5)',
           }}
           animationDuration={200}
-          arePiecesDraggable={gameState.phase === 'playing'}
+          arePiecesDraggable={true}
         />
       </Box>
 

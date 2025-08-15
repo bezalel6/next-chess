@@ -275,10 +275,11 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
         showDests: true,
       },
       selectable: {
-        enabled: canBan,
+        enabled: true, // Always enable selection to show moves on click
       },
       draggable: {
         enabled: canMove || canBan, // Enable dragging during both move and ban phases
+        showGhost: true, // Show ghost piece while dragging
       },
       events: {
         move: handleMove,

@@ -73,7 +73,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { playMoveSound, playGameStart, playGameEnd } = useChessSounds();
+  const { playMoveSound, playGameStart, playGameEnd, playBan } = useChessSounds();
   const gameId = router.query.id as string | undefined;
   const isLocalGame = router.pathname === '/local';
   
@@ -240,8 +240,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       confirmBan(from as Square, to as Square);
       
       // Play ban sound
-      const audio = new Audio('/sounds/ban.mp3');
-      audio.play().catch(() => {});
+      playBan();
       
       return GameService.banMove(gameId, { from: from as Square, to: to as Square });
     },

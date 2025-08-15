@@ -285,7 +285,7 @@ const HowToPlayDialog = () => (
       }}
     >
       In BanChess, every move starts with the opponent selecting a legal move to
-      become
+      become illegal
     </Typography>
     <Typography
       variant="subtitle1"

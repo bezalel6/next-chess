@@ -10,15 +10,15 @@ export default function GamePlayersPanel() {
 
   if (!game || !user) return null;
 
-  const isWhite = game.white_player_id === user.id;
-  const isBlack = game.black_player_id === user.id;
+  const isWhite = game.whitePlayerId === user.id;
+  const isBlack = game.blackPlayerId === user.id;
   const isSpectator = !isWhite && !isBlack;
 
   const currentUserId = user.id;
   const opponentId = isWhite 
-    ? game.black_player_id 
+    ? game.blackPlayerId 
     : isBlack 
-      ? game.white_player_id 
+      ? game.whitePlayerId 
       : null;
 
   return (
@@ -39,7 +39,7 @@ export default function GamePlayersPanel() {
 
       {/* White Player */}
       <PlayerPresenceIndicator
-        playerId={game.white_player_id}
+        playerId={game.whitePlayerId}
         playerColor="white"
         isCurrentTurn={game.turn === 'white' && game.status === 'active'}
       />
@@ -48,7 +48,7 @@ export default function GamePlayersPanel() {
 
       {/* Black Player */}
       <PlayerPresenceIndicator
-        playerId={game.black_player_id}
+        playerId={game.blackPlayerId}
         playerColor="black"
         isCurrentTurn={game.turn === 'black' && game.status === 'active'}
       />
@@ -59,8 +59,8 @@ export default function GamePlayersPanel() {
           <Divider sx={{ my: 2 }} />
           <Box sx={{ textAlign: 'center' }}>
             <Typography variant="caption" color="text.secondary">
-              {game.banning_player 
-                ? `${game.banning_player === 'white' ? 'White' : 'Black'} is selecting a ban`
+              {game.banningPlayer 
+                ? `${game.banningPlayer === 'white' ? 'White' : 'Black'} is selecting a ban`
                 : `${game.turn === 'white' ? 'White' : 'Black'}'s turn to move`}
             </Typography>
           </Box>

@@ -7,10 +7,10 @@ export default defineConfig({
   testDir: './tests',
   
   // Fail fast on CI to prevent hanging processes
-  fullyParallel: false, // Run tests sequentially to prevent resource conflicts
+  fullyParallel: true, // Run tests in parallel with isolated contexts
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0, // Limit retries to prevent process accumulation
-  workers: 1, // Single worker to prevent multiple browser instances
+  workers: process.env.CI ? 2 : 4, // Use multiple workers for better isolation
   
   // Reporter configuration
   reporter: [
@@ -76,9 +76,9 @@ export default defineConfig({
     },
   ],
 
-  // Web server configuration
+  // Web server configuration - commented out, assuming server is already running
   webServer: {
-    command: 'bun run dev',
+    command: 'npm run dev',
     url: 'http://localhost:3000',
     timeout: 120000, // 2 minutes to start
     reuseExistingServer: !process.env.CI,

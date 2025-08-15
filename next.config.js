@@ -18,7 +18,7 @@ const config = {
       config.cache = {
         type: 'filesystem',
         buildDependencies: {
-          config: [__filename]
+          config: [import.meta.url]
         },
         // Reduce memory overhead by using smaller cache chunks
         compression: 'gzip',

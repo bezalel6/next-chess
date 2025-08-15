@@ -23,7 +23,7 @@
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
-    "test:debug": "playwright test --debug",
+    "test:debug": "playwright test --debug --headed",
     "test:cleanup": "node tests/cleanup-processes.js",
     "test:install": "playwright install"
   },
@@ -79,6 +79,7 @@
     "zustand": "^5.0.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
     "prettier": "^3.2.5",
     "tsx": "^4.20.4",
     "typescript": "^5.3.3",

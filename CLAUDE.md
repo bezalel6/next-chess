@@ -26,11 +26,33 @@ Real-time multiplayer chess with Ban Chess variant - Black bans one of White's m
 
 ## Development
 ```bash
-bun run dev     # Start dev server
+npm run dev     # Start dev server (use npm for consistency)
 bun run build   # Build for production
 ```
 
 ## Testing
+
+### Playwright E2E Tests
+End-to-end tests for Ban Chess gameplay using Playwright.
+
+**Configuration Updates (2025-08-15)**:
+- Fixed ES module compatibility issue (`__filename` → `import.meta.url` in `next.config.js`)
+- Enabled parallel test execution with isolated workers to prevent browser context conflicts
+- Tests run in 4 parallel workers locally (2 on CI) for better isolation
+
+**Available Test Scripts**:
+```bash
+npm run test          # Run all tests
+npm run test:ui       # Run tests with Playwright UI
+npm run test:debug    # Run tests with debug mode and headed browser
+npm run test:headed   # Run tests in headed mode
+```
+
+**Test Files**:
+- `tests/e2e/ban-chess.spec.ts` - Ban Chess gameplay tests including:
+  - Checkmate scenarios
+  - Turn mechanics validation
+  - Move and ban flow testing
 
 ### Logic Test Suite (`/test/logic-test`)
 Comprehensive test suite for Ban Chess game logic with automated testing framework.

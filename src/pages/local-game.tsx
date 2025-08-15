@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useGameInit } from "@/hooks/useGameInit";
 import GameBoardV2 from "@/components/GameBoardV2";
 import LocalMoveHistory from "@/components/LocalMoveHistory";
+import LocalGameStatus from "@/components/LocalGameStatus";
 import HomeIcon from '@mui/icons-material/Home';
 import InfoIcon from '@mui/icons-material/Info';
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
@@ -165,12 +166,14 @@ export default function LocalGamePage() {
                 <GameBoardV2 orientation={boardOrientation} />
               </Box>
               
-              {/* Right sidebar - Move history */}
+              {/* Right sidebar - Game status and Move history */}
               <Box sx={{ 
                 width: { xs: '100%', lg: 280 },
                 display: 'flex',
                 flexDirection: 'column',
+                gap: 2,
               }}>
+                <LocalGameStatus />
                 <LocalMoveHistory />
               </Box>
             </Box>

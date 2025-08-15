@@ -34,7 +34,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     phase,
     currentBannedMove,
     highlightedSquares,
-    previewBan,
     previewMove,
     optimisticMove,
     optimisticBan,
@@ -212,15 +211,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
           return false;
         }
 
-        // For single square, we can trigger piece selection if in ban phase
-        if (canBan) {
-          // Show possible ban destinations when selecting opponent piece
-          const dests = legalMoves.get(square);
-          if (dests && dests.length > 0) {
-            previewBan(square as Square, dests[0] as Square);
-          }
-        }
-
         // Don't clear input on selection, wait for destination
         return true;
       }
@@ -245,7 +235,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
 
       return false;
     },
-    [chess, handleMove, canBan, legalMoves, previewBan]
+    [chess, handleMove, canBan, legalMoves]
   );
 
   // Test input handler for automation
@@ -317,15 +307,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       },
       events: {
         move: handleMove,
-        select: (square: Square) => {
-          if (canBan) {
-            // Show possible ban destinations when selecting opponent piece
-            const dests = legalMoves.get(square);
-            if (dests && dests.length > 0) {
-              previewBan(square, dests[0] as Square);
-            }
-          }
-        },
       },
       drawable: {
         enabled: true,
@@ -349,7 +330,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       legalMoves,
       handleMove,
       shapes,
-      previewBan,
     ]
   );
 

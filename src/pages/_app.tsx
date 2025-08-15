@@ -10,7 +10,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '@/theme';
 import { AuthProvider } from "@/contexts/AuthContext";
-import { GameProvider } from "@/contexts/GameContextV2";
+import { GameProvider } from "@/contexts/GameProvider";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import Head from "next/head";
 import Layout from "@/components/Layout";

@@ -4,7 +4,6 @@ import { useGameStore } from "@/stores/gameStore";
 import LichessBoardV2 from "./LichessBoardV2";
 import BanPhaseOverlay from "./BanPhaseOverlay";
 import GameOverDetails from "./GameOverDetails";
-import BoardMoveInput from "./BoardMoveInput";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { useState, useEffect, useRef } from "react";
 
@@ -147,11 +146,6 @@ export default function GameBoardV2({
           />
         </Box>
       </Box>
-      
-      {/* Board move input - always visible in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <BoardMoveInput />
-      )}
     </Box>
   );
 }

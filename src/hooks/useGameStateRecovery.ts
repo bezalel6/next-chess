@@ -44,11 +44,7 @@ export function useGameStateRecovery(gameId: string | null) {
       // Fetch latest game state from database
       const { data: gameData, error: gameError } = await supabase
         .from('games')
-        .select(`
-          *,
-          white_player:profiles!games_white_player_id_fkey(id, username),
-          black_player:profiles!games_black_player_id_fkey(id, username)
-        `)
+        .select('*')
         .eq('id', gameId)
         .single();
 
@@ -91,8 +87,7 @@ export function useGameStateRecovery(gameId: string | null) {
         // Log recovery details
         console.log('[GameStateRecovery] State recovered:', {
           movesDifference: (movesData?.length || 0) - (movesData?.length || 0),
-          statusChanged: game?.status !== gameData.status,
-          reconnectAttempt: reconnectAttempts
+          statusChanged: game?.status !== gameData.status
         });
       } else {
         notifyInfo('Game state is up to date');
@@ -104,13 +99,6 @@ export function useGameStateRecovery(gameId: string | null) {
       isRecovering.current = false;
     }
   };
-
-  // Also recover on manual reconnect
-  useEffect(() => {
-    if (reconnectAttempts > 0 && isChannelConnected) {
-      handleGameStateRecovery();
-    }
-  }, [reconnectAttempts, isChannelConnected]);
 
   return {
     isRecovering: isRecovering.current,

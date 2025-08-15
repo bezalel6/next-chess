@@ -133,6 +133,9 @@ interface GameActions {
   getGameStatusMessage: () => string;
   advancePhase: () => void;
   
+  // Test utilities
+  setupTestPosition: (fen: string) => void;
+  
   // Game actions (resign, draw, etc)
   actions: {
     resign: () => void;
@@ -356,7 +359,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             pgn: chess.pgn(),
             currentFen: initialFen,
             status: 'active' as const,
-            turn: 'white' as PlayerColor,
+            turn: 'white' as PlayerColor, // White's turn to move (after Black bans)
             currentBannedMove: null,
             whitePlayer: 'Player 1',
             blackPlayer: 'Player 2',
@@ -374,7 +377,9 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             lastMoveTime: Date.now(),
           } as Game;
           
+          // Reset to clean state and set up local game
           set({
+            ...initialState,  // Start with clean slate
             mode: 'local',
             game: localGameObj,
             chess,
@@ -390,6 +395,8 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             possibleMoves: [],
             highlightedSquares: [],
             boardOrientation: 'white',
+            loading: false,
+            gameId: 'local',
           });
         },
         
@@ -438,9 +445,11 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         
         banMove: (from, to) => {
           const state = get();
-          const bannedBy = (state.mode === 'local' 
-            ? (state.localCurrentPlayer === 'white' ? 'black' : 'white')
-            : (state.currentTurn === 'white' ? 'black' : 'white')) as PlayerColor;
+          // In Ban Chess, the player who just moved (or Black at start) is the one who bans
+          // At game start, Black bans first. After moves, the player who just moved bans.
+          const bannedBy = state.moveHistory.length === 0 
+            ? 'black' as PlayerColor  // Black bans first at game start
+            : state.currentTurn;       // Current turn player bans after their move
           
           const newBanHistory = [...state.banHistory, {
             from,
@@ -453,15 +462,15 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             currentBannedMove: { from, to },
             banHistory: newBanHistory,
             
-            // Update phase and mode-specific state
+            // Update phase based on mode
             ...(state.mode === 'online' ? {
               optimisticBan: { from, to },
               pendingOperation: 'ban' as const,
               phase: (state.currentTurn === state.myColor ? 'making_move' : 'waiting_for_move') as GamePhase,
-            } : state.mode === 'local' ? {
-              localBannedMove: { from, to, bannedBy },
-              localPhase: 'playing' as const,
-            } : {}),
+            } : {
+              // For local mode, just update the phase
+              phase: 'making_move' as GamePhase,
+            }),
           });
         },
         
@@ -771,7 +780,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
               currentFen: newFen,
               lastMove: { from, to },
               turn: newTurn,
-              banningPlayer: newTurn,
+              banningPlayer: state.currentTurn, // The player who just moved now bans
             };
             
             if (state.chess.inCheckmate()) {
@@ -803,12 +812,22 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         executeBan: (from, to) => {
           const state = get();
           
-          // Apply ban to game state
-          const bannedBy = state.currentTurn === 'white' ? 'black' : 'white';
+          // In Ban Chess, the player who just moved is the one who bans
+          // At game start, Black bans first (before any moves)
+          let bannedBy: PlayerColor;
+          if (state.moveHistory.length === 0) {
+            // First ban of the game is by Black
+            bannedBy = 'black';
+          } else {
+            // After moves, the player who just moved is the one banning
+            // Since turn hasn't changed yet after the move, currentTurn is the player who just moved
+            bannedBy = state.currentTurn;
+          }
+          
           const newBanHistory = [...state.banHistory, {
             from,
             to,
-            byPlayer: bannedBy as PlayerColor,
+            byPlayer: bannedBy,
             atMoveNumber: Math.floor(state.moveHistory.length / 2) + 1,
           }];
           
@@ -816,6 +835,8 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             currentBannedMove: { from, to },
             banHistory: newBanHistory,
           });
+          
+          console.log(`[Store] Ban set - currentBannedMove: ${JSON.stringify({ from, to })}`);
           
           // Update game object PGN with ban comment
           if (state.chess && state.game) {
@@ -829,6 +850,10 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           // Advance phase and handle mode-specific logic
           const { advancePhase } = get();
           advancePhase();
+          
+          // Log the state after phase advance
+          const newState = get();
+          console.log(`[Store] After ban - phase: ${newState.phase}, bannedMove: ${JSON.stringify(newState.currentBannedMove)}`);
           
           // For online games, use mutation
           if (state.mode === 'online') {
@@ -1043,30 +1068,30 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           }
           
           if (state.mode === 'local') {
-            // Local games: immediate transitions
+            // Local games: Ban Chess phase transitions
             if (state.phase === 'selecting_ban') {
+              // After a ban is selected, it's time for the current turn player to make a move
+              // The turn is already set to the player who needs to move
               set({ 
                 phase: 'making_move',
-                // Current turn stays same - they make the move after opponent bans
-              });
-            } else if (state.phase === 'making_move') {
-              const newTurn = state.currentTurn === 'white' ? 'black' : 'white';
-              
-              set({ 
-                phase: 'selecting_ban',
-                currentTurn: newTurn,
               });
               
-              // Update game object turn
+              // Update game object - clear banning player
               if (state.game) {
                 set({
                   game: { 
                     ...state.game, 
-                    turn: newTurn,
-                    banningPlayer: newTurn // New player now bans the opponent's move
+                    banningPlayer: null // Clear banning player after ban is selected
                   }
                 });
               }
+            } else if (state.phase === 'making_move') {
+              // After a move is made, the phase changes to selecting_ban
+              // The turn has already been updated in executeMove
+              // The banningPlayer has also been set in executeMove
+              set({ 
+                phase: 'selecting_ban',
+              });
             }
           } else {
             // Online games: wait for server updates
@@ -1078,10 +1103,20 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           }
         },
         
-        
-        
-        
-        
+        setupTestPosition: (fen: string) => {
+          const chess = new Chess();
+          chess.load(fen);
+          set({
+            chess,
+            currentFen: fen,
+            currentTurn: chess.turn() === 'w' ? 'white' : 'black',
+            moveHistory: [],
+            banHistory: [],
+            currentBannedMove: null,
+            phase: 'selecting_ban', // Start with ban selection for Ban Chess
+            mode: 'local',
+          });
+        },
         
         actions: {
           resign: () => {
@@ -1200,6 +1235,20 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           flipBoardOrientation: () => {
             const state = get();
             set({ boardOrientation: state.boardOrientation === 'white' ? 'black' : 'white' });
+          },
+          
+          setupTestPosition: (fen: string) => {
+            // Method for tests to set up specific board positions
+            const chess = new Chess();
+            chess.load(fen);
+            set({
+              chess,
+              currentFen: fen,
+              currentTurn: chess.turn() === 'w' ? 'white' : 'black',
+              moveHistory: [],
+              banHistory: [],
+              currentBannedMove: null,
+            });
           },
         },
       })),

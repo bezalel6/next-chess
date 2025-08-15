@@ -248,12 +248,16 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       movable: {
         free: false,
         color: canBan
-          ? myColor === "white"
-            ? "black"
-            : "white" // During ban phase, allow moving opponent's pieces
+          ? mode === 'local'
+            ? game?.turn || undefined // In local mode during ban, allow moving pieces of the current turn
+            : myColor === "white"
+              ? "black"
+              : "white" // In online mode during ban, allow moving opponent's pieces
           : canMove
-            ? myColor || undefined
-            : undefined, // During move phase, allow moving own pieces
+            ? mode === 'local'
+              ? game?.turn || undefined // In local mode during move, allow moving pieces of the current turn
+              : myColor || undefined // In online mode during move, allow moving own pieces
+            : undefined,
         dests: legalMoves,
         showDests: true,
         rookCastle: false, // Handle castling ourselves
@@ -375,6 +379,53 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       >
         <Chessground config={config} />
       </Box>
+      
+      {/* Test input for automation - only show in development and local games */}
+      {process.env.NODE_ENV === 'development' && mode === 'local' && (
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: -50,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+            display: 'flex',
+            gap: 1,
+            alignItems: 'center',
+          }}
+        >
+          <input
+            ref={testInputRef}
+            type="text"
+            placeholder={canBan ? "e2 e4 (ban)" : "e2 e4 (move)"}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: `2px solid ${canBan ? '#ff6b6b' : '#4CAF50'}`,
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              color: '#fff',
+              fontSize: '14px',
+              width: '150px',
+            }}
+            data-testid="board-move-input"
+          />
+          <button
+            onClick={handleTestInput}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '4px',
+              border: 'none',
+              backgroundColor: canBan ? '#ff6b6b' : '#4CAF50',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+            }}
+          >
+            {canBan ? 'Ban' : 'Move'}
+          </button>
+        </Box>
+      )}
     </>
   );
 }

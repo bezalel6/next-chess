@@ -30,7 +30,32 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session if needed
+  // Check if accessing admin routes
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    // Get the current session
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error || !session?.user) {
+      // Redirect to auth page if not authenticated
+      const authUrl = new URL('/auth', request.url);
+      authUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
+      return NextResponse.redirect(authUrl);
+    }
+
+    // Check if user is admin
+    const { data: adminRecord, error: adminError } = await supabase
+      .from('admins')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (adminError || !adminRecord) {
+      // Redirect to home if not admin
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+  }
+
+  // Refresh session if needed for other routes
   const { error } = await supabase.auth.getSession();
   
   if (error) {

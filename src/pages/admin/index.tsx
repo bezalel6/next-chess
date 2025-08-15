@@ -7,346 +7,271 @@ import {
   Typography,
   Card,
   CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
   Button,
   Tab,
   Tabs,
   CircularProgress,
   Alert,
-  IconButton,
-  Tooltip,
   TextField,
-  InputAdornment,
+  Switch,
+  FormControlLabel,
+  Divider,
 } from "@mui/material";
 import {
   People as PeopleIcon,
   SportsEsports as GamesIcon,
   TrendingUp as TrendingUpIcon,
-  Block as BlockIcon,
+  Email as EmailIcon,
   Refresh as RefreshIcon,
-  Search as SearchIcon,
-  Visibility as VisibilityIcon,
-  PersonOff as BanIcon,
-  CheckCircle as ActiveIcon,
-  Cancel as InactiveIcon,
-  Timer as TimerIcon,
-  CheckCircle,
+  Settings as SettingsIcon,
+  Save as SaveIcon,
 } from "@mui/icons-material";
 import { useRouter } from "next/router";
-import { supabase } from "@/utils/supabase";
-import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
-import RealtimeMonitor from "@/components/admin/RealtimeMonitor";
-import GameChart from "@/components/admin/GameChart";
 
 interface DashboardStats {
   totalUsers: number;
-  activeUsers: number;
+  guestUsers: number;
+  emailUsers: number;
   totalGames: number;
   activeGames: number;
   gamesLast24h: number;
-  avgGameDuration: number;
-  totalMoves: number;
-  totalBans: number;
+  activeUsersToday: number;
 }
 
-interface GameData {
-  id: string;
-  white_player_id: string;
-  black_player_id: string;
-  white_username?: string;
-  black_username?: string;
-  status: string;
-  result: string | null;
+interface AdminSetting {
+  key: string;
+  value: any;
+  description: string;
   created_at: string;
   updated_at: string;
-  total_moves?: number;
-  total_bans?: number;
-}
-
-interface UserData {
-  id: string;
-  email?: string;
-  username: string;
-  created_at: string;
-  last_sign_in_at?: string;
-  games_played: number;
-  games_won: number;
-  games_drawn: number;
-  is_banned?: boolean;
 }
 
 export default function AdminDashboard() {
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [games, setGames] = useState<GameData[]>([]);
-  const [users, setUsers] = useState<UserData[]>([]);
+  const [settings, setSettings] = useState<AdminSetting[]>([]);
   const [tabValue, setTabValue] = useState(0);
-  const [searchTerm, setSearchTerm] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [settingValues, setSettingValues] = useState<Record<string, any>>({});
+  const [saveMessage, setSaveMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   useEffect(() => {
-    checkAdminAccess();
+    if (user) {
+      loadDashboardData();
+    }
   }, [user]);
 
-  const checkAdminAccess = async () => {
-    if (!user) {
-      router.push("/");
-      return;
-    }
-
+  const loadDashboardData = async () => {
+    setLoading(true);
     try {
-      // Check if user is admin by querying the admins table
-      const { data: adminRecord, error: adminError } = await (supabase as any)
-        .from("admins")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      // User is admin if they have a record in the admins table
-      const userIsAdmin = !!adminRecord && !adminError;
-
-      if (!userIsAdmin) {
-        router.push("/");
-        return;
-      }
-
-      setIsAdmin(true);
-      await loadDashboardData();
+      await Promise.all([
+        loadStats(),
+        loadSettings()
+      ]);
     } catch (error) {
-      console.error("Error checking admin access:", error);
-      router.push("/");
+      console.error("Error loading dashboard data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadDashboardData = async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([
-        loadStats(),
-        loadRecentGames(),
-        loadUsers(),
-      ]);
-    } catch (error) {
-      console.error("Error loading dashboard data:", error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   const loadStats = async () => {
     try {
-      // Get user stats
-      const { count: totalUsers } = await supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true });
-
-      // Get active users (logged in within last 24 hours)
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: activeUsersData } = await supabase
-        .from("profiles")
-        .select("id")
-        .gte("last_sign_in_at", oneDayAgo);
-
-      // Get game stats
-      const { count: totalGames } = await supabase
-        .from("games")
-        .select("*", { count: "exact", head: true });
-
-      const { count: activeGames } = await supabase
-        .from("games")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "active");
-
-      const { count: gamesLast24h } = await supabase
-        .from("games")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", oneDayAgo);
-
-      // Get moves and bans count
-      const { count: totalMoves } = await supabase
-        .from("moves")
-        .select("*", { count: "exact", head: true });
-
-      const { count: totalBans } = await supabase
-        .from("moves")
-        .select("*", { count: "exact", head: true })
-        .not("banned_from", "is", null);
-
-      // Calculate average game duration
-      const { data: finishedGames } = await supabase
-        .from("games")
-        .select("created_at, updated_at")
-        .eq("status", "finished")
-        .limit(100);
-
-      let avgDuration = 0;
-      if (finishedGames && finishedGames.length > 0) {
-        const totalDuration = finishedGames.reduce((acc, game) => {
-          const duration = new Date(game.updated_at).getTime() - new Date(game.created_at).getTime();
-          return acc + duration;
-        }, 0);
-        avgDuration = Math.round(totalDuration / finishedGames.length / 60000); // in minutes
+      const response = await fetch('/api/admin/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
       }
-
-      setStats({
-        totalUsers: totalUsers || 0,
-        activeUsers: activeUsersData?.length || 0,
-        totalGames: totalGames || 0,
-        activeGames: activeGames || 0,
-        gamesLast24h: gamesLast24h || 0,
-        avgGameDuration: avgDuration,
-        totalMoves: totalMoves || 0,
-        totalBans: totalBans || 0,
-      });
     } catch (error) {
       console.error("Error loading stats:", error);
     }
   };
 
-  const loadRecentGames = async () => {
+  const loadSettings = async () => {
     try {
-      const { data: gamesData } = await supabase
-        .from("games")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (gamesData) {
-        // Get move counts for each game
-        const gamesWithStats = await Promise.all(
-          gamesData.map(async (game) => {
-            const { count: moveCount } = await supabase
-              .from("moves")
-              .select("*", { count: "exact", head: true })
-              .eq("game_id", game.id);
-
-            const { count: banCount } = await supabase
-              .from("moves")
-              .select("*", { count: "exact", head: true })
-              .eq("game_id", game.id)
-              .not("banned_from", "is", null);
-
-            // Fetch usernames separately
-            const { data: whiteProfile } = await supabase
-              .from("profiles")
-              .select("username")
-              .eq("id", game.white_player_id)
-              .single();
-            
-            const { data: blackProfile } = await supabase
-              .from("profiles")
-              .select("username")
-              .eq("id", game.black_player_id)
-              .single();
-
-            return {
-              ...game,
-              white_username: whiteProfile?.username || "Unknown",
-              black_username: blackProfile?.username || "Unknown",
-              total_moves: moveCount || 0,
-              total_bans: banCount || 0,
-            };
-          })
-        );
-
-        setGames(gamesWithStats);
+      const response = await fetch('/api/admin/settings');
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(data);
+        // Initialize setting values
+        const values: Record<string, any> = {};
+        data.forEach((setting: AdminSetting) => {
+          values[setting.key] = setting.value;
+        });
+        setSettingValues(values);
       }
     } catch (error) {
-      console.error("Error loading games:", error);
+      console.error("Error loading settings:", error);
     }
   };
 
-  const loadUsers = async () => {
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboardData();
+    setRefreshing(false);
+  };
+
+  const handleSettingChange = (key: string, value: any) => {
+    setSettingValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveSettings = async () => {
+    setSaving(true);
+    setSaveMessage(null);
+    
     try {
-      const { data: usersData } = await supabase
-        .from("profiles")
-        .select("id, username, created_at, updated_at")
-        .order("created_at", { ascending: false });
+      const changedSettings = settings.filter(setting => 
+        settingValues[setting.key] !== setting.value
+      );
 
-      if (usersData) {
-        // Get game stats for each user
-        const usersWithStats = await Promise.all(
-          usersData.map(async (user) => {
-            const { count: totalGames } = await supabase
-              .from("games")
-              .select("*", { count: "exact", head: true })
-              .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`);
+      if (changedSettings.length === 0) {
+        setSaveMessage({ type: 'success', text: 'No changes to save.' });
+        setSaving(false);
+        return;
+      }
 
-            const { count: wonGames } = await supabase
-              .from("games")
-              .select("*", { count: "exact", head: true })
-              .eq("status", "finished")
-              .or(
-                `and(white_player_id.eq.${user.id},result.eq.white),and(black_player_id.eq.${user.id},result.eq.black)`
-              );
-
-            const { count: drawnGames } = await supabase
-              .from("games")
-              .select("*", { count: "exact", head: true })
-              .eq("status", "finished")
-              .eq("result", "draw")
-              .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`);
-
-            return {
-              ...user,
-              games_played: totalGames || 0,
-              games_won: wonGames || 0,
-              games_drawn: drawnGames || 0,
-            };
+      const results = await Promise.allSettled(
+        changedSettings.map(setting => 
+          fetch('/api/admin/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              key: setting.key,
+              value: settingValues[setting.key]
+            })
+          }).then(res => {
+            if (!res.ok) {
+              throw new Error(`Failed to save ${setting.key}: ${res.statusText}`);
+            }
+            return res.json();
           })
-        );
+        )
+      );
 
-        setUsers(usersWithStats);
+      const failures = results.filter(result => result.status === 'rejected');
+      
+      if (failures.length === 0) {
+        setSaveMessage({ 
+          type: 'success', 
+          text: `Successfully saved ${changedSettings.length} setting(s).` 
+        });
+        await loadSettings(); // Reload to get updated timestamps
+      } else {
+        setSaveMessage({ 
+          type: 'error', 
+          text: `Failed to save ${failures.length} of ${changedSettings.length} settings. Check console for details.` 
+        });
+        failures.forEach((failure, index) => {
+          console.error(`Failed to save ${changedSettings[index].key}:`, failure.reason);
+        });
       }
     } catch (error) {
-      console.error("Error loading users:", error);
+      console.error("Error saving settings:", error);
+      setSaveMessage({ 
+        type: 'error', 
+        text: 'Unexpected error occurred while saving settings.' 
+      });
+    } finally {
+      setSaving(false);
+      // Clear message after 5 seconds
+      setTimeout(() => setSaveMessage(null), 5000);
     }
   };
 
-  const handleViewGame = (gameId: string) => {
-    router.push(`/game/${gameId}?spectate=true`);
+  const renderSettingInput = (setting: AdminSetting) => {
+    const value = settingValues[setting.key];
+    
+    // Special handling for time control settings
+    if (setting.key.includes('time_control')) {
+      const timeControl = value || { initial_time: 600000, increment: 0 };
+      const minutes = Math.floor(timeControl.initial_time / 60000) || 10;
+      const seconds = Math.floor(timeControl.increment / 1000) || 0;
+      
+      return (
+        <Box>
+          <TextField
+            label="Initial Time (minutes)"
+            size="small"
+            type="number"
+            value={minutes}
+            onChange={(e) => {
+              const newMinutes = Number(e.target.value) || 10;
+              handleSettingChange(setting.key, {
+                ...timeControl,
+                initial_time: newMinutes * 60000
+              });
+            }}
+            inputProps={{ min: 1, max: 180 }}
+            sx={{ mb: 1, mr: 1, width: '140px' }}
+          />
+          <TextField
+            label="Increment (seconds)"
+            size="small"
+            type="number"
+            value={seconds}
+            onChange={(e) => {
+              const newSeconds = Number(e.target.value) || 0;
+              handleSettingChange(setting.key, {
+                ...timeControl,
+                increment: newSeconds * 1000
+              });
+            }}
+            inputProps={{ min: 0, max: 30 }}
+            sx={{ width: '140px' }}
+          />
+          <Typography variant="caption" display="block" sx={{ mt: 0.5, color: 'text.secondary' }}>
+            {minutes}+{seconds} format
+          </Typography>
+        </Box>
+      );
+    }
+    
+    // Handle boolean values
+    const isBooleanSetting = 
+      typeof setting.value === 'boolean' ||
+      setting.value === 'true' || setting.value === 'false' ||
+      setting.value === true || setting.value === false;
+    
+    if (isBooleanSetting) {
+      const boolValue = value === true || value === 'true' || value === '1';
+      return (
+        <FormControlLabel
+          control={
+            <Switch
+              checked={boolValue}
+              onChange={(e) => handleSettingChange(setting.key, e.target.checked)}
+            />
+          }
+          label=""
+        />
+      );
+    }
+
+    // Handle numeric values
+    const isNumericSetting = 
+      typeof setting.value === 'number' ||
+      (!isNaN(Number(setting.value)) && setting.value !== '');
+
+    return (
+      <TextField
+        fullWidth
+        size="small"
+        value={value || ''}
+        onChange={(e) => {
+          const newValue = isNumericSetting ? 
+            (e.target.value === '' ? '' : Number(e.target.value)) : 
+            e.target.value;
+          handleSettingChange(setting.key, newValue);
+        }}
+        type={isNumericSetting ? 'number' : 'text'}
+        inputProps={isNumericSetting ? { min: 0 } : {}}
+      />
+    );
   };
-
-  const handleBanUser = async (userId: string) => {
-    // Implement user ban logic
-    console.log("Ban user:", userId);
-  };
-
-  const getStatusChip = (status: string) => {
-    const color = status === "active" ? "success" : "default";
-    const icon = status === "active" ? <ActiveIcon /> : <CheckCircle />;
-    return <Chip label={status} color={color} size="small" icon={icon} />;
-  };
-
-  const getResultChip = (result: string | null) => {
-    if (!result) return <Chip label="In Progress" size="small" />;
-    const color = result === "draw" ? "warning" : "primary";
-    return <Chip label={result} color={color} size="small" />;
-  };
-
-  const filteredGames = games.filter(
-    (game) =>
-      game.white_username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      game.black_username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      game.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredUsers = users.filter(
-    (user) =>
-      user.username?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   if (loading) {
     return (
@@ -356,16 +281,8 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!isAdmin) {
-    return (
-      <Container>
-        <Alert severity="error">You do not have admin access.</Alert>
-      </Container>
-    );
-  }
-
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Typography variant="h4" component="h1">
           Admin Dashboard
@@ -373,22 +290,12 @@ export default function AdminDashboard() {
         <Button
           variant="outlined"
           startIcon={<RefreshIcon />}
-          onClick={loadDashboardData}
+          onClick={handleRefresh}
           disabled={refreshing}
         >
           Refresh
         </Button>
       </Box>
-
-      {/* Activity Chart and Real-time Monitor */}
-      <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} lg={8}>
-          <GameChart />
-        </Grid>
-        <Grid item xs={12} lg={4}>
-          <RealtimeMonitor />
-        </Grid>
-      </Grid>
 
       {/* Stats Cards */}
       <Grid container spacing={3} mb={4}>
@@ -402,10 +309,29 @@ export default function AdminDashboard() {
                   </Typography>
                   <Typography variant="h4">{stats?.totalUsers || 0}</Typography>
                   <Typography variant="body2" color="textSecondary">
-                    {stats?.activeUsers || 0} active today
+                    {stats?.activeUsersToday || 0} active today
                   </Typography>
                 </Box>
                 <PeopleIcon color="primary" sx={{ fontSize: 40 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="textSecondary" gutterBottom>
+                    Email Users
+                  </Typography>
+                  <Typography variant="h4">{stats?.emailUsers || 0}</Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    {stats?.guestUsers || 0} guests
+                  </Typography>
+                </Box>
+                <EmailIcon color="primary" sx={{ fontSize: 40 }} />
               </Box>
             </CardContent>
           </Card>
@@ -440,7 +366,7 @@ export default function AdminDashboard() {
                   </Typography>
                   <Typography variant="h4">{stats?.gamesLast24h || 0}</Typography>
                   <Typography variant="body2" color="textSecondary">
-                    Avg {stats?.avgGameDuration || 0} min/game
+                    Last 24 hours
                   </Typography>
                 </Box>
                 <TrendingUpIcon color="primary" sx={{ fontSize: 40 }} />
@@ -448,213 +374,87 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    Total Moves
-                  </Typography>
-                  <Typography variant="h4">{stats?.totalMoves || 0}</Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {stats?.totalBans || 0} bans
-                  </Typography>
-                </Box>
-                <BlockIcon color="primary" sx={{ fontSize: 40 }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
 
-      {/* Tabs for Games and Users */}
+      {/* Tabs for Stats and Settings */}
       <Paper sx={{ mb: 2 }}>
         <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
-          <Tab label="Recent Games" />
-          <Tab label="Users" />
-          <Tab label="Active Games" />
+          <Tab label="Statistics" />
+          <Tab label="Settings" />
         </Tabs>
       </Paper>
 
-      {/* Search Bar */}
-      <Box mb={2}>
-        <TextField
-          fullWidth
-          variant="outlined"
-          placeholder={tabValue === 1 ? "Search users..." : "Search games..."}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
-      </Box>
-
-      {/* Recent Games Tab */}
+      {/* Statistics Tab */}
       {tabValue === 0 && (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Game ID</TableCell>
-                <TableCell>White Player</TableCell>
-                <TableCell>Black Player</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Result</TableCell>
-                <TableCell>Moves</TableCell>
-                <TableCell>Bans</TableCell>
-                <TableCell>Started</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredGames.map((game) => (
-                <TableRow key={game.id}>
-                  <TableCell>{game.id}</TableCell>
-                  <TableCell>{game.white_username || "Unknown"}</TableCell>
-                  <TableCell>{game.black_username || "Unknown"}</TableCell>
-                  <TableCell>{getStatusChip(game.status)}</TableCell>
-                  <TableCell>{getResultChip(game.result)}</TableCell>
-                  <TableCell>{game.total_moves}</TableCell>
-                  <TableCell>{game.total_bans}</TableCell>
-                  <TableCell>
-                    {format(new Date(game.created_at), "MMM d, HH:mm")}
-                  </TableCell>
-                  <TableCell>
-                    <Tooltip title="View Game">
-                      <IconButton size="small" onClick={() => handleViewGame(game.id)}>
-                        <VisibilityIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              High-Level Statistics
+            </Typography>
+            <Box>
+              <Typography>This is a simplified admin dashboard showing key metrics only.</Typography>
+              <Typography>For detailed game and user management, use the full admin tools.</Typography>
+            </Box>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Users Tab */}
+      {/* Settings Tab */}
       {tabValue === 1 && (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Username</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Games</TableCell>
-                <TableCell>Won</TableCell>
-                <TableCell>Drawn</TableCell>
-                <TableCell>Win Rate</TableCell>
-                <TableCell>Joined</TableCell>
-                <TableCell>Last Active</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.username || "No username"}</TableCell>
-                  <TableCell>{user.email || "N/A"}</TableCell>
-                  <TableCell>{user.games_played}</TableCell>
-                  <TableCell>{user.games_won}</TableCell>
-                  <TableCell>{user.games_drawn}</TableCell>
-                  <TableCell>
-                    {user.games_played > 0
-                      ? `${Math.round((user.games_won / user.games_played) * 100)}%`
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(user.created_at), "MMM d, yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    {user.last_sign_in_at
-                      ? format(new Date(user.last_sign_in_at), "MMM d, HH:mm")
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    <Tooltip title="Ban User">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleBanUser(user.id)}
-                        disabled={user.is_banned}
-                      >
-                        <BanIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+        <Paper sx={{ p: 3 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+            <Box>
+              <Typography variant="h6" display="flex" alignItems="center">
+                <SettingsIcon sx={{ mr: 1 }} />
+                Application Settings
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Configure time controls and gameplay settings for your chess application
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              onClick={handleSaveSettings}
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </Box>
 
-      {/* Active Games Tab */}
-      {tabValue === 2 && (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Game ID</TableCell>
-                <TableCell>White Player</TableCell>
-                <TableCell>Black Player</TableCell>
-                <TableCell>Turn</TableCell>
-                <TableCell>Moves</TableCell>
-                <TableCell>Bans</TableCell>
-                <TableCell>Duration</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredGames
-                .filter((game) => game.status === "active")
-                .map((game) => {
-                  const duration = Math.round(
-                    (Date.now() - new Date(game.created_at).getTime()) / 60000
-                  );
-                  return (
-                    <TableRow key={game.id}>
-                      <TableCell>{game.id}</TableCell>
-                      <TableCell>{game.white_username || "Unknown"}</TableCell>
-                      <TableCell>{game.black_username || "Unknown"}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={game.status === "active" ? "Active" : "Waiting"}
-                          size="small"
-                          color="primary"
-                        />
-                      </TableCell>
-                      <TableCell>{game.total_moves}</TableCell>
-                      <TableCell>{game.total_bans}</TableCell>
-                      <TableCell>
-                        <Box display="flex" alignItems="center">
-                          <TimerIcon fontSize="small" sx={{ mr: 0.5 }} />
-                          {duration} min
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title="View Game">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleViewGame(game.id)}
-                          >
-                            <VisibilityIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+          {saveMessage && (
+            <Alert severity={saveMessage.type} sx={{ mb: 2 }}>
+              {saveMessage.text}
+            </Alert>
+          )}
+
+          {settings.length === 0 ? (
+            <Alert severity="info">No settings available. Please check your database configuration.</Alert>
+          ) : (
+            <Grid container spacing={2}>
+              {settings.map((setting) => (
+                <Grid item xs={12} key={setting.key}>
+                  <Box display="flex" alignItems="center" justifyContent="space-between" p={2} border={1} borderColor="grey.300" borderRadius={1}>
+                    <Box flex={1}>
+                      <Typography variant="subtitle2">{setting.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        {setting.description}
+                      </Typography>
+                      {setting.key === 'default_time_control' && (
+                        <Typography variant="caption" color="primary">
+                          Sets the default time control for all new games
+                        </Typography>
+                      )}
+                    </Box>
+                    <Box ml={2}>
+                      {renderSettingInput(setting)}
+                    </Box>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Paper>
       )}
     </Container>
   );

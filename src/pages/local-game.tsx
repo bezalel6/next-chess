@@ -28,7 +28,7 @@ export default function LocalGamePage() {
       return game.banningPlayer || 'white';
     } else {
       // During move phase, show the perspective of the player who is moving
-      return game.turn === 'w' ? 'white' : 'black';
+      return game.turn === 'white' ? 'white' : 'black';
     }
   };
   

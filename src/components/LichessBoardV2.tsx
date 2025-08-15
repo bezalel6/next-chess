@@ -266,7 +266,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
             padding: "4px",
             boxSizing: "border-box",
           },
-          // Make coordinate labels larger
+          // Make coordinate labels larger with better visibility
           "& coords": {
             fontSize: "16px !important",
             fontWeight: "600 !important",
@@ -274,10 +274,15 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
           "& coords.ranks coord": {
             fontSize: "16px !important",
             fontWeight: "600 !important",
+            textShadow: "0 0 3px rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.6)",
+          },
+          "& coords.files": {
+            bottom: "7px !important",
           },
           "& coords.files coord": {
             fontSize: "16px !important",
             fontWeight: "600 !important",
+            textShadow: "0 0 3px rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.6)",
           },
           // Styles for banned move squares
           "& .cg-wrap square.banned-from": {

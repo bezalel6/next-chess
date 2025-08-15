@@ -8,7 +8,7 @@ const CHESS_SOUNDS = {
     promote: '/sounds/promote.wav',
     gameStart: '/sounds/game-start.wav',
     gameEnd: '/sounds/game-end.wav',
-    ban: '/sounds/ban.mp3',
+    ban: '/sounds/ban.wav',
     opponentMove: '/sounds/opponent-move.wav',
     tenSeconds: '/sounds/ten-seconds.wav',
 } as const;

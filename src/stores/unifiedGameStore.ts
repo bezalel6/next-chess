@@ -735,12 +735,40 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
               phase: 'making_move',
             });
             
-            // Update game object PGN
+            // Check for Ban Chess checkmate AFTER the ban is applied
             if (state.chess && state.game) {
+              const opponentColor = state.currentTurn; // The opponent is the current turn player
+              const isInCheck = state.chess.inCheck();
+              const legalMoves = state.chess.moves({ verbose: true });
+              
+              // Filter out the banned move from legal moves
+              const availableMoves = legalMoves.filter(m => 
+                !(m.from === from && m.to === to)
+              );
+              
+              let gameUpdates: any = {};
+              
+              if (isInCheck && availableMoves.length === 0) {
+                // Ban Chess checkmate! The opponent is in check and their only legal move was banned
+                gameUpdates.status = 'finished';
+                gameUpdates.result = opponentColor === 'white' ? '0-1' : '1-0';
+                gameUpdates.endReason = 'checkmate';
+                set({ 
+                  showGameOverModal: true,
+                  phase: 'game_over'
+                });
+              }
+              
+              // Update game object PGN
               state.chess.setComment(`banning: ${from}${to}`);
               const updatedPgn = state.chess.pgn();
               set({
-                game: { ...state.game, pgn: updatedPgn, currentBannedMove: { from, to } }
+                game: { 
+                  ...state.game, 
+                  pgn: updatedPgn, 
+                  currentBannedMove: { from, to },
+                  ...gameUpdates
+                }
               });
             }
             
@@ -791,12 +819,10 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             const isInCheck = state.chess.inCheck();
             const legalMoves = state.chess.moves({ verbose: true });
             
-            if (isInCheck && legalMoves.length === 1) {
-              // Ban Chess checkmate: King in check with only one legal move (which can be banned)
-              gameUpdates.status = 'finished';
-              gameUpdates.result = state.currentTurn === 'white' ? '1-0' : '0-1';
-              gameUpdates.endReason = 'checkmate';
-            } else if (legalMoves.length === 0) {
+            // In Ban Chess, we only check for immediate game over conditions
+            // The "1 legal move while in check" scenario is NOT immediate checkmate
+            // because the opponent needs to ban that move first
+            if (legalMoves.length === 0) {
               // No legal moves at all
               if (isInCheck) {
                 // Standard checkmate (shouldn't happen in Ban Chess but kept for safety)
@@ -861,12 +887,39 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           
           console.log(`[Store] Ban set - currentBannedMove: ${JSON.stringify({ from, to })}`);
           
-          // Update game object PGN with ban comment
+          // Check for Ban Chess checkmate AFTER the ban is applied
+          // If the opponent is in check and the banned move was their only legal move, it's checkmate
           if (state.chess && state.game) {
+            const opponentColor = state.currentTurn; // The opponent is the current turn player
+            const isInCheck = state.chess.inCheck();
+            const legalMoves = state.chess.moves({ verbose: true });
+            
+            // Filter out the banned move from legal moves
+            const availableMoves = legalMoves.filter(m => 
+              !(m.from === from && m.to === to)
+            );
+            
+            let gameUpdates: any = {};
+            
+            if (isInCheck && availableMoves.length === 0) {
+              // Ban Chess checkmate! The opponent is in check and their only legal move was banned
+              gameUpdates.status = 'finished';
+              gameUpdates.result = opponentColor === 'white' ? '0-1' : '1-0';
+              gameUpdates.endReason = 'checkmate';
+              set({ showGameOverModal: true });
+            }
+            
+            // Update game object PGN with ban comment
             state.chess.setComment(`banning: ${from}${to}`);
             const updatedPgn = state.chess.pgn();
             set({
-              game: { ...state.game, pgn: updatedPgn, currentBannedMove: { from, to } }
+              game: { 
+                ...state.game, 
+                pgn: updatedPgn, 
+                currentBannedMove: { from, to },
+                ...gameUpdates
+              },
+              ...(gameUpdates.status === 'finished' ? { phase: 'game_over' } : {})
             });
           }
           
@@ -931,13 +984,10 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             const isInCheck = state.chess.inCheck();
             const legalMoves = state.chess.moves({ verbose: true });
             
-            if (isInCheck && legalMoves.length === 1) {
-              // Ban Chess checkmate: King in check with only one legal move (which can be banned)
-              gameUpdates.status = 'finished';
-              gameUpdates.result = state.currentTurn === 'white' ? '1-0' : '0-1';
-              gameUpdates.endReason = 'checkmate';
-              set({ showGameOverModal: true });
-            } else if (legalMoves.length === 0) {
+            // In Ban Chess, we only check for immediate game over conditions
+            // The "1 legal move while in check" scenario is NOT immediate checkmate
+            // because the opponent needs to ban that move first
+            if (legalMoves.length === 0) {
               // No legal moves at all
               if (isInCheck) {
                 // Standard checkmate (shouldn't happen in Ban Chess but kept for safety)

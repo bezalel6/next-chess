@@ -96,11 +96,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     isAnimating,
     optimisticMove,
     optimisticBan,
+    optimisticPhase,
+    pendingOperation,
     setHighlightedSquares,
     clearHighlights,
     previewBan,
     previewMove,
     startBanSelection,
+    clearPendingOperation,
   } = useGameStore();
 
   // Fetch game data
@@ -164,6 +167,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!game) return;
     
+    // Don't update phase if we have a pending operation (optimistic update in progress)
+    if (pendingOperation) return;
+    
     // If no player color determined (spectator/test mode)
     if (!myColor) {
       // Still show the correct phase based on game state
@@ -196,7 +202,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       // Default to waiting
       setPhase('waiting_for_move');
     }
-  }, [game, myColor, setPhase]);
+  }, [game, myColor, setPhase, pendingOperation]);
 
   // Set up realtime subscription with Broadcast for instant updates
   useEffect(() => {
@@ -272,6 +278,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return GameService.banMove(gameId, { from: from as Square, to: to as Square });
     },
     onSuccess: () => {
+      clearPendingOperation();
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
     },
     onError: (error: any) => {
@@ -293,19 +300,22 @@ export function GameProvider({ children }: { children: ReactNode }) {
       // Save state before optimistic update
       useGameStore.getState().saveStateForRollback();
       
-      // Optimistic update
-      confirmMove(from, to);
-      
-      // Play move sound
+      // Calculate the new FEN after the move
       const chess = new Chess(game.currentFen);
       const move = chess.move({ from: from as Square, to: to as Square, promotion });
       if (move) {
         playMoveSound(move, chess);
+        // Store the new FEN for optimistic rendering
+        useGameStore.setState({ optimisticFen: chess.fen() });
       }
+      
+      // Optimistic update
+      confirmMove(from, to);
       
       return GameService.makeMove(gameId, { from, to, promotion });
     },
     onSuccess: () => {
+      clearPendingOperation();
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
     },
     onError: (error: any) => {
@@ -337,20 +347,23 @@ export function GameProvider({ children }: { children: ReactNode }) {
     black: game?.blackPlayer || 'Black',
   };
 
+  // Use optimistic phase if available, otherwise use regular phase
+  const effectivePhase = optimisticPhase || phase;
+  
   const value: GameContextType = {
     game: game || null,
     loading: isLoading,
     isLoading,
     myColor: isLocalGame ? 'white' : myColor,
     isMyTurn: isLocalGame ? true : (game?.status === 'active' && game?.turn === myColor),
-    canBan: phase === 'selecting_ban',
-    canMove: phase === 'making_move',
+    canBan: effectivePhase === 'selecting_ban',
+    canMove: effectivePhase === 'making_move',
     isLocalGame,
     localGameOrientation: 'white', // Default to white for local games
     playerUsernames,
     
     // Zustand store state
-    phase,
+    phase: effectivePhase,
     currentBannedMove,
     banHistory,
     moveHistory,

@@ -36,10 +36,12 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     highlightedSquares,
     previewBan,
     previewMove,
+    optimisticMove,
+    optimisticBan,
   } = useGame();
   
-  // Get navigation state from store
-  const { navigationFen, navigationBan, viewingPly } = useGameStore();
+  // Get navigation state and pending operation from store
+  const { navigationFen, navigationBan, viewingPly, pendingOperation, optimisticFen } = useGameStore();
 
   // Test input refs for automation
   const testInputRef = useRef<HTMLInputElement>(null);
@@ -54,21 +56,26 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       return c;
     }
     
-    // Otherwise use current game position
-    const c = new Chess(game.currentFen);
-    if (game.pgn) {
-      try {
-        c.loadPgn(game.pgn);
-      } catch {}
+    // Use optimistic FEN if we have one (after a move was made)
+    if (optimisticFen && pendingOperation === 'move') {
+      const c = new Chess(optimisticFen);
+      console.log('[LichessBoardV2] Using optimistic FEN');
+      return c;
     }
+    
+    // Otherwise use the current game FEN
+    const c = new Chess(game.currentFen);
     return c;
-  }, [game?.currentFen, game?.pgn, navigationFen, viewingPly]);
+  }, [game?.currentFen, navigationFen, viewingPly, optimisticFen, pendingOperation]);
 
   // Calculate legal moves (excluding banned move)
   const legalMoves = useMemo(() => {
     if (!chess || !game || game.status !== "active") return new Map();
 
     const moves = new Map<string, string[]>();
+    
+    // Use optimistic ban if available, otherwise current banned move
+    const effectiveBannedMove = optimisticBan || currentBannedMove;
 
     // If we're in ban phase, show opponent's moves
     if (canBan) {
@@ -93,9 +100,9 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       chess.moves({ verbose: true }).forEach((move) => {
         // Skip if this is the banned move
         if (
-          currentBannedMove &&
-          move.from === currentBannedMove.from &&
-          move.to === currentBannedMove.to
+          effectiveBannedMove &&
+          move.from === effectiveBannedMove.from &&
+          move.to === effectiveBannedMove.to
         ) {
           return;
         }
@@ -108,7 +115,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     }
 
     return moves;
-  }, [chess, game, canBan, canMove, myColor, currentBannedMove]);
+  }, [chess, game, canBan, canMove, myColor, currentBannedMove, optimisticBan]);
 
   // Get last move for highlighting
   const lastMove = useMemo(() => {
@@ -127,31 +134,38 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   const shapes = useMemo(() => {
     const s: Config["drawable"]["shapes"] = [];
 
-    // Determine which banned move to show (navigation or current)
-    const bannedToShow = viewingPly !== null ? navigationBan : currentBannedMove;
+    // Determine which banned move to show (navigation, optimistic, or current)
+    const bannedToShow = viewingPly !== null ? navigationBan : (optimisticBan || currentBannedMove);
+    
+    console.log('[LichessBoardV2] Shapes debug:', {
+      bannedToShow,
+      optimisticBan,
+      currentBannedMove,
+      canBan,
+      viewingPly
+    });
 
-    // Show banned move with red
+    // Show banned move with red arrow
     if (bannedToShow && !canBan) {
+      console.log('[LichessBoardV2] Adding red arrow for banned move:', bannedToShow);
       s.push({
-        orig: bannedToShow.from as Square,
-        dest: bannedToShow.to as Square,
+        orig: bannedToShow.from,
+        dest: bannedToShow.to,
         brush: "red",
-        modifiers: { lineWidth: 10 },
       });
     }
 
     // Show preview when hovering during ban selection
     if (canBan && highlightedSquares.length === 2) {
       s.push({
-        orig: highlightedSquares[0] as Square,
-        dest: highlightedSquares[1] as Square,
+        orig: highlightedSquares[0],
+        dest: highlightedSquares[1],
         brush: "yellow",
-        modifiers: { lineWidth: 8 },
       });
     }
 
     return s;
-  }, [currentBannedMove, canBan, highlightedSquares, viewingPly, navigationBan]);
+  }, [currentBannedMove, canBan, highlightedSquares, viewingPly, navigationBan, optimisticBan]);
 
   // Handle piece movement
   const handleMove = useCallback(
@@ -292,6 +306,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
             : undefined, // During move phase, allow moving own pieces
         dests: legalMoves,
         showDests: true,
+        rookCastle: false, // Handle castling ourselves
       },
       selectable: {
         enabled: true, // Always enable selection to show moves on click
@@ -315,7 +330,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       drawable: {
         enabled: true,
         visible: true,
-        shapes,
+        autoShapes: shapes,
       },
       animation: {
         enabled: true,
@@ -338,58 +353,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     ]
   );
 
-  // Calculate banned square positions for overlay
-  const bannedSquareOverlays = useMemo(() => {
-    // Determine which banned move to show (navigation or current)
-    const bannedToShow = viewingPly !== null ? navigationBan : currentBannedMove;
-    
-    console.log(
-      "[LichessBoardV2] bannedToShow:",
-      bannedToShow,
-      "canBan:",
-      canBan,
-      "viewingPly:",
-      viewingPly
-    );
-
-    if (!bannedToShow || canBan) return null;
-
-    const squareSize = 100 / 8; // 12.5% of board size
-    
-    // Calculate coordinates based on board orientation
-    const fileToX = (file: string) => {
-      const fileIndex = file.charCodeAt(0) - 97;
-      return orientation === 'white' 
-        ? fileIndex * squareSize 
-        : (7 - fileIndex) * squareSize;
-    };
-    
-    const rankToY = (rank: string) => {
-      const rankIndex = 8 - parseInt(rank);
-      return orientation === 'white'
-        ? rankIndex * squareSize
-        : (7 - rankIndex) * squareSize;
-    };
-
-    const fromFile = bannedToShow.from[0];
-    const fromRank = bannedToShow.from[1];
-    const toFile = bannedToShow.to[0];
-    const toRank = bannedToShow.to[1];
-
-    const overlays = {
-      from: {
-        left: `${fileToX(fromFile)}%`,
-        top: `${rankToY(fromRank)}%`,
-      },
-      to: {
-        left: `${fileToX(toFile)}%`,
-        top: `${rankToY(toRank)}%`,
-      },
-    };
-
-    console.log("[LichessBoardV2] bannedSquareOverlays:", overlays);
-    return overlays;
-  }, [currentBannedMove, canBan, viewingPly, navigationBan, orientation]);
 
   return (
     <>
@@ -418,52 +381,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
         )}
       </AnimatePresence>
 
-      {/* Banned move overlay indicators */}
-      {bannedSquareOverlays && (
-        <>
-          {/* From square indicator */}
-          <div
-            style={{
-              position: "absolute",
-              left: bannedSquareOverlays.from.left,
-              top: bannedSquareOverlays.from.top,
-              width: "12.5%",
-              height: "12.5%",
-              background:
-                "radial-gradient(circle, rgba(255,0,0,0.6) 20%, rgba(255,0,0,0.3) 80%)",
-              pointerEvents: "none",
-              zIndex: 5,
-            }}
-          />
-          {/* To square indicator with X */}
-          <div
-            style={{
-              position: "absolute",
-              left: bannedSquareOverlays.to.left,
-              top: bannedSquareOverlays.to.top,
-              width: "12.5%",
-              height: "12.5%",
-              background:
-                "radial-gradient(circle, rgba(255,0,0,0.8) 30%, rgba(255,0,0,0.4) 90%)",
-              pointerEvents: "none",
-              zIndex: 5,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <span
-              style={{
-                fontSize: "2rem",
-                color: "rgba(255,255,255,0.9)",
-                fontWeight: "bold",
-              }}
-            >
-              ✕
-            </span>
-          </div>
-        </>
-      )}
 
       <Box
         sx={{

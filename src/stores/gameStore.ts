@@ -34,6 +34,9 @@ interface GameStore {
   // Optimistic updates
   optimisticMove: { from: Square; to: Square } | null;
   optimisticBan: { from: Square; to: Square } | null;
+  optimisticFen: string | null; // The FEN after optimistic move
+  pendingOperation: 'move' | 'ban' | null; // Track what operation is in flight
+  optimisticPhase: GamePhase | null; // Override phase during optimistic updates
   
   // Navigation state for move history
   viewingPly: number | null; // null means viewing current position
@@ -73,6 +76,7 @@ interface GameStore {
   reset: () => void;
   rollback: () => void;
   saveStateForRollback: () => void;
+  clearPendingOperation: () => void;
   
   // Navigation actions
   navigateToPosition: (ply: number | null, fen: string | null, ban: { from: Square; to: Square } | null) => void;
@@ -92,6 +96,9 @@ const initialState = {
   isAnimating: false,
   optimisticMove: null,
   optimisticBan: null,
+  optimisticFen: null,
+  pendingOperation: null,
+  optimisticPhase: null,
   previousState: null,
   viewingPly: null,
   navigationFen: null,
@@ -122,30 +129,16 @@ export const useGameStore = create<GameStore>()(
     },
     
     confirmBan: (from, to) => {
-      const { currentTurn, banHistory } = get();
-      const byPlayer = currentTurn === 'white' ? 'black' : 'white'; // Opponent bans
+      const { currentTurn, myColor } = get();
       
+      // Only set optimistic state for immediate UI feedback
       set({
         optimisticBan: { from, to },
-        phase: 'waiting_for_move',
-        isAnimating: true,
+        pendingOperation: 'ban',
+        // After banning, the turn player can move
+        optimisticPhase: currentTurn === myColor ? 'making_move' : 'waiting_for_move',
+        highlightedSquares: [],
       });
-      
-      // Animation will complete and clear optimistic state
-      setTimeout(() => {
-        set({ 
-          currentBannedMove: { from, to },
-          banHistory: [...banHistory, { 
-            from, 
-            to, 
-            byPlayer,
-            atMoveNumber: Math.floor(banHistory.length / 2) + 1,
-          }],
-          optimisticBan: null,
-          isAnimating: false,
-          highlightedSquares: [],
-        });
-      }, 300);
     },
     
     receiveBan: (from, to, byPlayer) => {
@@ -172,18 +165,18 @@ export const useGameStore = create<GameStore>()(
     },
     
     confirmMove: (from, to) => {
+      const { myColor } = get();
+      
+      // Set optimistic state and track the move
       set({
         optimisticMove: { from, to },
-        phase: 'waiting_for_ban',
-        isAnimating: true,
+        pendingOperation: 'move',
+        // After moving, the player who moved should ban
+        optimisticPhase: 'selecting_ban',
+        highlightedSquares: [],
+        currentBannedMove: null, // Clear previous ban
+        isAnimating: false, // Prevent animation since move is already shown
       });
-      
-      setTimeout(() => {
-        set({
-          optimisticMove: null,
-          isAnimating: false,
-        });
-      }, 300);
     },
     
     receiveMove: (from, to, san) => {
@@ -228,10 +221,23 @@ export const useGameStore = create<GameStore>()(
           moveHistory: previousState.moveHistory,
           optimisticMove: null,
           optimisticBan: null,
+          optimisticFen: null,
+          optimisticPhase: null,
+          pendingOperation: null,
           highlightedSquares: [],
           isAnimating: false,
         });
       }
+    },
+    
+    clearPendingOperation: () => {
+      set({
+        pendingOperation: null,
+        optimisticPhase: null,
+        optimisticMove: null,
+        optimisticBan: null,
+        optimisticFen: null,
+      });
     },
     
     navigateToPosition: (ply, fen, ban) => {

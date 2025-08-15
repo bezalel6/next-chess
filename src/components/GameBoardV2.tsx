@@ -78,6 +78,7 @@ export default function GameBoardV2({
       flexDirection: "column", 
       alignItems: "center", 
       gap: 2,
+      mt: 15, // Add margin-top to ensure ban notification banner has space
     }}>
       <Box
         sx={{

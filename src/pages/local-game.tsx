@@ -40,10 +40,11 @@ export default function LocalGamePage() {
 
   return (
       <Box sx={{ 
-        minHeight: '100vh',
+        height: 'calc(100vh - 64px)', // Account for header height
         bgcolor: '#161512',
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'auto',
       }}>
         {/* Header */}
         <Box sx={{ 

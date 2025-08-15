@@ -22,7 +22,7 @@ const Layout = ({ children }: LayoutProps) => {
       sx={{
         display: "flex",
         flexDirection: "column",
-        minHeight: "100vh",
+        height: "100vh", // Use fixed height for proper flexbox layout
         width: "100%",
         position: "relative",
         overflow: "hidden",

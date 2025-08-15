@@ -139,10 +139,11 @@ export default function GamePage() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
-                minHeight: '100vh',
+                height: 'calc(100vh - 64px)', // Account for header height
                 bgcolor: '#161512',
                 p: 2,
-                pt: 4,
+                pt: 3, // Normal padding, board handles banner spacing
+                overflow: 'auto',
             }}>
                 {loading ? (
                     id && typeof id === 'string' ? (

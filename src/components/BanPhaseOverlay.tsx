@@ -27,7 +27,7 @@ export default function BanPhaseOverlay({
           transition={{ duration: 0.3, ease: "easeOut" }}
           style={{
             position: "absolute",
-            top: -70,
+            top: -110, // Further increased spacing to prevent clipping
             left: 0,
             right: 0,
             zIndex: 100,

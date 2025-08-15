@@ -3,6 +3,7 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
+import { useGameActions } from "@/hooks/useGameActions";
 import { useMemo, useState, useEffect } from "react";
 import UserLink from '@/components/user-link';
 
@@ -10,7 +11,7 @@ const GameOverDetails = () => {
     const game = useUnifiedGameStore(s => s.game);
     const myColor = useUnifiedGameStore(s => s.myColor);
     const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
-    const actions = useUnifiedGameStore(s => s.actions);
+    const actions = useGameActions();
 
     // Animate in on mount
     const [show, setShow] = useState(false);

@@ -12,8 +12,9 @@ import RightSidebar from "@/components/RightSidebar";
 import NotFoundScreen from "@/components/NotFoundScreen";
 import BoardMoveInput from "@/components/BoardMoveInput";
 import DebugLog from "@/components/DebugLog";
-import GamePlayersPanel from "@/components/GamePlayersPanel";
-
+import { GamePresenceProvider } from "@/contexts/GamePresenceContext";
+import { useAuth } from "@/contexts/AuthContext";
+import GameWithRecovery from "@/components/GameWithRecovery";
 // Left sidebar components
 const LeftSidebar = () => {
     const game = useUnifiedGameStore(s => s.game);
@@ -71,9 +72,6 @@ const LeftSidebar = () => {
             gap: 2,
             height: '100%',
         }}>
-            {/* Players Panel with Presence */}
-            <GamePlayersPanel />
-            
             {/* Game info */}
             <Box sx={{
                 bgcolor: 'rgba(255,255,255,0.03)',
@@ -117,6 +115,7 @@ export default function GamePage() {
     const { id, as: asParam } = router.query;
     const [accessError, setAccessError] = useState<string | null>(null);
     const [boardFlipped, setBoardFlipped] = useState(false);
+    const { session } = useAuth();
 
     // Handle board orientation based on player color
     useEffect(() => {
@@ -155,41 +154,18 @@ export default function GamePage() {
                         <LoadingScreen />
                     )
                 ) : game ? (
-                    // Main game container - centered and constrained
-                    <Box sx={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        gap: 2,
-                        maxWidth: 1400,
-                        width: '100%',
-                        justifyContent: 'center',
-                        alignItems: 'flex-start',
-                    }}>
-                        {/* Left sidebar */}
-                        {!isLocalGame && <LeftSidebar />}
-                        
-                        {/* Center container - Board and controls */}
-                        <Box sx={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: 1,
-                        }}>
-                            <GameBoardV2 
-                                orientation={boardFlipped 
-                                    ? (boardOrientation === 'white' ? 'black' : 'white')
-                                    : boardOrientation
-                                }
-                            />
-                            <BoardMoveInput />
-                        </Box>
-                        
-                        {/* Right sidebar */}
-                        <RightSidebar 
+                    // Wrap with GamePresenceProvider for real-time presence
+                    <GamePresenceProvider 
+                        gameId={game.id}
+                        opponentId={myColor === 'white' ? game.blackPlayerId : game.whitePlayerId}
+                        opponentUsername={myColor === 'white' ? playerUsernames.black : playerUsernames.white}
+                    >
+                        {/* Use GameWithRecovery component which includes recovery hook */}
+                        <GameWithRecovery 
                             boardFlipped={boardFlipped}
                             onFlipBoard={() => setBoardFlipped(!boardFlipped)}
                         />
-                    </Box>
+                    </GamePresenceProvider>
                 ) : (
                     <NotFoundScreen />
                 )}

@@ -2,13 +2,13 @@ import { Box, Typography, Tooltip, IconButton } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
-import type { Square } from 'chess.ts/dist/types';
-import BlockIcon from '@mui/icons-material/Block';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import FirstPageIcon from '@mui/icons-material/FirstPage';
-import LastPageIcon from '@mui/icons-material/LastPage';
-import CachedIcon from '@mui/icons-material/Cached';
+import type { Square } from "chess.ts/dist/types";
+import BlockIcon from "@mui/icons-material/Block";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import FirstPageIcon from "@mui/icons-material/FirstPage";
+import LastPageIcon from "@mui/icons-material/LastPage";
+import CachedIcon from "@mui/icons-material/Cached";
 import { useSingleKeys, Keys } from "@/hooks/useKeys";
 import { supabase } from "@/utils/supabase";
 import { useQuery } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ type MoveData = {
   id: string;
   move_number: number;
   ply_number: number;
-  player_color: 'white' | 'black';
+  player_color: "white" | "black";
   from_square: string;
   to_square: string;
   promotion?: string;
@@ -25,7 +25,7 @@ type MoveData = {
   fen_after: string;
   banned_from?: string;
   banned_to?: string;
-  banned_by?: 'white' | 'black';
+  banned_by?: "white" | "black";
   time_taken_ms?: number;
 };
 
@@ -36,36 +36,37 @@ type Move = {
 };
 
 const MoveHistoryV2 = () => {
-  const game = useUnifiedGameStore(s => s.game);
-  const setPgn = useUnifiedGameStore(s => s.setPgn);
-  const actions = useUnifiedGameStore(s => s.actions);
-  const myColor = useUnifiedGameStore(s => s.myColor);
-  const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
-  const boardOrientation = useUnifiedGameStore(s => s.boardOrientation);
+  const game = useUnifiedGameStore((s) => s.game);
+  const setPgn = useUnifiedGameStore((s) => s.setPgn);
+  const actions = useUnifiedGameStore((s) => s.actions);
+  const myColor = useUnifiedGameStore((s) => s.myColor);
+  const isLocalGame = useUnifiedGameStore((s) => s.mode === "local");
+  const boardOrientation = useUnifiedGameStore((s) => s.boardOrientation);
   const [currentPlyIndex, setCurrentPlyIndex] = useState<number>(-1);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
 
   // Fetch moves from the database with real-time subscription
   const { data: movesData = [], isLoading } = useQuery({
-    queryKey: ['moves', game?.id],
+    queryKey: ["moves", game?.id],
     queryFn: async () => {
-      console.log('[MoveHistoryV2] Fetching moves for game:', game?.id);
-      console.log('[MoveHistoryV2] Current game PGN:', game?.pgn);
-      
+      console.log("[MoveHistoryV2] Fetching moves for game:", game?.id);
+      console.log("[MoveHistoryV2] Current game PGN:", game?.pgn);
+
       if (!game?.id) {
-        console.log('[MoveHistoryV2] No game ID, returning empty array');
+        console.log("[MoveHistoryV2] No game ID, returning empty array");
         return [];
       }
-      
-      const { data, error } = await supabase
-        .rpc('get_game_moves', { p_game_id: game.id });
-      
+
+      const { data, error } = await supabase.rpc("get_game_moves", {
+        p_game_id: game.id,
+      });
+
       if (error) {
-        console.error('[MoveHistoryV2] Error fetching moves:', error);
+        console.error("[MoveHistoryV2] Error fetching moves:", error);
         return [];
       }
-      
-      console.log('[MoveHistoryV2] Fetched moves data:', data);
+
+      console.log("[MoveHistoryV2] Fetched moves data:", data);
       return (data as MoveData[]) || [];
     },
     enabled: !!game?.id,
@@ -78,15 +79,19 @@ const MoveHistoryV2 = () => {
 
     const channel = supabase
       .channel(`moves:${game.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'moves',
-        filter: `game_id=eq.${game.id}`,
-      }, (payload) => {
-        console.log('[MoveHistory] New move received:', payload);
-        // React Query will handle the refetch via invalidation in GameContext
-      })
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "moves",
+          filter: `game_id=eq.${game.id}`,
+        },
+        (payload) => {
+          console.log("[MoveHistory] New move received:", payload);
+          // React Query will handle the refetch via invalidation in GameContext
+        }
+      )
       .subscribe();
 
     return () => {
@@ -98,11 +103,11 @@ const MoveHistoryV2 = () => {
   const moves = useMemo<Move[]>(() => {
     const paired: Move[] = [];
     const movesByNumber = new Map<number, Move>();
-    
+
     for (let i = 0; i < movesData.length; i++) {
       const move = movesData[i];
       const moveNumber = move.move_number;
-      
+
       // Get or create the move pair for this move number
       let movePair = movesByNumber.get(moveNumber);
       if (!movePair) {
@@ -110,15 +115,15 @@ const MoveHistoryV2 = () => {
         movesByNumber.set(moveNumber, movePair);
         paired.push(movePair);
       }
-      
+
       // Add the move data to the appropriate color slot
-      if (move.player_color === 'white') {
+      if (move.player_color === "white") {
         movePair.white = move;
       } else {
         movePair.black = move;
       }
     }
-    
+
     return paired;
   }, [movesData]);
 
@@ -136,21 +141,22 @@ const MoveHistoryV2 = () => {
       moveHistoryRef.current.scrollTop = moveHistoryRef.current.scrollHeight;
     }
   }, [moves.length, currentPlyIndex]);
-  
+
   // Scroll to the selected move when navigating
   useEffect(() => {
     if (moveHistoryRef.current && currentPlyIndex >= 0) {
       // Find the element for the current move
-      const moveElements = moveHistoryRef.current.querySelectorAll('[data-ply]');
+      const moveElements =
+        moveHistoryRef.current.querySelectorAll("[data-ply]");
       const targetElement = Array.from(moveElements).find(
-        el => el.getAttribute('data-ply') === currentPlyIndex.toString()
+        (el) => el.getAttribute("data-ply") === currentPlyIndex.toString()
       );
-      
+
       if (targetElement) {
         // Scroll the element into view smoothly
-        targetElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
+        targetElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
         });
       }
     }
@@ -160,12 +166,13 @@ const MoveHistoryV2 = () => {
   const handleMoveClick = useCallback((move: MoveData) => {
     // Navigate to this position
     const { navigateToPosition } = useGameStore.getState();
-    
+
     // Set the banned move for this position if it exists
-    const bannedMove = move.banned_from && move.banned_to 
-      ? { from: move.banned_from as Square, to: move.banned_to as Square }
-      : null;
-    
+    const bannedMove =
+      move.banned_from && move.banned_to
+        ? { from: move.banned_from as Square, to: move.banned_to as Square }
+        : null;
+
     // Navigate to the position with banned move info
     navigateToPosition(move.ply_number, move.fen_after, bannedMove);
     setCurrentPlyIndex(move.ply_number);
@@ -208,39 +215,42 @@ const MoveHistoryV2 = () => {
       callback: (e) => {
         e.preventDefault();
         navigateToPrevious();
-      }
+      },
     },
     {
       key: Keys.ArrowRight,
       callback: (e) => {
         e.preventDefault();
         navigateToNext();
-      }
+      },
     },
     {
       key: Keys.ArrowUp,
       callback: (e) => {
         e.preventDefault();
         navigateToFirst();
-      }
+      },
     },
     {
       key: Keys.ArrowDown,
       callback: (e) => {
         e.preventDefault();
         navigateToLast();
-      }
+      },
     }
   );
 
-  console.log('[MoveHistoryV2] Rendering - isLoading:', isLoading);
-  console.log('[MoveHistoryV2] Rendering - movesData:', movesData);
-  console.log('[MoveHistoryV2] Rendering - movesData length:', movesData.length);
-  console.log('[MoveHistoryV2] Rendering - game PGN:', game?.pgn);
-  
+  console.log("[MoveHistoryV2] Rendering - isLoading:", isLoading);
+  console.log("[MoveHistoryV2] Rendering - movesData:", movesData);
+  console.log(
+    "[MoveHistoryV2] Rendering - movesData length:",
+    movesData.length
+  );
+  console.log("[MoveHistoryV2] Rendering - game PGN:", game?.pgn);
+
   if (isLoading) {
     return (
-      <Box sx={{ p: 2, textAlign: 'center' }}>
+      <Box sx={{ p: 2, textAlign: "center" }}>
         <Typography variant="body2" color="text.secondary">
           Loading moves...
         </Typography>
@@ -251,15 +261,15 @@ const MoveHistoryV2 = () => {
   // Add debug message when no moves
   if (!movesData || movesData.length === 0) {
     return (
-      <Box sx={{ p: 2, textAlign: 'center', bgcolor: 'error.dark' }}>
+      <Box sx={{ p: 2, textAlign: "center", bgcolor: "error.dark" }}>
         <Typography variant="body1" color="error.main">
           DEBUG: No moves in database
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          Game PGN: {game?.pgn || 'undefined'}
+          Game PGN: {game?.pgn || "undefined"}
         </Typography>
         <Typography variant="caption" display="block" color="text.secondary">
-          Game ID: {game?.id || 'undefined'}
+          Game ID: {game?.id || "undefined"}
         </Typography>
       </Box>
     );
@@ -268,70 +278,38 @@ const MoveHistoryV2 = () => {
   return (
     <Box
       sx={{
-        width: '100%',
+        width: "100%",
         height: 400,
-        maxHeight: '60vh',
-        bgcolor: 'rgba(255,255,255,0.03)',
+        maxHeight: "60vh",
+        bgcolor: "rgba(255,255,255,0.03)",
         borderRadius: 0.5,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      {/* Move table with scroll */}
+      {/* Navigation Bar */}
       <Box
-        ref={moveHistoryRef}
         sx={{
-          flex: 1,
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          width: '100%',
-          p: 0,
-          '&::-webkit-scrollbar': {
-            width: '6px',
-          },
-          '&::-webkit-scrollbar-track': {
-            bgcolor: 'transparent',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            bgcolor: 'rgba(255,255,255,0.2)',
-            borderRadius: '3px',
-            '&:hover': {
-              bgcolor: 'rgba(255,255,255,0.3)',
-            },
-          },
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 0.5,
+          p: 1,
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+          bgcolor: "rgba(0,0,0,0.2)",
         }}
       >
-        <Box sx={{ width: '100%', display: 'table', borderCollapse: 'collapse' }}>
-          {/* Game moves */}
-          {moves.map((move) => (
-            <MovesRow
-              key={move.number}
-              move={move}
-              selectedMove={selectedMove}
-              onMoveClick={handleMoveClick}
-            />
-          ))}
-        </Box>
-      </Box>
-
-      {/* Navigation Bar */}
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 0.5,
-        p: 1,
-        borderTop: '1px solid rgba(255,255,255,0.08)',
-        bgcolor: 'rgba(0,0,0,0.2)',
-      }}>
         <Tooltip title="First Move (Home)">
           <span>
             <IconButton
               size="small"
               onClick={navigateToFirst}
               disabled={currentPlyIndex <= 0}
-              sx={{ color: 'white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
+              sx={{
+                color: "white",
+                "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
+              }}
             >
               <FirstPageIcon fontSize="small" />
             </IconButton>
@@ -343,7 +321,10 @@ const MoveHistoryV2 = () => {
               size="small"
               onClick={navigateToPrevious}
               disabled={currentPlyIndex <= 0}
-              sx={{ color: 'white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
+              sx={{
+                color: "white",
+                "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
+              }}
             >
               <ChevronLeftIcon fontSize="small" />
             </IconButton>
@@ -353,16 +334,22 @@ const MoveHistoryV2 = () => {
           <IconButton
             size="small"
             onClick={() => actions.flipBoardOrientation?.()}
-            sx={{ 
-              color: 'white', 
+            sx={{
+              color: "white",
               mx: 1,
-              bgcolor: (isLocalGame ? boardOrientation === 'black' : myColor === 'black') 
-                ? 'rgba(255,255,255,0.15)' 
-                : 'transparent',
-              '&:hover': { 
-                bgcolor: (isLocalGame ? boardOrientation === 'black' : myColor === 'black')
-                  ? 'rgba(255,255,255,0.2)'
-                  : 'rgba(255,255,255,0.08)',
+              bgcolor: (
+                isLocalGame ? boardOrientation === "black" : myColor === "black"
+              )
+                ? "rgba(255,255,255,0.15)"
+                : "transparent",
+              "&:hover": {
+                bgcolor: (
+                  isLocalGame
+                    ? boardOrientation === "black"
+                    : myColor === "black"
+                )
+                  ? "rgba(255,255,255,0.2)"
+                  : "rgba(255,255,255,0.08)",
               },
             }}
           >
@@ -375,7 +362,10 @@ const MoveHistoryV2 = () => {
               size="small"
               onClick={navigateToNext}
               disabled={currentPlyIndex >= movesData.length - 1}
-              sx={{ color: 'white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
+              sx={{
+                color: "white",
+                "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
+              }}
             >
               <ChevronRightIcon fontSize="small" />
             </IconButton>
@@ -387,12 +377,53 @@ const MoveHistoryV2 = () => {
               size="small"
               onClick={navigateToLast}
               disabled={currentPlyIndex >= movesData.length - 1}
-              sx={{ color: 'white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
+              sx={{
+                color: "white",
+                "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
+              }}
             >
               <LastPageIcon fontSize="small" />
             </IconButton>
           </span>
         </Tooltip>
+      </Box>
+      {/* Move table with scroll */}
+      <Box
+        ref={moveHistoryRef}
+        sx={{
+          flex: 1,
+          overflowY: "auto",
+          overflowX: "hidden",
+          width: "100%",
+          p: 0,
+          "&::-webkit-scrollbar": {
+            width: "6px",
+          },
+          "&::-webkit-scrollbar-track": {
+            bgcolor: "transparent",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            bgcolor: "rgba(255,255,255,0.2)",
+            borderRadius: "3px",
+            "&:hover": {
+              bgcolor: "rgba(255,255,255,0.3)",
+            },
+          },
+        }}
+      >
+        <Box
+          sx={{ width: "100%", display: "table", borderCollapse: "collapse" }}
+        >
+          {/* Game moves */}
+          {moves.map((move) => (
+            <MovesRow
+              key={move.number}
+              move={move}
+              selectedMove={selectedMove}
+              onMoveClick={handleMoveClick}
+            />
+          ))}
+        </Box>
       </Box>
     </Box>
   );
@@ -401,7 +432,7 @@ const MoveHistoryV2 = () => {
 function MovesRow({
   move,
   selectedMove,
-  onMoveClick
+  onMoveClick,
 }: {
   move: Move;
   selectedMove: MoveData | null;
@@ -410,156 +441,160 @@ function MovesRow({
   return (
     <Box
       sx={{
-        display: 'table-row',
+        display: "table-row",
       }}
     >
-      <Box sx={{
-        display: 'table-cell',
-        pr: 1,
-        pl: 1.5,
-        color: '#888',
-        fontSize: '0.875rem',
-        textAlign: 'right',
-        verticalAlign: 'middle',
-        width: '15%',
-        fontWeight: 400,
-      }}>
+      <Box
+        sx={{
+          display: "table-cell",
+          pr: 1,
+          pl: 1.5,
+          color: "#888",
+          fontSize: "0.875rem",
+          textAlign: "right",
+          verticalAlign: "middle",
+          width: "15%",
+          fontWeight: 400,
+        }}
+      >
         {move.number}.
       </Box>
       {move.white && (
-        <Box 
+        <Box
           data-ply={move.white.ply_number}
           sx={{
-          display: 'table-cell',
-          py: 0.5,
-          px: 1.5,
-          color: selectedMove?.ply_number === move.white.ply_number ? '#fff' : '#bababa',
-          fontSize: '0.95rem',
-          textAlign: 'left',
-          verticalAlign: 'middle',
-          bgcolor: selectedMove?.ply_number === move.white.ply_number ? 'rgba(255,204,0,0.25)' : 'transparent',
-          cursor: 'pointer',
-          width: '42.5%',
-          fontWeight: selectedMove?.ply_number === move.white.ply_number ? 600 : 400,
-          '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
-          borderRadius: selectedMove?.ply_number === move.white.ply_number ? '3px 0 0 3px' : 0,
-        }}
+            display: "table-cell",
+            py: 0.5,
+            px: 1.5,
+            color:
+              selectedMove?.ply_number === move.white.ply_number
+                ? "#fff"
+                : "#bababa",
+            fontSize: "0.95rem",
+            textAlign: "left",
+            verticalAlign: "middle",
+            bgcolor:
+              selectedMove?.ply_number === move.white.ply_number
+                ? "rgba(255,204,0,0.25)"
+                : "transparent",
+            cursor: "pointer",
+            width: "42.5%",
+            fontWeight:
+              selectedMove?.ply_number === move.white.ply_number ? 600 : 400,
+            "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
+            borderRadius:
+              selectedMove?.ply_number === move.white.ply_number
+                ? "3px 0 0 3px"
+                : 0,
+          }}
           onClick={() => onMoveClick(move.white!)}
         >
           <MoveComponent move={move.white} />
         </Box>
       )}
       {move.black ? (
-        <Box 
+        <Box
           data-ply={move.black.ply_number}
           sx={{
-          display: 'table-cell',
-          py: 0.5,
-          px: 1.5,
-          color: selectedMove?.ply_number === move.black.ply_number ? '#fff' : '#bababa',
-          fontSize: '0.95rem',
-          textAlign: 'left',
-          verticalAlign: 'middle',
-          bgcolor: selectedMove?.ply_number === move.black.ply_number ? 'rgba(255,204,0,0.25)' : 'transparent',
-          cursor: 'pointer',
-          width: '42.5%',
-          fontWeight: selectedMove?.ply_number === move.black.ply_number ? 600 : 400,
-          '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
-          borderRadius: selectedMove?.ply_number === move.black.ply_number ? '0 3px 3px 0' : 0,
-        }}
+            display: "table-cell",
+            py: 0.5,
+            px: 1.5,
+            color:
+              selectedMove?.ply_number === move.black.ply_number
+                ? "#fff"
+                : "#bababa",
+            fontSize: "0.95rem",
+            textAlign: "left",
+            verticalAlign: "middle",
+            bgcolor:
+              selectedMove?.ply_number === move.black.ply_number
+                ? "rgba(255,204,0,0.25)"
+                : "transparent",
+            cursor: "pointer",
+            width: "42.5%",
+            fontWeight:
+              selectedMove?.ply_number === move.black.ply_number ? 600 : 400,
+            "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
+            borderRadius:
+              selectedMove?.ply_number === move.black.ply_number
+                ? "0 3px 3px 0"
+                : 0,
+          }}
           onClick={() => onMoveClick(move.black!)}
         >
           <MoveComponent move={move.black} />
         </Box>
       ) : (
-        <Box sx={{
-          display: 'table-cell',
-          width: '42.5%',
-        }} />
+        <Box
+          sx={{
+            display: "table-cell",
+            width: "42.5%",
+          }}
+        />
       )}
     </Box>
   );
 }
 
 function MoveComponent({ move }: { move: MoveData }) {
-  // Check if this is a ban-only record (no actual move made yet)
-  const isBanOnly = !move.san && move.banned_from && move.banned_to;
-  
   return (
     <Box
       sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        width: '100%',
-        height: '100%',
-        position: 'relative',
-        padding: '4px'
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        width: "100%",
+        height: "100%",
+        position: "relative",
+        padding: "4px",
       }}
     >
-      {isBanOnly ? (
-        // Display ban information when no move has been made yet
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <BlockIcon 
-            sx={{ 
-              fontSize: '14px', 
-              color: 'error.main'
-            }} 
-          />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        {/* Show banned move if it exists */}
+        {move.banned_from && move.banned_to && (
           <Typography
             component="span"
             sx={{
-              fontWeight: 'normal',
-              color: 'error.main',
-              fontSize: '0.9rem',
-              fontStyle: 'italic'
+              fontWeight: "normal",
+              color: "error.main",
+              fontSize: "0.9rem",
             }}
           >
-            {move.banned_from}{move.banned_to} banned
+            {move.banned_from}
+            {move.banned_to}
           </Typography>
-        </Box>
-      ) : (
-        <>
+        )}
+
+        {/* Show actual move if it exists */}
+        {move.san && (
           <Typography
             component="span"
             sx={{
-              fontWeight: 'normal',
-              display: 'flex',
-              alignItems: 'center',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
+              fontWeight: "normal",
+              display: "flex",
+              alignItems: "center",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {move.san}
           </Typography>
+        )}
+      </Box>
 
-          {move.banned_from && move.banned_to && (
-            <Tooltip title={`Banned: ${move.banned_from}${move.banned_to}`} arrow>
-              <BlockIcon 
-                sx={{ 
-                  fontSize: '16px', 
-                  color: 'error.main',
-                  ml: 0.5
-                }} 
-              />
-            </Tooltip>
-          )}
-
-          {move.time_taken_ms && (
-            <Typography
-              component="span"
-              sx={{
-                fontSize: '0.75rem',
-                color: 'text.secondary',
-                ml: 'auto',
-                pl: 1
-              }}
-            >
-              {(move.time_taken_ms / 1000).toFixed(1)}s
-            </Typography>
-          )}
-        </>
+      {move.time_taken_ms && (
+        <Typography
+          component="span"
+          sx={{
+            fontSize: "0.75rem",
+            color: "text.secondary",
+            ml: "auto",
+            pl: 1,
+          }}
+        >
+          {(move.time_taken_ms / 1000).toFixed(1)}s
+        </Typography>
       )}
     </Box>
   );

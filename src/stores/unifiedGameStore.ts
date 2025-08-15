@@ -138,13 +138,13 @@ interface GameActions {
   
   // Game actions (resign, draw, etc)
   actions: {
-    resign: () => void;
-    offerDraw: () => void;
-    acceptDraw: () => void;
-    declineDraw: () => void;
-    offerRematch: () => void;
-    acceptRematch: () => void;
-    declineRematch: () => void;
+    resign: () => Promise<void>;
+    offerDraw: () => Promise<void>;
+    acceptDraw: () => Promise<void>;
+    declineDraw: () => Promise<void>;
+    offerRematch: () => Promise<void>;
+    acceptRematch: () => Promise<void>;
+    declineRematch: () => Promise<void>;
     resetGame: () => void;
     startLocalGame: () => void;
     flipBoardOrientation: () => void;
@@ -187,6 +187,7 @@ interface NetworkActions {
   queueOperation: (type: 'move' | 'ban', data: any) => void;
   processSyncQueue: () => void;
   markSynced: () => void;
+  syncGameState: (data: { game: any; moves: any[] }) => void;
 }
 
 // ============= Unified Store =============
@@ -689,6 +690,42 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           isSyncing: false,
           syncQueue: [],
         }),
+        
+        syncGameState: ({ game, moves }) => {
+          const state = get();
+          const chess = new Chess();
+          
+          // Load the game state from PGN
+          if (game.pgn) {
+            chess.loadPgn(game.pgn);
+          }
+          
+          // Update game state
+          set({
+            game: {
+              ...game,
+              moveCount: moves.length,
+            },
+            chess,
+            currentFen: chess.fen(),
+            currentTurn: chess.turn() === 'w' ? 'white' : 'black',
+            phase: game.status === 'active' 
+              ? (game.current_phase || 'waiting_for_move')
+              : 'game_over',
+            moveHistory: moves,
+            lastSyncTime: Date.now(),
+            isSyncing: false,
+            isConnected: true,
+            connectionError: null,
+          });
+          
+          console.log('[UnifiedStore] Game state synchronized:', {
+            gameId: game.id,
+            status: game.status,
+            moves: moves.length,
+            currentTurn: chess.turn(),
+          });
+        },
         
         // ============= Additional Missing Methods =============
         
@@ -1253,59 +1290,95 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         },
         
         actions: {
-          resign: () => {
+          resign: async () => {
             const state = get();
-            if (state.game && state.myColor) {
-              // TODO: Call API to resign
-              console.log('Resigning...');
+            if (state.game && state.gameId && state.myColor) {
+              try {
+                const GameService = (await import('@/services/gameService')).default;
+                const updatedGame = await GameService.resign(state.gameId, state.myColor);
+                set({ game: updatedGame });
+              } catch (error) {
+                console.error('Failed to resign:', error);
+              }
             }
           },
           
-          offerDraw: () => {
+          offerDraw: async () => {
             const state = get();
-            if (state.game && state.myColor) {
-              // TODO: Call API to offer draw
-              console.log('Offering draw...');
+            if (state.game && state.gameId && state.myColor) {
+              try {
+                const GameService = (await import('@/services/gameService')).default;
+                const updatedGame = await GameService.offerDraw(state.gameId, state.myColor);
+                set({ game: updatedGame });
+              } catch (error) {
+                console.error('Failed to offer draw:', error);
+              }
             }
           },
           
-          acceptDraw: () => {
+          acceptDraw: async () => {
             const state = get();
-            if (state.game && state.myColor) {
-              // TODO: Call API to accept draw
-              console.log('Accepting draw...');
+            if (state.game && state.gameId) {
+              try {
+                const GameService = (await import('@/services/gameService')).default;
+                const updatedGame = await GameService.acceptDraw(state.gameId);
+                set({ game: updatedGame });
+              } catch (error) {
+                console.error('Failed to accept draw:', error);
+              }
             }
           },
           
-          declineDraw: () => {
+          declineDraw: async () => {
             const state = get();
-            if (state.game && state.myColor) {
-              // TODO: Call API to decline draw
-              console.log('Declining draw...');
+            if (state.game && state.gameId) {
+              try {
+                const GameService = (await import('@/services/gameService')).default;
+                const updatedGame = await GameService.declineDraw(state.gameId);
+                set({ game: updatedGame });
+              } catch (error) {
+                console.error('Failed to decline draw:', error);
+              }
             }
           },
           
-          offerRematch: () => {
+          offerRematch: async () => {
             const state = get();
-            if (state.game && state.myColor) {
-              // TODO: Call API to offer rematch
-              console.log('Offering rematch...');
+            if (state.game && state.gameId && state.myColor) {
+              try {
+                const GameService = (await import('@/services/gameService')).default;
+                const updatedGame = await GameService.offerRematch(state.gameId, state.myColor);
+                set({ game: updatedGame });
+              } catch (error) {
+                console.error('Failed to offer rematch:', error);
+              }
             }
           },
           
-          acceptRematch: () => {
+          acceptRematch: async () => {
             const state = get();
-            if (state.game && state.myColor) {
-              // TODO: Call API to accept rematch
-              console.log('Accepting rematch...');
+            if (state.game && state.gameId) {
+              try {
+                const GameService = (await import('@/services/gameService')).default;
+                const newGame = await GameService.acceptRematch(state.gameId);
+                // Redirect to the new game
+                window.location.href = `/game/${newGame.id}`;
+              } catch (error) {
+                console.error('Failed to accept rematch:', error);
+              }
             }
           },
           
-          declineRematch: () => {
+          declineRematch: async () => {
             const state = get();
-            if (state.game && state.myColor) {
-              // TODO: Call API to decline rematch
-              console.log('Declining rematch...');
+            if (state.game && state.gameId) {
+              try {
+                const GameService = (await import('@/services/gameService')).default;
+                const updatedGame = await GameService.declineRematch(state.gameId);
+                set({ game: updatedGame });
+              } catch (error) {
+                console.error('Failed to decline rematch:', error);
+              }
             }
           },
           

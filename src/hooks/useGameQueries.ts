@@ -279,7 +279,7 @@ export function useGame(gameId: string | undefined, userId: string | undefined) 
     if (mode === 'local') {
       // Handle local move
       const store = useUnifiedGameStore.getState();
-      store.localMakeMove(from as Square, to as Square, promotion);
+      store.makeLocalMove(from as Square, to as Square, promotion);
     } else {
       // Handle online move
       moveMutation.mutate({ from: from as Square, to: to as Square, promotion: promotion as any });
@@ -290,7 +290,7 @@ export function useGame(gameId: string | undefined, userId: string | undefined) 
     if (mode === 'local') {
       // Handle local ban
       const store = useUnifiedGameStore.getState();
-      store.localSelectBan(from as Square, to as Square);
+      store.selectLocalBan(from as Square, to as Square);
     } else {
       // Handle online ban
       banMutation.mutate({ from, to });

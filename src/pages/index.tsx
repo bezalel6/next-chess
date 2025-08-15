@@ -4,12 +4,12 @@ import QueueSystem from "@/components/QueueSystem";
 import AuthForm from "@/components/auth-form";
 import BoardMoveInput from "@/components/BoardMoveInput";
 import { Box, Container, Typography, Fade, Paper } from "@mui/material";
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 
 export default function Home() {
-  const { game } = useGame();
+  const game = useUnifiedGameStore(s => s.game);
   const { user, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
 

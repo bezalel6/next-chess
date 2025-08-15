@@ -33,6 +33,10 @@ interface GameSlice {
   game: Game | null;
   chess: Chess | null;
   myColor: PlayerColor | null;
+  loading: boolean;
+  
+  // Player info
+  playerUsernames: { white: string; black: string };
   
   // Game state
   currentFen: string;
@@ -61,6 +65,8 @@ interface UISlice {
   selectedSquare: Square | null;
   possibleMoves: Square[];
   lastMove: { from: Square; to: Square } | null;
+  previewMove: { from: Square; to: Square } | null;
+  previewBan: { from: Square; to: Square } | null;
   
   // Animations
   isAnimating: boolean;
@@ -95,6 +101,16 @@ interface NetworkSlice {
 
 interface LocalGameSlice {
   // Local game specific
+  localGame: {
+    chess: Chess;
+    currentPlayer: PlayerColor;
+    phase: 'banning' | 'playing';
+    bannedMove: { from: Square; to: Square; bannedBy: PlayerColor } | null;
+    status: 'active' | 'checkmate' | 'stalemate' | 'draw';
+    winner: PlayerColor | null;
+    moveHistory: Array<any>;
+  } | null;
+  localGameOrientation: PlayerColor;
   localCurrentPlayer: PlayerColor;
   localPhase: 'banning' | 'playing';
   localBannedMove: { from: Square; to: Square; bannedBy: PlayerColor } | null;
@@ -120,10 +136,23 @@ interface GameActions {
   updateGame: (game: Partial<Game>) => void;
   setPhase: (phase: GamePhase) => void;
   syncWithServer: (game: Game) => void;
+  setPgn: (pgn: string) => void;
   
   // Local game operations
-  localSelectBan: (from: Square, to: Square) => void;
-  localMakeMove: (from: Square, to: Square, promotion?: string) => boolean;
+  selectLocalBan: (from: Square, to: Square) => void;
+  makeLocalMove: (from: Square, to: Square, promotion?: string) => boolean;
+  resetLocalGame: () => void;
+  getLocalPossibleMoves: () => Array<{ from: Square; to: Square; san: string }>;
+  isLocalMoveBanned: (from: Square, to: Square) => boolean;
+  getLocalGameStatusMessage: () => string;
+  
+  // Game actions (resign, draw, etc)
+  actions: {
+    resign: () => void;
+    offerDraw: () => void;
+    acceptDraw: () => void;
+    declineDraw: () => void;
+  };
 }
 
 interface UIActions {
@@ -175,6 +204,8 @@ const initialState = {
   game: null,
   chess: null,
   myColor: null,
+  loading: false,
+  playerUsernames: { white: 'White', black: 'Black' },
   currentFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
   phase: 'waiting_for_move' as GamePhase,
   currentTurn: 'white' as PlayerColor,
@@ -189,6 +220,8 @@ const initialState = {
   selectedSquare: null,
   possibleMoves: [],
   lastMove: null,
+  previewMove: null,
+  previewBan: null,
   isAnimating: false,
   pendingAnimation: null,
   showPromotionDialog: false,
@@ -209,6 +242,8 @@ const initialState = {
   syncQueue: [],
   
   // Local game slice
+  localGame: null,
+  localGameOrientation: 'white' as PlayerColor,
   localCurrentPlayer: 'white' as PlayerColor,
   localPhase: 'banning' as 'banning' | 'playing',
   localBannedMove: null,
@@ -677,6 +712,248 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           isSyncing: false,
           syncQueue: [],
         }),
+        
+        // ============= Additional Missing Methods =============
+        
+        setPgn: (pgn) => {
+          const state = get();
+          if (state.game) {
+            set({ game: { ...state.game, pgn } });
+          }
+        },
+        
+        selectLocalBan: (from, to) => {
+          const state = get();
+          if (!state.localGame) return;
+          
+          const bannedBy = state.localGame.currentPlayer === 'white' ? 'black' : 'white';
+          set({
+            localGame: {
+              ...state.localGame,
+              bannedMove: { from, to, bannedBy },
+              phase: 'playing',
+            },
+            localBannedMove: { from, to, bannedBy },
+            localPhase: 'playing',
+          });
+        },
+        
+        makeLocalMove: (from, to, promotion) => {
+          const state = get();
+          if (!state.localGame || state.localGame.phase !== 'playing') return false;
+          
+          // Check if move is banned
+          if (state.localGame.bannedMove && 
+              state.localGame.bannedMove.from === from && 
+              state.localGame.bannedMove.to === to) {
+            return false;
+          }
+          
+          // Try to make the move
+          const move = state.localGame.chess.move({ from, to, promotion: promotion as any });
+          if (!move) return false;
+          
+          const newFen = state.localGame.chess.fen();
+          const newCurrentPlayer = state.localGame.currentPlayer === 'white' ? 'black' : 'white';
+          
+          // Check game status
+          let newStatus = state.localGame.status;
+          let newWinner = state.localGame.winner;
+          
+          if (state.localGame.chess.inCheckmate()) {
+            newStatus = 'checkmate';
+            newWinner = state.localGame.currentPlayer;
+          } else if (state.localGame.chess.inStalemate()) {
+            newStatus = 'stalemate';
+          } else if (state.localGame.chess.inDraw()) {
+            newStatus = 'draw';
+          }
+          
+          const newMoveHistory = [...state.localGame.moveHistory, {
+            from,
+            to,
+            san: move.san,
+            playerColor: state.localGame.currentPlayer,
+            moveNumber: Math.floor(state.localGame.moveHistory.length / 2) + 1,
+            bannedMove: state.localGame.bannedMove,
+          }];
+          
+          set({
+            localGame: {
+              ...state.localGame,
+              currentPlayer: newCurrentPlayer,
+              phase: newStatus === 'active' ? 'banning' : 'playing',
+              bannedMove: null,
+              status: newStatus,
+              winner: newWinner,
+              moveHistory: newMoveHistory,
+            },
+            localCurrentPlayer: newCurrentPlayer,
+            localPhase: newStatus === 'active' ? 'banning' : 'playing',
+            localBannedMove: null,
+            localGameStatus: newStatus,
+            localWinner: newWinner,
+            currentFen: newFen,
+            lastMove: { from, to },
+          });
+          
+          return true;
+        },
+        
+        resetLocalGame: () => {
+          const chess = new Chess();
+          set({
+            localGame: {
+              chess,
+              currentPlayer: 'white',
+              phase: 'banning',
+              bannedMove: null,
+              status: 'active',
+              winner: null,
+              moveHistory: [],
+            },
+            localCurrentPlayer: 'white',
+            localPhase: 'banning',
+            localBannedMove: null,
+            localGameStatus: 'active',
+            localWinner: null,
+            currentFen: chess.fen(),
+            moveHistory: [],
+            banHistory: [],
+            lastMove: null,
+          });
+        },
+        
+        getLocalPossibleMoves: () => {
+          const state = get();
+          if (!state.localGame) return [];
+          
+          return state.localGame.chess.moves({ verbose: true }).map(move => ({
+            from: move.from as Square,
+            to: move.to as Square,
+            san: move.san,
+          }));
+        },
+        
+        isLocalMoveBanned: (from, to) => {
+          const state = get();
+          if (!state.localGame || !state.localGame.bannedMove) return false;
+          return state.localGame.bannedMove.from === from && state.localGame.bannedMove.to === to;
+        },
+        
+        getLocalGameStatusMessage: () => {
+          const state = get();
+          if (!state.localGame) return '';
+          
+          switch (state.localGame.status) {
+            case 'checkmate':
+              return `Checkmate! ${state.localGame.winner === 'white' ? 'White' : 'Black'} wins!`;
+            case 'stalemate':
+              return 'Stalemate! The game is a draw.';
+            case 'draw':
+              return 'Draw!';
+            default:
+              if (state.localGame.phase === 'banning') {
+                const banningPlayer = state.localGame.currentPlayer === 'white' ? 'Black' : 'White';
+                return `${banningPlayer} is selecting a move to ban`;
+              } else {
+                const currentPlayer = state.localGame.currentPlayer === 'white' ? 'White' : 'Black';
+                return `${currentPlayer} to move`;
+              }
+          }
+        },
+        
+        actions: {
+          resign: () => {
+            const state = get();
+            if (state.game && state.myColor) {
+              // TODO: Call API to resign
+              console.log('Resigning...');
+            }
+          },
+          
+          offerDraw: () => {
+            const state = get();
+            if (state.game && state.myColor) {
+              // TODO: Call API to offer draw
+              console.log('Offering draw...');
+            }
+          },
+          
+          acceptDraw: () => {
+            const state = get();
+            if (state.game && state.myColor) {
+              // TODO: Call API to accept draw
+              console.log('Accepting draw...');
+            }
+          },
+          
+          declineDraw: () => {
+            const state = get();
+            if (state.game && state.myColor) {
+              // TODO: Call API to decline draw
+              console.log('Declining draw...');
+            }
+          },
+          
+          offerRematch: () => {
+            const state = get();
+            if (state.game && state.myColor) {
+              // TODO: Call API to offer rematch
+              console.log('Offering rematch...');
+            }
+          },
+          
+          acceptRematch: () => {
+            const state = get();
+            if (state.game && state.myColor) {
+              // TODO: Call API to accept rematch
+              console.log('Accepting rematch...');
+            }
+          },
+          
+          declineRematch: () => {
+            const state = get();
+            if (state.game && state.myColor) {
+              // TODO: Call API to decline rematch
+              console.log('Declining rematch...');
+            }
+          },
+          
+          resetGame: () => {
+            set(initialState);
+          },
+          
+          startLocalGame: () => {
+            const chess = new Chess();
+            set({
+              mode: 'local',
+              localGame: {
+                chess,
+                currentPlayer: 'white',
+                phase: 'banning',
+                bannedMove: null,
+                status: 'active',
+                winner: null,
+                moveHistory: [],
+              },
+              chess,
+              currentFen: chess.fen(),
+              localCurrentPlayer: 'white',
+              localPhase: 'banning',
+              localBannedMove: null,
+              localGameStatus: 'active',
+              localWinner: null,
+              moveHistory: [],
+              banHistory: [],
+            });
+          },
+          
+          flipBoardOrientation: () => {
+            const state = get();
+            set({ boardOrientation: state.boardOrientation === 'white' ? 'black' : 'white' });
+          },
+        },
       })),
     {
       name: 'unified-game-store',

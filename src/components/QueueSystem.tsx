@@ -30,7 +30,7 @@ import {
 } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { GameService } from "@/services/gameService";
 import { UserService } from "@/services/userService";
 import { useRouter } from "next/router";
@@ -43,7 +43,7 @@ interface GameWithOpponent extends Game {
 const QueueSystem = () => {
   const { queue, matchDetails, handleQueueToggle, stats } = useConnection();
   const { user } = useAuth();
-  const { actions: gameActions } = useGame();
+  const gameActions = useUnifiedGameStore(s => s.actions);
   const [activeGames, setActiveGames] = useState<GameWithOpponent[]>([]);
   const [hasActiveGames, setHasActiveGames] = useState(false);
   const [checking, setChecking] = useState(false);

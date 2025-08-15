@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Box, Typography, Chip } from "@mui/material";
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import BlockIcon from "@mui/icons-material/Block";
 
 interface BanPhaseOverlayProps {
@@ -10,7 +10,8 @@ interface BanPhaseOverlayProps {
 export default function BanPhaseOverlay({
   isMyTurnToBan,
 }: BanPhaseOverlayProps) {
-  const { phase, game } = useGame();
+  const phase = useUnifiedGameStore(s => s.phase);
+  const game = useUnifiedGameStore(s => s.game);
 
   const isBanPhase = phase === "selecting_ban" || phase === "waiting_for_ban";
 

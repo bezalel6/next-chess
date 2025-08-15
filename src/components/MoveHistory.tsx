@@ -1,6 +1,6 @@
 import { Box, Typography, Tooltip, IconButton } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { Chess } from "chess.ts";
 import { getAllBannedMoves, getBannedMove, getMoveNumber } from '@/utils/gameUtils';
 import BlockIcon from '@mui/icons-material/Block';
@@ -37,7 +37,12 @@ function pliesToMoves(plies: Ply[]): Move[] {
   return moves;
 }
 const MoveHistory = () => {
-  const { game, setPgn, actions, myColor, isLocalGame, localGameOrientation } = useGame();
+  const game = useUnifiedGameStore(s => s.game);
+  const setPgn = useUnifiedGameStore(s => s.setPgn);
+  const actions = useUnifiedGameStore(s => s.actions);
+  const myColor = useUnifiedGameStore(s => s.myColor);
+  const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
+  const localGameOrientation = useUnifiedGameStore(s => s.localGameOrientation);
   const [currentPlyIndex, setCurrentPlyIndex] = useState<number>(-1);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
   const prevGameIdRef = useRef<string | null>(null);

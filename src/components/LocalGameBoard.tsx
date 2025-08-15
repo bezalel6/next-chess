@@ -3,21 +3,19 @@ import { Box, Typography, Paper, Chip, Alert, Button } from '@mui/material';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.ts';
 import type { Square } from 'chess.ts/dist/types';
-import { useLocalGame } from '@/contexts/LocalGameContext';
+import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import BlockIcon from '@mui/icons-material/Block';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 
 const LocalGameBoard: React.FC = () => {
-  const { 
-    gameState, 
-    selectBan, 
-    makeMove, 
-    resetGame, 
-    getPossibleMoves,
-    isMoveBanned,
-    getGameStatusMessage 
-  } = useLocalGame();
+  const gameState = useUnifiedGameStore(s => s.localGame);
+  const selectBan = useUnifiedGameStore(s => s.selectLocalBan);
+  const makeMove = useUnifiedGameStore(s => s.makeLocalMove);
+  const resetGame = useUnifiedGameStore(s => s.resetLocalGame);
+  const getPossibleMoves = useUnifiedGameStore(s => s.getLocalPossibleMoves);
+  const isMoveBanned = useUnifiedGameStore(s => s.isLocalMoveBanned);
+  const getGameStatusMessage = useUnifiedGameStore(s => s.getLocalGameStatusMessage);
   
   const [moveFrom, setMoveFrom] = useState<Square | null>(null);
   const [moveTo, setMoveTo] = useState<Square | null>(null);
@@ -259,7 +257,7 @@ const LocalGameBoard: React.FC = () => {
         {/* Current Status */}
         <Alert 
           severity={
-            gameState.gameStatus !== 'active' ? 'success' :
+            gameState.status !== 'active' ? 'success' :
             gameState.phase === 'banning' ? 'warning' : 'info'
           }
           icon={gameState.phase === 'banning' ? <BlockIcon /> : <SportsEsportsIcon />}

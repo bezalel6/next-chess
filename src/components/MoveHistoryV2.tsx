@@ -1,6 +1,6 @@
 import { Box, Typography, Tooltip, IconButton } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
 import type { Square } from 'chess.ts/dist/types';
 import BlockIcon from '@mui/icons-material/Block';
@@ -36,7 +36,12 @@ type Move = {
 };
 
 const MoveHistoryV2 = () => {
-  const { game, setPgn, actions, myColor, isLocalGame, localGameOrientation } = useGame();
+  const game = useUnifiedGameStore(s => s.game);
+  const setPgn = useUnifiedGameStore(s => s.setPgn);
+  const actions = useUnifiedGameStore(s => s.actions);
+  const myColor = useUnifiedGameStore(s => s.myColor);
+  const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
+  const localGameOrientation = useUnifiedGameStore(s => s.localGameOrientation);
   const [currentPlyIndex, setCurrentPlyIndex] = useState<number>(-1);
   const moveHistoryRef = useRef<HTMLDivElement>(null);
 

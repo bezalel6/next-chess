@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
 import LichessBoardV2 from "./LichessBoardV2";
 import BanPhaseOverlay from "./BanPhaseOverlay";
@@ -12,7 +12,10 @@ export default function GameBoardV2({
 }: {
   orientation?: "white" | "black";
 }) {
-  const { game, myColor, canBan, canMove } = useGame();
+  const game = useUnifiedGameStore(s => s.game);
+  const myColor = useUnifiedGameStore(s => s.myColor);
+  const canBan = useUnifiedGameStore(s => s.canBan());
+  const canMove = useUnifiedGameStore(s => s.canMove());
   const [boardSize, setBoardSize] = useState(560);
   const [isResizing, setIsResizing] = useState(false);
   const boardRef = useRef<HTMLDivElement>(null);

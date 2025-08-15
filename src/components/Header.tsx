@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { PersonOutline as PersonIcon } from "@mui/icons-material";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import React, { useState, useEffect } from "react";
 import TabDialog from "./TabDialog";
 import UserLink from "./user-link";
@@ -31,7 +31,9 @@ function useScrollEffect() {
 
 const Header = () => {
   const { profileUsername } = useAuth();
-  const { game, loading, myColor } = useGame();
+  const game = useUnifiedGameStore(s => s.game);
+  const loading = useUnifiedGameStore(s => s.loading);
+  const myColor = useUnifiedGameStore(s => s.myColor);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isScrolled = useScrollEffect();

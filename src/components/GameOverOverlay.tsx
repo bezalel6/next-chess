@@ -1,11 +1,11 @@
 import { Box, Typography, Fade, Slide } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 
 const OVERLAY_DURATION = 1500; // ms
 
 const GameOverOverlay = () => {
-  const { game } = useGame();
+  const game = useUnifiedGameStore(s => s.game);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {

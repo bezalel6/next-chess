@@ -1,5 +1,5 @@
 import { Box, Typography, IconButton, Tooltip, Button } from '@mui/material';
-import { useGame } from '@/contexts/GameProvider';
+import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import MoveHistoryV2 from './MoveHistoryV2';
 import TimeControl from './TimeControl';
 import CachedIcon from '@mui/icons-material/Cached';
@@ -14,7 +14,11 @@ interface RightSidebarProps {
 }
 
 export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebarProps) {
-  const { game, myColor, playerUsernames, isLocalGame, actions } = useGame();
+  const game = useUnifiedGameStore(s => s.game);
+  const myColor = useUnifiedGameStore(s => s.myColor);
+  const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
+  const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
+  const actions = useUnifiedGameStore(s => s.actions);
   
   if (!game) return null;
 

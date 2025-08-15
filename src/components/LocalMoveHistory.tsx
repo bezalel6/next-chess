@@ -1,11 +1,11 @@
 import React from 'react';
 import { Box, Typography, Paper, Chip, List, ListItem, Divider } from '@mui/material';
-import { useLocalGame } from '@/contexts/LocalGameContext';
+import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import BlockIcon from '@mui/icons-material/Block';
 import FlagIcon from '@mui/icons-material/Flag';
 
 const LocalMoveHistory: React.FC = () => {
-  const { gameState } = useLocalGame();
+  const gameState = useUnifiedGameStore(s => s.localGame);
 
   if (!gameState) {
     return null;
@@ -50,14 +50,14 @@ const LocalMoveHistory: React.FC = () => {
           variant="outlined"
           sx={{ color: '#bababa', borderColor: 'rgba(255,255,255,0.2)' }}
         />
-        {gameState.gameStatus !== 'active' && (
+        {gameState.status !== 'active' && (
           <Chip 
-            label={gameState.gameStatus === 'checkmate' 
+            label={gameState.status === 'checkmate' 
               ? `${gameState.winner === 'white' ? 'White' : 'Black'} wins!` 
-              : gameState.gameStatus
+              : gameState.status
             }
             size="small"
-            color={gameState.gameStatus === 'checkmate' ? 'success' : 'warning'}
+            color={gameState.status === 'checkmate' ? 'success' : 'warning'}
           />
         )}
       </Box>

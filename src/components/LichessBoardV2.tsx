@@ -7,7 +7,7 @@ import {
   type ComponentProps,
 } from "react";
 import { Box } from "@mui/material";
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
 import { Chess } from "chess.ts";
 import type { Square } from "chess.ts/dist/types";
@@ -24,20 +24,18 @@ interface LichessBoardV2Props {
 }
 
 export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
-  const {
-    game,
-    myColor,
-    canBan,
-    canMove,
-    makeMove,
-    banMove,
-    phase,
-    currentBannedMove,
-    highlightedSquares,
-    previewMove,
-    optimisticMove,
-    optimisticBan,
-  } = useGame();
+  const game = useUnifiedGameStore(s => s.game);
+  const myColor = useUnifiedGameStore(s => s.myColor);
+  const canBan = useUnifiedGameStore(s => s.canBan());
+  const canMove = useUnifiedGameStore(s => s.canMove());
+  const makeMove = useUnifiedGameStore(s => s.makeMove);
+  const banMove = useUnifiedGameStore(s => s.banMove);
+  const phase = useUnifiedGameStore(s => s.phase);
+  const currentBannedMove = useUnifiedGameStore(s => s.currentBannedMove);
+  const highlightedSquares = useUnifiedGameStore(s => s.highlightedSquares);
+  const previewMove = useUnifiedGameStore(s => s.previewMove);
+  const optimisticMove = useUnifiedGameStore(s => s.optimisticMove);
+  const optimisticBan = useUnifiedGameStore(s => s.optimisticBan);
   
   // Get navigation state and pending operation from store
   const { navigationFen, navigationBan, viewingPly, pendingOperation, optimisticFen } = useGameStore();
@@ -173,7 +171,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
         // Play ban sound
         const audio = new Audio("/sounds/check.wav");
         audio.play().catch(() => {});
-        banMove(from, to);
+        banMove(from as Square, to as Square);
       } else if (canMove) {
         // Check for promotion
         const move = chess?.move({
@@ -186,9 +184,9 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
 
           if (move.promotion) {
             // TODO: Show promotion dialog
-            makeMove(from, to, "q");
+            makeMove(from as Square, to as Square, "q");
           } else {
-            makeMove(from, to);
+            makeMove(from as Square, to as Square);
           }
         }
       }

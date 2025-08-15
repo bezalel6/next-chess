@@ -2,17 +2,15 @@ import { Box, Typography, Button, Stack, Paper, Fade } from "@mui/material";
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
 import HandshakeIcon from '@mui/icons-material/Handshake';
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useMemo, useState, useEffect } from "react";
 import UserLink from '@/components/user-link';
 
 const GameOverDetails = () => {
-    const {
-        game,
-        myColor,
-        playerUsernames,
-        actions
-    } = useGame();
+    const game = useUnifiedGameStore(s => s.game);
+    const myColor = useUnifiedGameStore(s => s.myColor);
+    const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
+    const actions = useUnifiedGameStore(s => s.actions);
 
     // Animate in on mount
     const [show, setShow] = useState(false);

@@ -10,7 +10,6 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '@/theme';
 import { AuthProvider } from "@/contexts/AuthContext";
-import { GameProvider } from "@/contexts/GameProvider";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import Head from "next/head";
 import Layout from "@/components/Layout";
@@ -63,11 +62,9 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
         <NotificationProvider>
           <HeartbeatProvider>
             <ConnectionProvider>
-              <GameProvider>
-                <Layout>
-                  <Component {...pageProps} />
-                </Layout>
-              </GameProvider>
+              <Layout>
+                <Component {...pageProps} />
+              </Layout>
             </ConnectionProvider>
           </HeartbeatProvider>
         </NotificationProvider>

@@ -4,11 +4,13 @@ import HandshakeIcon from '@mui/icons-material/Handshake';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useState } from "react";
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 
 // Draw offer buttons component
 const DrawButtons = () => {
-    const { game, myColor, actions } = useGame();
+    const game = useUnifiedGameStore(s => s.game);
+    const myColor = useUnifiedGameStore(s => s.myColor);
+    const actions = useUnifiedGameStore(s => s.actions);
 
     if (!game || !myColor) return null;
 
@@ -69,7 +71,9 @@ const DrawButtons = () => {
 // Game actions component
 const GameActions = () => {
     const [showResignConfirm, setShowResignConfirm] = useState(false);
-    const { game, myColor, actions } = useGame();
+    const game = useUnifiedGameStore(s => s.game);
+    const myColor = useUnifiedGameStore(s => s.myColor);
+    const actions = useUnifiedGameStore(s => s.actions);
 
     if (!game || game.status !== 'active' || !myColor) return null;
 

@@ -1,4 +1,5 @@
-import { useGame } from "@/contexts/GameProvider";
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
+import { useGameInit } from "@/hooks/useGameInit";
 import { Box, Typography } from "@mui/material";
 import { useRouter } from 'next/compat/router';
 import Head from "next/head";
@@ -13,7 +14,7 @@ import BoardMoveInput from "@/components/BoardMoveInput";
 
 // Left sidebar components
 const LeftSidebar = () => {
-    const { game } = useGame();
+    const game = useUnifiedGameStore(s => s.game);
     
     // Calculate time ago
     const getTimeAgo = () => {
@@ -84,17 +85,17 @@ const LeftSidebar = () => {
 };
 
 export default function GamePage() {
-    const { 
-        game, 
-        loading, 
-        myColor, 
-        playerUsernames, 
-        isLocalGame,
-        localGameOrientation,
-        canMove,
-        makeMove,
-        currentBannedMove
-    } = useGame();
+    // Initialize game
+    useGameInit();
+    
+    // Get state from store
+    const game = useUnifiedGameStore(s => s.game);
+    const loading = useUnifiedGameStore(s => s.loading);
+    const myColor = useUnifiedGameStore(s => s.myColor);
+    const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
+    const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
+    const localGameOrientation = useUnifiedGameStore(s => s.localGameOrientation);
+    
     const router = useRouter();
     const { id, as: asParam } = router.query;
     const [accessError, setAccessError] = useState<string | null>(null);

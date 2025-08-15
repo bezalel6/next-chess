@@ -1,6 +1,6 @@
 import { Box, Container, Typography, Button, Paper } from "@mui/material";
 import { useRouter } from "next/router";
-import { LocalGameProvider } from "@/contexts/LocalGameContext";
+import { useGameInit } from "@/hooks/useGameInit";
 import LocalGameBoard from "@/components/LocalGameBoard";
 import LocalMoveHistory from "@/components/LocalMoveHistory";
 import HomeIcon from '@mui/icons-material/Home';
@@ -8,13 +8,15 @@ import InfoIcon from '@mui/icons-material/Info';
 
 export default function LocalGamePage() {
   const router = useRouter();
+  
+  // Initialize local game
+  useGameInit();
 
   const handleReturnHome = () => {
     router.push("/");
   };
 
   return (
-    <LocalGameProvider>
       <Box sx={{ 
         minHeight: '100vh',
         bgcolor: '#161512',
@@ -136,6 +138,5 @@ export default function LocalGamePage() {
           </Container>
         </Box>
       </Box>
-    </LocalGameProvider>
   );
 }

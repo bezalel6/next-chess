@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { ComponentType } from 'react';
 import { Typography } from '@mui/material';
-import { useGame } from '@/contexts/GameProvider';
+import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import { formatTime } from '@/utils/timeUtils';
 import type { PlayerColor, Game } from '@/types/game';
 
@@ -12,7 +12,7 @@ interface TimeControlProps {
 // HOC that ensures components only render when a game is defined and in progress
 const withGame = <P extends object>(Component: ComponentType<P>) => {
     const WithGameComponent = (props: P) => {
-        const { game } = useGame();
+        const game = useUnifiedGameStore(s => s.game);
 
         // Only render when game exists and is in active status
         if (!game || game.status !== 'active') {
@@ -43,7 +43,7 @@ const withGame = <P extends object>(Component: ComponentType<P>) => {
 // Custom hook to manage timer state and logic
 // Since we're using withGame HOC, we can assume game is defined and active
 const usePlayerTimer = (playerColor: PlayerColor) => {
-    const { game } = useGame() as { game: Game & any }; // Assert game is defined with DB fields
+    const game = useUnifiedGameStore(s => s.game) as Game & any; // Assert game is defined with DB fields
     const [timeLeft, setTimeLeft] = useState<number>(600000); // Default 10 minutes
     const [lastTick, setLastTick] = useState<number>(Date.now());
 

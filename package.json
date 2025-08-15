@@ -19,7 +19,13 @@
     "preview": "next build && next start",
     "start": "bun --env-file=.env run src/server/server.ts",
     "typecheck": "tsc --noEmit",
-    "setup:admins": "bun run scripts/setup-admins.js"
+    "setup:admins": "bun run scripts/setup-admins.js",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:cleanup": "node tests/cleanup-processes.js",
+    "test:install": "playwright install"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",

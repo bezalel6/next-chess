@@ -11,7 +11,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import RightSidebar from "@/components/RightSidebar";
 import NotFoundScreen from "@/components/NotFoundScreen";
 import BoardMoveInput from "@/components/BoardMoveInput";
-import DebugLog from "@/components/DebugLog";
+import GameChat from "@/components/GameChat";
 import { useAuth } from "@/contexts/AuthContext";
 import GameWithRecovery from "@/components/GameWithRecovery";
 import DisconnectHandler from "@/components/DisconnectHandler";
@@ -93,7 +93,7 @@ const LeftSidebar = () => {
                 display: 'flex',
                 flexDirection: 'column',
             }}>
-                <DebugLog />
+                <GameChat gameId={game?.id || ''} />
             </Box>
         </Box>
     );
@@ -157,8 +157,8 @@ export default function GamePage() {
                     )
                 ) : game ? (
                     <>
-                        {/* Use GameWithRecovery component which includes recovery hook */}
-                        <GameWithRecovery 
+                        {/* Game layout with board and sidebars */}
+                        <GameLayout 
                             boardFlipped={boardFlipped}
                             onFlipBoard={() => setBoardFlipped(!boardFlipped)}
                         />

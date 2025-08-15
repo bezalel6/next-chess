@@ -4,7 +4,6 @@ import GameBoardV2 from './GameBoardV2';
 import BoardMoveInput from './BoardMoveInput';
 import RightSidebar from './RightSidebar';
 import DebugLog from './DebugLog';
-import { useGameStateRecovery } from '@/hooks/useGameStateRecovery';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 
 // Left sidebar component
@@ -96,14 +95,11 @@ interface GameWithRecoveryProps {
   onFlipBoard: () => void;
 }
 
-export default function GameWithRecovery({ boardFlipped, onFlipBoard }: GameWithRecoveryProps) {
+export default function GameLayout({ boardFlipped, onFlipBoard }: GameWithRecoveryProps) {
   const game = useUnifiedGameStore(s => s.game);
   const boardOrientation = useUnifiedGameStore(s => s.boardOrientation);
   const myColor = useUnifiedGameStore(s => s.myColor);
   const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
-  
-  // Use the recovery hook
-  const { isRecovering } = useGameStateRecovery(game?.id || null);
   
   return (
     <Box sx={{
@@ -114,8 +110,6 @@ export default function GameWithRecovery({ boardFlipped, onFlipBoard }: GameWith
       width: '100%',
       justifyContent: 'center',
       alignItems: 'flex-start',
-      opacity: isRecovering ? 0.7 : 1,
-      transition: 'opacity 0.3s ease',
     }}>
       {/* Left sidebar */}
       {!isLocalGame && <LeftSidebar />}

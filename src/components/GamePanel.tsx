@@ -1,4 +1,4 @@
-import { Box, Typography, Tooltip, IconButton, Button } from "@mui/material";
+import { Box, Typography, Tooltip, IconButton, Button, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
@@ -13,6 +13,9 @@ import FlagIcon from "@mui/icons-material/Flag";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import ViewStreamIcon from "@mui/icons-material/ViewStream";
+import ViewCompactIcon from "@mui/icons-material/ViewCompact";
+import ViewListIcon from "@mui/icons-material/ViewList";
 import { useSingleKeys, Keys } from "@/hooks/useKeys";
 import { supabase } from "@/utils/supabase";
 import { useQuery } from "@tanstack/react-query";
@@ -29,11 +32,21 @@ type MoveData = {
   promotion?: string;
   san: string;
   fen_after: string;
+  fen_before?: string;  // FEN before the move was made
   banned_from?: string;
   banned_to?: string;
   banned_by?: "white" | "black";
   time_taken_ms?: number;
 };
+
+// Navigation state type - now tracks half-moves
+type NavigationState = {
+  moveIndex: number;  // -1 for initial position, 0+ for moves
+  phase: 'initial' | 'after-ban' | 'after-move';  // Which phase within a move
+};
+
+// Layout options for ban/move display
+type BanMoveLayout = 'stacked' | 'inline' | 'side-by-side' | 'compact';
 
 type Move = {
   number: number;
@@ -48,7 +61,24 @@ const GamePanel = () => {
   const myColor = useUnifiedGameStore((s) => s.myColor);
   const isLocalGame = useUnifiedGameStore((s) => s.mode === "local");
   const boardOrientation = useUnifiedGameStore((s) => s.boardOrientation);
-  const [currentPlyIndex, setCurrentPlyIndex] = useState<number>(-1);
+  const [navigationState, setNavigationState] = useState<NavigationState>({
+    moveIndex: -1,
+    phase: 'initial'
+  });
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const [banMoveLayout, setBanMoveLayout] = useState<BanMoveLayout>(() => {
+    // Load from localStorage
+    const saved = localStorage.getItem('banMoveLayout');
+    return (saved as BanMoveLayout) || 'stacked';
+  });
+
+  // Save layout preference
+  const handleLayoutChange = (_: React.MouseEvent<HTMLElement>, newLayout: BanMoveLayout | null) => {
+    if (newLayout) {
+      setBanMoveLayout(newLayout);
+      localStorage.setItem('banMoveLayout', newLayout);
+    }
+  };
   const moveHistoryRef = useRef<HTMLDivElement>(null);
   const gameActions = useGameActions();
 
@@ -134,29 +164,47 @@ const GamePanel = () => {
     return paired;
   }, [movesData]);
 
-  // Get the currently selected move
+  // Get the currently selected move based on navigation state
   const selectedMove = useMemo(() => {
-    return currentPlyIndex >= 0 && currentPlyIndex < movesData.length
-      ? movesData[currentPlyIndex]
-      : null;
-  }, [currentPlyIndex, movesData]);
+    if (navigationState.moveIndex >= 0 && navigationState.moveIndex < movesData.length) {
+      return movesData[navigationState.moveIndex];
+    }
+    return null;
+  }, [navigationState.moveIndex, movesData]);
+
+  // Reset initialization when game changes
+  useEffect(() => {
+    setHasInitialized(false);
+    setNavigationState({ moveIndex: -1, phase: 'initial' });
+  }, [game?.id]);
+
+  // Initialize to show the last move as active when moves are loaded
+  useEffect(() => {
+    if (!hasInitialized && movesData.length > 0) {
+      setNavigationState({
+        moveIndex: movesData.length - 1,
+        phase: 'after-move'
+      });
+      setHasInitialized(true);
+    }
+  }, [movesData.length, hasInitialized]);
 
   // Auto-scroll to the latest move when new moves are added
   useEffect(() => {
-    if (moveHistoryRef.current && moves.length > 0 && currentPlyIndex === -1) {
-      // Only auto-scroll if not navigating (at current position)
+    if (moveHistoryRef.current && moves.length > 0) {
+      // Auto-scroll to bottom to show latest moves
       moveHistoryRef.current.scrollTop = moveHistoryRef.current.scrollHeight;
     }
-  }, [moves.length, currentPlyIndex]);
+  }, [moves.length]);
 
   // Scroll to the selected move when navigating
   useEffect(() => {
-    if (moveHistoryRef.current && currentPlyIndex >= 0) {
+    if (moveHistoryRef.current && navigationState.moveIndex >= 0) {
       // Find the element for the current move
       const moveElements =
         moveHistoryRef.current.querySelectorAll("[data-ply]");
       const targetElement = Array.from(moveElements).find(
-        (el) => el.getAttribute("data-ply") === currentPlyIndex.toString()
+        (el) => el.getAttribute("data-ply") === navigationState.moveIndex.toString()
       );
 
       if (targetElement) {
@@ -167,53 +215,99 @@ const GamePanel = () => {
         });
       }
     }
-  }, [currentPlyIndex]);
+  }, [navigationState.moveIndex]);
 
-  // Handle move selection - load position from FEN
-  const handleMoveClick = useCallback((move: MoveData) => {
-    // Navigate to this position
+  // Handle move selection - now supports half-move navigation
+  const handleMoveClick = useCallback((move: MoveData, clickedPhase: 'after-ban' | 'after-move' = 'after-move') => {
     const { navigateToPosition } = useGameStore.getState();
-
-    // Set the banned move for this position if it exists
-    const bannedMove =
-      move.banned_from && move.banned_to
+    
+    // Navigate to the appropriate position based on phase
+    if (clickedPhase === 'after-ban' && move.banned_from && move.banned_to) {
+      // Show position after ban but before move
+      const bannedMove = { from: move.banned_from as Square, to: move.banned_to as Square };
+      // Use fen_before if available, otherwise use previous move's fen_after
+      const fenToUse = move.fen_before || 
+        (move.ply_number > 0 ? movesData[move.ply_number - 1]?.fen_after : null) ||
+        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      navigateToPosition(move.ply_number, fenToUse, bannedMove);
+    } else {
+      // Show position after move
+      const bannedMove = move.banned_from && move.banned_to
         ? { from: move.banned_from as Square, to: move.banned_to as Square }
         : null;
+      navigateToPosition(move.ply_number, move.fen_after, bannedMove);
+    }
+    
+    setNavigationState({
+      moveIndex: move.ply_number,
+      phase: clickedPhase
+    });
+  }, [movesData]);
 
-    // Navigate to the position with banned move info
-    navigateToPosition(move.ply_number, move.fen_after, bannedMove);
-    setCurrentPlyIndex(move.ply_number);
+  // Navigation functions with half-move support
+  const navigateToFirst = useCallback(() => {
+    // Go to initial position (before any moves)
+    const { clearNavigation } = useGameStore.getState();
+    clearNavigation();
+    setNavigationState({ moveIndex: -1, phase: 'initial' });
   }, []);
 
-  // Navigation functions
-  const navigateToFirst = useCallback(() => {
-    if (movesData.length > 0) {
-      handleMoveClick(movesData[0]);
-    }
-  }, [handleMoveClick, movesData]);
-
   const navigateToPrevious = useCallback(() => {
-    if (currentPlyIndex > 0) {
-      handleMoveClick(movesData[currentPlyIndex - 1]);
+    const { moveIndex, phase } = navigationState;
+    
+    if (phase === 'after-move' && movesData[moveIndex]?.banned_from) {
+      // If at after-move and there was a ban, go to after-ban
+      handleMoveClick(movesData[moveIndex], 'after-ban');
+    } else if (phase === 'after-ban' || (phase === 'after-move' && !movesData[moveIndex]?.banned_from)) {
+      // Go to previous move's after-move phase
+      if (moveIndex > 0) {
+        handleMoveClick(movesData[moveIndex - 1], 'after-move');
+      } else {
+        // Go to initial position
+        navigateToFirst();
+      }
+    } else if (phase === 'initial' && movesData.length > 0) {
+      // Can't go before initial
+      return;
     }
-  }, [currentPlyIndex, handleMoveClick, movesData]);
+  }, [navigationState, handleMoveClick, movesData, navigateToFirst]);
 
   const navigateToNext = useCallback(() => {
-    if (currentPlyIndex < movesData.length - 1) {
-      handleMoveClick(movesData[currentPlyIndex + 1]);
+    const { moveIndex, phase } = navigationState;
+    
+    if (phase === 'initial') {
+      // From initial, go to first move's after-ban or after-move
+      if (movesData.length > 0) {
+        if (movesData[0].banned_from) {
+          handleMoveClick(movesData[0], 'after-ban');
+        } else {
+          handleMoveClick(movesData[0], 'after-move');
+        }
+      }
+    } else if (phase === 'after-ban') {
+      // From after-ban, go to after-move
+      handleMoveClick(movesData[moveIndex], 'after-move');
+    } else if (phase === 'after-move') {
+      // From after-move, go to next move's after-ban or after-move
+      if (moveIndex < movesData.length - 1) {
+        const nextMove = movesData[moveIndex + 1];
+        if (nextMove.banned_from) {
+          handleMoveClick(nextMove, 'after-ban');
+        } else {
+          handleMoveClick(nextMove, 'after-move');
+        }
+      }
     }
-  }, [currentPlyIndex, handleMoveClick, movesData]);
+  }, [navigationState, handleMoveClick, movesData]);
 
   const navigateToLast = useCallback(() => {
     if (movesData.length > 0) {
-      handleMoveClick(movesData[movesData.length - 1]);
+      handleMoveClick(movesData[movesData.length - 1], 'after-move');
     } else {
-      // If no moves, clear navigation to show starting position
-      const { clearNavigation } = useGameStore.getState();
-      clearNavigation();
-      setCurrentPlyIndex(-1);
+      // If no moves, stay at initial position
+      navigateToFirst();
     }
-  }, [handleMoveClick, movesData]);
+  }, [handleMoveClick, movesData, navigateToFirst]);
 
   // Add keyboard navigation
   useSingleKeys(
@@ -351,6 +445,68 @@ const GamePanel = () => {
         flexDirection: "column",
       }}
     >
+      {/* Layout Switcher */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          p: 1,
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          bgcolor: "rgba(0,0,0,0.2)",
+        }}
+      >
+        <Typography variant="caption" sx={{ color: '#888', ml: 1 }}>
+          Layout:
+        </Typography>
+        <ToggleButtonGroup
+          value={banMoveLayout}
+          exclusive
+          onChange={handleLayoutChange}
+          size="small"
+          sx={{
+            '& .MuiToggleButton-root': {
+              py: 0.25,
+              px: 0.75,
+              color: 'rgba(255,255,255,0.5)',
+              borderColor: 'rgba(255,255,255,0.1)',
+              fontSize: '0.75rem',
+              '&.Mui-selected': {
+                bgcolor: 'rgba(255,255,255,0.1)',
+                color: 'white',
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.15)',
+                },
+              },
+              '&:hover': {
+                bgcolor: 'rgba(255,255,255,0.05)',
+              },
+            },
+          }}
+        >
+          <ToggleButton value="stacked">
+            <Tooltip title="Stacked: Ban above move">
+              <ViewStreamIcon sx={{ fontSize: 16 }} />
+            </Tooltip>
+          </ToggleButton>
+          <ToggleButton value="inline">
+            <Tooltip title="Inline: Ban → Move">
+              <ViewCompactIcon sx={{ fontSize: 16 }} />
+            </Tooltip>
+          </ToggleButton>
+          <ToggleButton value="side-by-side">
+            <Tooltip title="Side by side: Ban | Move">
+              <ViewListIcon sx={{ fontSize: 16 }} />
+            </Tooltip>
+          </ToggleButton>
+          <ToggleButton value="compact">
+            <Tooltip title="Compact: Minimal">
+              <BlockIcon sx={{ fontSize: 16 }} />
+            </Tooltip>
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+      
       {/* Navigation Bar */}
       <Box
         sx={{
@@ -368,7 +524,7 @@ const GamePanel = () => {
             <IconButton
               size="small"
               onClick={navigateToFirst}
-              disabled={currentPlyIndex <= 0}
+              disabled={navigationState.moveIndex === -1 && navigationState.phase === 'initial'}
               sx={{
                 color: "white",
                 "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
@@ -383,7 +539,7 @@ const GamePanel = () => {
             <IconButton
               size="small"
               onClick={navigateToPrevious}
-              disabled={currentPlyIndex <= 0}
+              disabled={navigationState.moveIndex === -1 && navigationState.phase === 'initial'}
               sx={{
                 color: "white",
                 "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
@@ -424,7 +580,7 @@ const GamePanel = () => {
             <IconButton
               size="small"
               onClick={navigateToNext}
-              disabled={currentPlyIndex >= movesData.length - 1}
+              disabled={navigationState.moveIndex >= movesData.length - 1 && navigationState.phase === 'after-move'}
               sx={{
                 color: "white",
                 "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
@@ -439,7 +595,7 @@ const GamePanel = () => {
             <IconButton
               size="small"
               onClick={navigateToLast}
-              disabled={currentPlyIndex >= movesData.length - 1}
+              disabled={navigationState.moveIndex >= movesData.length - 1 && navigationState.phase === 'after-move'}
               sx={{
                 color: "white",
                 "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
@@ -483,7 +639,9 @@ const GamePanel = () => {
               key={move.number}
               move={move}
               selectedMove={selectedMove}
+              navigationState={navigationState}
               onMoveClick={handleMoveClick}
+              layout={banMoveLayout}
             />
           ))}
         </Box>
@@ -522,11 +680,15 @@ const GamePanel = () => {
 function MovesRow({
   move,
   selectedMove,
+  navigationState,
   onMoveClick,
+  layout,
 }: {
   move: Move;
   selectedMove: MoveData | null;
-  onMoveClick: (move: MoveData) => void;
+  navigationState: NavigationState;
+  onMoveClick: (move: MoveData, phase: 'after-ban' | 'after-move') => void;
+  layout: BanMoveLayout;
 }) {
   return (
     <Box
@@ -577,9 +739,15 @@ function MovesRow({
                 ? "3px 0 0 3px"
                 : 0,
           }}
-          onClick={() => onMoveClick(move.white!)}
+          onClick={() => onMoveClick(move.white!, 'after-move')}
         >
-          <MoveComponent move={move.white} />
+          <MoveComponent 
+            move={move.white}
+            isSelected={selectedMove?.ply_number === move.white.ply_number}
+            isBanPhase={navigationState.moveIndex === move.white.ply_number && navigationState.phase === 'after-ban'}
+            onBanClick={move.white.banned_from ? () => onMoveClick(move.white!, 'after-ban') : undefined}
+            layout={layout}
+          />
         </Box>
       )}
       {move.black ? (
@@ -610,9 +778,15 @@ function MovesRow({
                 ? "0 3px 3px 0"
                 : 0,
           }}
-          onClick={() => onMoveClick(move.black!)}
+          onClick={() => onMoveClick(move.black!, 'after-move')}
         >
-          <MoveComponent move={move.black} />
+          <MoveComponent 
+            move={move.black}
+            isSelected={selectedMove?.ply_number === move.black.ply_number}
+            isBanPhase={navigationState.moveIndex === move.black.ply_number && navigationState.phase === 'after-ban'}
+            onBanClick={move.black.banned_from ? () => onMoveClick(move.black!, 'after-ban') : undefined}
+            layout={layout}
+          />
         </Box>
       ) : (
         <Box
@@ -626,61 +800,312 @@ function MovesRow({
   );
 }
 
-function MoveComponent({ move }: { move: MoveData }) {
+function MoveComponent({ 
+  move, 
+  isSelected,
+  isBanPhase,
+  onBanClick,
+  layout 
+}: { 
+  move: MoveData;
+  isSelected: boolean;
+  isBanPhase: boolean;
+  onBanClick?: () => void;
+  layout: BanMoveLayout;
+}) {
+  const hasBan = move.banned_from && move.banned_to;
+  
+  // Render based on layout
+  if (layout === 'stacked') {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          width: "100%",
+          height: "100%",
+          position: "relative",
+          padding: "2px 4px",
+          gap: 0.25,
+        }}
+      >
+        {/* Banned move on top */}
+        {hasBan && (
+          <Box 
+            onClick={(e) => {
+              e.stopPropagation();
+              onBanClick?.();
+            }}
+            sx={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: 0.5,
+              cursor: onBanClick ? 'pointer' : 'default',
+              px: 0.5,
+              py: 0.25,
+              borderRadius: 0.5,
+              bgcolor: isBanPhase ? 'rgba(255,0,0,0.2)' : 'transparent',
+              border: isBanPhase ? '1px solid' : 'none',
+              borderColor: isBanPhase ? 'error.main' : 'transparent',
+              transition: 'all 0.2s',
+              '&:hover': onBanClick ? { 
+                bgcolor: 'rgba(255,0,0,0.15)',
+              } : {},
+            }}
+          >
+            <BlockIcon sx={{ fontSize: 11, color: isBanPhase ? 'error.light' : 'error.main' }} />
+            <Typography
+              component="span"
+              sx={{
+                fontWeight: isBanPhase ? 'bold' : 'normal',
+                color: isBanPhase ? 'error.light' : 'error.main',
+                fontSize: "0.75rem",
+                fontStyle: 'italic',
+              }}
+            >
+              {move.banned_from}{move.banned_to}
+            </Typography>
+          </Box>
+        )}
+        {/* Actual move below */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Typography
+            component="span"
+            sx={{
+              fontWeight: "normal",
+              fontSize: "0.95rem",
+            }}
+          >
+            {move.san}
+          </Typography>
+          {move.time_taken_ms && (
+            <Typography
+              component="span"
+              sx={{
+                fontSize: "0.65rem",
+                color: "text.secondary",
+                ml: 1,
+              }}
+            >
+              {(move.time_taken_ms / 1000).toFixed(1)}s
+            </Typography>
+          )}
+        </Box>
+      </Box>
+    );
+  }
+  
+  if (layout === 'inline') {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+          padding: "4px",
+          gap: 1,
+        }}
+      >
+        {/* Ban and move on same line */}
+        {hasBan && (
+          <>
+            <Box 
+              onClick={(e) => {
+                e.stopPropagation();
+                onBanClick?.();
+              }}
+              sx={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 0.25,
+                cursor: onBanClick ? 'pointer' : 'default',
+                px: 0.5,
+                py: 0.25,
+                borderRadius: 0.5,
+                bgcolor: isBanPhase ? 'rgba(255,0,0,0.2)' : 'transparent',
+                border: isBanPhase ? '1px solid' : 'none',
+                borderColor: isBanPhase ? 'error.main' : 'transparent',
+                transition: 'all 0.2s',
+                '&:hover': onBanClick ? { bgcolor: 'rgba(255,0,0,0.1)' } : {},
+              }}
+            >
+              <BlockIcon sx={{ fontSize: 12, color: isBanPhase ? 'error.light' : 'error.dark' }} />
+              <Typography
+                component="span"
+                sx={{
+                  fontWeight: isBanPhase ? 'bold' : 'normal',
+                  color: isBanPhase ? 'error.light' : 'error.dark',
+                  fontSize: "0.8rem",
+                }}
+              >
+                {move.banned_from}{move.banned_to}
+              </Typography>
+            </Box>
+            <Typography sx={{ color: '#666', fontSize: '0.8rem' }}>→</Typography>
+          </>
+        )}
+        <Typography
+          component="span"
+          sx={{
+            fontWeight: "normal",
+            fontSize: "0.95rem",
+          }}
+        >
+          {move.san}
+        </Typography>
+        {move.time_taken_ms && (
+          <Typography
+            component="span"
+            sx={{
+              fontSize: "0.65rem",
+              color: "text.secondary",
+              ml: "auto",
+            }}
+          >
+            {(move.time_taken_ms / 1000).toFixed(1)}s
+          </Typography>
+        )}
+      </Box>
+    );
+  }
+  
+  if (layout === 'side-by-side') {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+          padding: "4px",
+          gap: 0.5,
+        }}
+      >
+        {/* Ban on left, move on right with separator */}
+        {hasBan ? (
+          <>
+            <Box 
+              onClick={(e) => {
+                e.stopPropagation();
+                onBanClick?.();
+              }}
+              sx={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 0.25,
+                cursor: onBanClick ? 'pointer' : 'default',
+                flex: '0 0 auto',
+                px: 0.5,
+                py: 0.25,
+                borderRadius: 0.5,
+                bgcolor: isBanPhase ? 'rgba(255,0,0,0.2)' : 'transparent',
+                border: isBanPhase ? '1px solid' : 'none',
+                borderColor: isBanPhase ? 'error.main' : 'transparent',
+                transition: 'all 0.2s',
+                '&:hover': onBanClick ? { bgcolor: 'rgba(255,0,0,0.1)' } : {},
+              }}
+            >
+              <BlockIcon sx={{ fontSize: 11, color: isBanPhase ? 'error.light' : '#888' }} />
+              <Typography
+                component="span"
+                sx={{
+                  fontWeight: isBanPhase ? 'bold' : 'normal',
+                  color: isBanPhase ? 'error.light' : '#888',
+                  fontSize: "0.75rem",
+                }}
+              >
+                {move.banned_from}{move.banned_to}
+              </Typography>
+            </Box>
+            <Box sx={{ width: '1px', height: '16px', bgcolor: 'rgba(255,255,255,0.1)' }} />
+          </>
+        ) : (
+          <Box sx={{ width: '60px' }} /> // Spacer for alignment
+        )}
+        <Typography
+          component="span"
+          sx={{
+            fontWeight: "normal",
+            fontSize: "0.95rem",
+            flex: 1,
+          }}
+        >
+          {move.san}
+        </Typography>
+        {move.time_taken_ms && (
+          <Typography
+            component="span"
+            sx={{
+              fontSize: "0.65rem",
+              color: "text.secondary",
+            }}
+          >
+            {(move.time_taken_ms / 1000).toFixed(1)}s
+          </Typography>
+        )}
+      </Box>
+    );
+  }
+  
+  // Compact layout
   return (
     <Box
       sx={{
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between",
         width: "100%",
-        height: "100%",
-        position: "relative",
-        padding: "4px",
+        padding: "2px 4px",
+        gap: 0.5,
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        {/* Show banned move if it exists */}
-        {move.banned_from && move.banned_to && (
+      {hasBan && (
+        <Box 
+          onClick={(e) => {
+            e.stopPropagation();
+            onBanClick?.();
+          }}
+          sx={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 0.25,
+            cursor: onBanClick ? 'pointer' : 'default',
+            transition: 'all 0.2s',
+            '&:hover': onBanClick ? { opacity: 1 } : {},
+            opacity: isBanPhase ? 1 : 0.6,
+          }}
+        >
+          <BlockIcon sx={{ 
+            fontSize: 10, 
+            color: isBanPhase ? 'error.light' : 'error.dark',
+            filter: isBanPhase ? 'drop-shadow(0 0 4px rgba(255,0,0,0.5))' : 'none',
+          }} />
           <Typography
             component="span"
             sx={{
-              fontWeight: "normal",
-              color: "error.main",
-              fontSize: "0.9rem",
+              fontWeight: isBanPhase ? 'bold' : 'normal',
+              color: isBanPhase ? 'error.light' : 'error.dark',
+              fontSize: "0.7rem",
             }}
           >
-            {move.banned_from}
-            {move.banned_to}
+            {move.banned_from[0]}{move.banned_to}
           </Typography>
-        )}
-
-        {/* Show actual move if it exists */}
-        {move.san && (
-          <Typography
-            component="span"
-            sx={{
-              fontWeight: "normal",
-              display: "flex",
-              alignItems: "center",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {move.san}
-          </Typography>
-        )}
-      </Box>
-
+        </Box>
+      )}
+      <Typography
+        component="span"
+        sx={{
+          fontWeight: "normal",
+          fontSize: "0.9rem",
+        }}
+      >
+        {move.san}
+      </Typography>
       {move.time_taken_ms && (
         <Typography
           component="span"
           sx={{
-            fontSize: "0.75rem",
+            fontSize: "0.6rem",
             color: "text.secondary",
             ml: "auto",
-            pl: 1,
           }}
         >
           {(move.time_taken_ms / 1000).toFixed(1)}s

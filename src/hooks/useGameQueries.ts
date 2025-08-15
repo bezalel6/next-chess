@@ -6,7 +6,7 @@ import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import { useDebugLogStore } from '@/stores/debugLogStore';
 import { useChessSounds } from './useChessSounds';
 import type { Game, ChessMove, PlayerColor } from '@/types/game';
-import type { Square } from 'chess.ts/dist/types';
+import type { Square, PieceSymbol } from 'chess.ts/dist/types';
 import { Chess } from 'chess.ts';
 
 // ============= Game Query Hook =============
@@ -362,7 +362,7 @@ export function useGame(gameId: string | undefined, userId: string | undefined) 
     ? true
     : (mode !== 'spectator' && game?.turn === myColor && game?.status === 'active');
   
-  const makeMove = useCallback((from: string, to: string, promotion?: string) => {
+  const makeMove = useCallback((from: string, to: string, promotion?: PieceSymbol) => {
     if (mode === 'local') {
       // Handle local move with sound
       const store = useUnifiedGameStore.getState();

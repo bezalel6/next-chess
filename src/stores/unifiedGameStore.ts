@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector, devtools } from 'zustand/middleware';
 import { Chess } from 'chess.ts';
 import type { Square, PartialMove } from 'chess.ts/dist/types';
-import type { Game, PlayerColor } from '@/types/game';
+import type { Game, PlayerColor, GameStatus } from '@/types/game';
 
 // ============= Types =============
 export type GameMode = 'online' | 'local' | 'spectator';

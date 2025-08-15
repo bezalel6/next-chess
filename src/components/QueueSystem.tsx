@@ -43,7 +43,7 @@ interface GameWithOpponent extends Game {
 const QueueSystem = () => {
   const { queue, matchDetails, handleQueueToggle, stats } = useConnection();
   const { user } = useAuth();
-  const gameActions = useUnifiedGameStore(s => s.actions);
+  const gameActions = useUnifiedGameStore((s) => s.actions);
   const [activeGames, setActiveGames] = useState<GameWithOpponent[]>([]);
   const [hasActiveGames, setHasActiveGames] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -331,8 +331,13 @@ const QueueSystem = () => {
             color="secondary"
             startIcon={<Psychology />}
             onClick={() => {
+              console.log(
+                "Local game implemented:",
+                !!gameActions.startLocalGame
+              );
               if (gameActions.startLocalGame) {
                 gameActions.startLocalGame();
+                router.replace("/local-game");
               }
             }}
             size="large"

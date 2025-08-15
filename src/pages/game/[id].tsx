@@ -12,6 +12,7 @@ import RightSidebar from "@/components/RightSidebar";
 import NotFoundScreen from "@/components/NotFoundScreen";
 import BoardMoveInput from "@/components/BoardMoveInput";
 import DebugLog from "@/components/DebugLog";
+import GamePlayersPanel from "@/components/GamePlayersPanel";
 
 // Left sidebar components
 const LeftSidebar = () => {
@@ -70,6 +71,9 @@ const LeftSidebar = () => {
             gap: 2,
             height: '100%',
         }}>
+            {/* Players Panel with Presence */}
+            <GamePlayersPanel />
+            
             {/* Game info */}
             <Box sx={{
                 bgcolor: 'rgba(255,255,255,0.03)',

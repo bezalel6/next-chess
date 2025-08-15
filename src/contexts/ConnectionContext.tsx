@@ -5,6 +5,8 @@ import { useRouter } from "next/router";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { GameMatch } from "../types/realtime";
 import { useAuth } from "./AuthContext";
+import { useNotification } from "./NotificationContext";
+import { useAuthErrorHandler } from "@/hooks/useAuthErrorHandler";
 
 interface QueueState {
     inQueue: boolean;
@@ -45,6 +47,8 @@ export function useConnection() {
 export function ConnectionProvider({ children }: { children: ReactNode }) {
     const { session } = useAuth();
     const router = useRouter();
+    const { notifyError, notifySuccess, notifyInfo } = useNotification();
+    const { handleAuthErrorWithNotification } = useAuthErrorHandler();
     const [queue, setQueue] = useState<QueueState>({ inQueue: false, position: 0, size: 0 });
     const [matchDetails, setMatchDetails] = useState<GameMatch | null>(null);
 
@@ -198,8 +202,17 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     await MatchmakingService.leaveQueue(session);
                     setQueue(prev => ({ ...prev, inQueue: false }));
                     addLogEntry("Left matchmaking queue");
-                } catch (error) {
+                    notifyInfo("Left matchmaking queue");
+                } catch (error: any) {
                     console.error('Error leaving queue:', error);
+                    
+                    // Check if it's an auth error
+                    if (error?.message?.includes('401') || error?.message?.includes('406')) {
+                        await handleAuthErrorWithNotification({ status: 401 });
+                    } else {
+                        notifyError(`Failed to leave queue: ${error.message || 'Unknown error'}`);
+                    }
+                    
                     addLogEntry(`Error leaving queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
             } else {
@@ -229,9 +242,37 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     await MatchmakingService.joinQueue(session);
                     setQueue(prev => ({ ...prev, inQueue: true }));
                     addLogEntry("Joined matchmaking queue");
-                } catch (error) {
+                    notifySuccess("Joined matchmaking queue");
+                } catch (error: any) {
                     console.error('Error joining queue:', error);
-                    addLogEntry(`Error joining queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    
+                    // Check if it's an auth error
+                    if (error?.message?.includes('401') || error?.message?.includes('406') || 
+                        error?.message?.includes('not authenticated') || error?.message?.includes('non-2xx')) {
+                        // Try to refresh the session
+                        const refreshed = await handleAuthErrorWithNotification({ status: 401 });
+                        
+                        if (refreshed) {
+                            // Retry joining the queue with refreshed session
+                            try {
+                                const { data: { session: newSession } } = await supabase.auth.getSession();
+                                if (newSession) {
+                                    await MatchmakingService.joinQueue(newSession);
+                                    setQueue(prev => ({ ...prev, inQueue: true }));
+                                    addLogEntry("Joined matchmaking queue after session refresh");
+                                    notifySuccess("Joined matchmaking queue");
+                                }
+                            } catch (retryError) {
+                                console.error('Error joining queue after refresh:', retryError);
+                                notifyError("Failed to join matchmaking queue. Please try again.");
+                                addLogEntry(`Error joining queue: ${retryError instanceof Error ? retryError.message : 'Unknown error'}`);
+                            }
+                        }
+                    } else {
+                        // Non-auth error
+                        notifyError(`Failed to join queue: ${error.message || 'Unknown error'}`);
+                        addLogEntry(`Error joining queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    }
                 }
             }
         } catch (error) {

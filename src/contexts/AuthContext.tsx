@@ -63,20 +63,87 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const validateAndRefreshSession = async () => {
+        try {
+            // Get the current session
+            const { data: { session }, error } = await supabaseBrowser().auth.getSession();
+            
+            if (error) {
+                console.error('[AuthContext] Session validation error:', error);
+                updateUserState(null);
+                return null;
+            }
+
+            if (!session) {
+                updateUserState(null);
+                return null;
+            }
+
+            // Check if session is expired or about to expire (within 60 seconds)
+            const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
+            const now = Date.now();
+            const isExpiringSoon = expiresAt - now < 60000;
+
+            if (isExpiringSoon) {
+                console.log('[AuthContext] Session expiring soon, refreshing...');
+                const { data: { session: refreshedSession }, error: refreshError } = 
+                    await supabaseBrowser().auth.refreshSession();
+                
+                if (refreshError) {
+                    console.error('[AuthContext] Session refresh failed:', refreshError);
+                    updateUserState(null);
+                    return null;
+                }
+
+                updateUserState(refreshedSession);
+                return refreshedSession;
+            }
+
+            return session;
+        } catch (error) {
+            console.error('[AuthContext] Session validation exception:', error);
+            updateUserState(null);
+            return null;
+        }
+    };
+
     useEffect(() => {
-        // Check if we have a session from localStorage
-        supabaseBrowser().auth.getSession().then(({ data: { session } }) => {
+        let intervalId: NodeJS.Timeout;
+
+        const initializeAuth = async () => {
+            // Validate and potentially refresh the session on mount
+            const session = await validateAndRefreshSession();
             updateUserState(session);
             setLoading(false);
-        });
+
+            // Set up periodic session validation (every 30 seconds)
+            intervalId = setInterval(async () => {
+                await validateAndRefreshSession();
+            }, 30000);
+        };
+
+        initializeAuth();
 
         // Subscribe to auth changes
-        const subscription = supabaseBrowser().auth.onAuthStateChange((event, session) => {
-            updateUserState(session);
+        const subscription = supabaseBrowser().auth.onAuthStateChange(async (event, session) => {
+            console.log('[AuthContext] Auth state changed:', event);
+            
+            if (event === 'TOKEN_REFRESHED') {
+                console.log('[AuthContext] Token refreshed successfully');
+                updateUserState(session);
+            } else if (event === 'SIGNED_OUT') {
+                updateUserState(null);
+            } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+                updateUserState(session);
+            } else if (!session) {
+                // Session is null, clear state
+                updateUserState(null);
+            }
         });
 
         return () => {
             subscription.data.subscription.unsubscribe();
+            if (intervalId) clearInterval(intervalId);
         };
     }, []);
 

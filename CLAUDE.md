@@ -45,6 +45,74 @@ This eliminates the need for manual sign-up/login during development.
 
 ## Current Status (2025-08-15)
 
+### Authentication Session Management - NEW ✅
+**Feature**: Automatic session validation, refresh, and error recovery
+
+**Problem Solved**: 
+- Stale auth sessions showing authenticated UI but failing API calls with 401/406 errors
+- Users seeing "permission denied" errors when session expired
+- Confusing state where UI shows queue controls but operations fail
+
+**Implementation**:
+1. **AuthContext** (`src/contexts/AuthContext.tsx`)
+   - Validates session on mount and every 30 seconds
+   - Automatically refreshes expiring sessions (within 60 seconds of expiry)
+   - Handles all auth state change events properly
+
+2. **Auth Interceptor** (`src/utils/auth-interceptor.ts`)
+   - Centralized 401/406 error handling
+   - Automatic session refresh attempt on auth errors
+   - Prevents race conditions with singleton refresh promise
+   - Redirects to `/auth/login` only when refresh fails
+
+3. **Toast Notifications**
+   - "Your session has expired. Please sign in again." (error)
+   - "Session refreshed successfully" (info)
+   - Queue operation success/failure messages
+   - Uses Material-UI Snackbar/Alert components
+
+4. **Enhanced Error Recovery**
+   - `invokeWithAuth` automatically retries on auth errors
+   - ConnectionContext retries queue operations after refresh
+   - `useAuthErrorHandler` hook for consistent error handling
+
+**Key Files Modified**:
+- `src/contexts/AuthContext.tsx` - Session validation logic
+- `src/utils/auth-interceptor.ts` - Error handling and refresh
+- `src/hooks/useAuthErrorHandler.ts` - Notification integration
+- `src/contexts/ConnectionContext.tsx` - Queue operation recovery
+- `src/utils/supabase.ts` - Auto-retry for edge functions
+
+### Game Abandonment Detection - COMPLETED ✅
+**Feature**: Track and display when players are inactive during their turn
+
+**Components**:
+1. **PlayerPresenceIndicator** - Shows real-time player status with:
+   - Online/Idle/Warning/Abandoned states
+   - Live timer showing time since last activity
+   - Visual indicators (colored dots, warning chips)
+   - Subscribes to profile updates via Supabase realtime
+
+2. **GamePlayersPanel** - Displays both players' presence in game UI
+   - Shows current turn
+   - Integrates with game state
+   - Identifies spectators
+
+**Database**:
+- Added abandonment tracking fields to games table:
+  - `abandoned_by`: Which player abandoned
+  - `abandoned_at`: When abandonment was detected
+  - `abandonment_warning_at`: When warning was issued
+- Functions to check and handle abandonment
+
+**Thresholds**:
+- Online: Active within 30 seconds
+- Idle: 30-60 seconds inactive
+- Warning: 1-2 minutes inactive (shows timer)
+- Abandoned: 2+ minutes inactive (red warning)
+
+**Integration**: Added to left sidebar in game page
+
 ### Row Level Security (RLS) Fix - COMPLETED ✅
 **Problem**: Database operations were failing with "permission denied" errors (403 Forbidden)
 

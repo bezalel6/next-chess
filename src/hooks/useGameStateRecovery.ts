@@ -47,8 +47,14 @@ export function useGameStateRecovery(gameId: string | null) {
         .eq('id', gameId)
         .single();
 
-      if (gameError || !gameData) {
-        throw new Error('Failed to fetch game state');
+      if (gameError) {
+        console.error('[GameStateRecovery] Game fetch error:', gameError);
+        throw new Error(`Failed to fetch game state: ${gameError.message}`);
+      }
+      
+      if (!gameData) {
+        console.warn('[GameStateRecovery] Game not found:', gameId);
+        return; // Game might have been deleted or doesn't exist
       }
 
       // Fetch latest moves

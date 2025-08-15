@@ -4,6 +4,7 @@ import { parse } from "url";
 import next from "next";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "../env";
+import { AbandonmentDetector } from "./abandonmentDetector";
 
 const dev = env.NODE_ENV !== "production";
 const hostname = "localhost";
@@ -19,7 +20,16 @@ const supabase = createClient(
   env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+// Initialize abandonment detector
+const abandonmentDetector = new AbandonmentDetector();
+
 app.prepare().then(async () => {
+  // Start abandonment detection service
+  // Check every 30 seconds in development, 60 seconds in production
+  const checkInterval = dev ? 30 : 60;
+  abandonmentDetector.start(checkInterval);
+  console.log(`[Server] Abandonment detector started (${checkInterval}s interval)`);
+
   // Set up Supabase Realtime subscriptions for monitoring
   const queueChannel = supabase
     .channel("queue-system", {
@@ -95,11 +105,13 @@ app.prepare().then(async () => {
   // Minimal cleanup on process termination
   process.on('SIGTERM', () => {
     console.log('SIGTERM received, closing server...');
+    abandonmentDetector.stop();
     server.close(() => process.exit(0));
   });
   
   process.on('SIGINT', () => {
     console.log('SIGINT received, closing server...');
+    abandonmentDetector.stop();
     server.close(() => process.exit(0));
   });
 });

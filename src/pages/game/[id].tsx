@@ -138,10 +138,11 @@ export default function GamePage() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justifyContent: 'flex-start',
                 minHeight: '100vh',
                 bgcolor: '#161512',
                 p: 2,
+                pt: 4,
             }}>
                 {loading ? (
                     id && typeof id === 'string' ? (

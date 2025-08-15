@@ -5,12 +5,33 @@ import GameBoardV2 from "@/components/GameBoardV2";
 import LocalMoveHistory from "@/components/LocalMoveHistory";
 import HomeIcon from '@mui/icons-material/Home';
 import InfoIcon from '@mui/icons-material/Info';
+import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 
 export default function LocalGamePage() {
   const router = useRouter();
   
   // Initialize local game
   useGameInit();
+  
+  // Get game state to determine board orientation
+  const game = useUnifiedGameStore(s => s.game);
+  const phase = useUnifiedGameStore(s => s.phase);
+  
+  // Determine board orientation based on who is acting
+  // In Ban Chess: Black bans first, then White moves, then White bans, then Black moves
+  const getBoardOrientation = () => {
+    if (!game) return 'white';
+    
+    if (phase === 'selecting_ban') {
+      // During ban phase, show the perspective of the player who is banning
+      return game.banningPlayer || 'white';
+    } else {
+      // During move phase, show the perspective of the player who is moving
+      return game.turn === 'w' ? 'white' : 'black';
+    }
+  };
+  
+  const boardOrientation = getBoardOrientation();
 
   const handleReturnHome = () => {
     router.push("/");
@@ -141,7 +162,7 @@ export default function LocalGamePage() {
                   }
                 }
               }}>
-                <GameBoardV2 />
+                <GameBoardV2 orientation={boardOrientation} />
               </Box>
               
               {/* Right sidebar - Move history */}

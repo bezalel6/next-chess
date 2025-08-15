@@ -84,14 +84,14 @@ export default function BoardMoveInput() {
   }, [canBan, executeGameOperation, selectSquare, clearHighlights]);
   
   // Handle Enter key press
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSquareInput();
+    }
+  }, [handleSquareInput]);
+  
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleSquareInput();
-      }
-    };
-    
     const input = testInputRef.current;
     if (input) {
       input.addEventListener("keydown", handleKeyDown);
@@ -99,7 +99,7 @@ export default function BoardMoveInput() {
         input.removeEventListener("keydown", handleKeyDown);
       };
     }
-  }, [handleSquareInput]);
+  }, [handleKeyDown]);
   
   if (!game) return null;
   

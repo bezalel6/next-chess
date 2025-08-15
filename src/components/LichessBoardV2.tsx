@@ -36,6 +36,8 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   const optimisticMove = useUnifiedGameStore(s => s.optimisticMove);
   const optimisticBan = useUnifiedGameStore(s => s.optimisticBan);
   const executeGameOperation = useUnifiedGameStore(s => s.executeGameOperation);
+  const selectedSquare = useUnifiedGameStore(s => s.selectedSquare);
+  const possibleMoves = useUnifiedGameStore(s => s.possibleMoves);
   
   // Use mutations for online games
   const banMutation = useBanMutation(game?.id);
@@ -82,7 +84,19 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   // Get legal moves from unified store - fixed to avoid infinite loop
   // Don't call functions in selectors! Get the store method separately
   const getLegalMoves = useUnifiedGameStore(s => s.getLegalMoves);
-  const legalMoves = useMemo(() => getLegalMoves(), [getLegalMoves, game?.currentFen, currentBannedMove]);
+  const allLegalMoves = useMemo(() => getLegalMoves(), [getLegalMoves, game?.currentFen, currentBannedMove]);
+  
+  // Use possibleMoves when a square is selected, otherwise show all legal moves
+  const legalMoves = useMemo(() => {
+    if (selectedSquare && possibleMoves.length > 0) {
+      // When a square is selected, only show moves from that square
+      const movesMap = new Map<string, string[]>();
+      movesMap.set(selectedSquare, possibleMoves);
+      return movesMap;
+    }
+    // Otherwise show all legal moves
+    return allLegalMoves;
+  }, [selectedSquare, possibleMoves, allLegalMoves]);
 
   // Get last move for highlighting
   const lastMove = useMemo(() => {
@@ -266,7 +280,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
             padding: "4px",
             boxSizing: "border-box",
           },
-          // Make coordinate labels larger with better visibility
+          // Make coordinate labels larger
           "& coords": {
             fontSize: "16px !important",
             fontWeight: "600 !important",
@@ -274,15 +288,14 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
           "& coords.ranks coord": {
             fontSize: "16px !important",
             fontWeight: "600 !important",
-            textShadow: "0 0 3px rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.6)",
           },
           "& coords.files": {
             bottom: "7px !important",
+            left: "-28px !important",
           },
           "& coords.files coord": {
             fontSize: "16px !important",
             fontWeight: "600 !important",
-            textShadow: "0 0 3px rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.6)",
           },
           // Styles for banned move squares
           "& .cg-wrap square.banned-from": {

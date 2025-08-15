@@ -774,7 +774,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
               } : undefined,
             }];
             
-            // Check for game over
+            // Check for game over (Ban Chess variant rules)
             let gameUpdates: any = {
               pgn: state.chess.pgn(),
               currentFen: newFen,
@@ -783,14 +783,37 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
               banningPlayer: state.currentTurn, // The player who just moved now bans
             };
             
-            if (state.chess.inCheckmate()) {
+            // In Ban Chess, checkmate occurs when:
+            // 1. King is in check
+            // 2. All legal moves can be banned (only 1 legal move exists)
+            // Note: The player who just moved can now ban, so we check if the opponent is mated
+            
+            const isInCheck = state.chess.inCheck();
+            const legalMoves = state.chess.moves({ verbose: true });
+            
+            if (isInCheck && legalMoves.length === 1) {
+              // Ban Chess checkmate: King in check with only one legal move (which can be banned)
               gameUpdates.status = 'finished';
               gameUpdates.result = state.currentTurn === 'white' ? '1-0' : '0-1';
               gameUpdates.endReason = 'checkmate';
-            } else if (state.chess.inStalemate() || state.chess.inDraw()) {
+            } else if (legalMoves.length === 0) {
+              // No legal moves at all
+              if (isInCheck) {
+                // Standard checkmate (shouldn't happen in Ban Chess but kept for safety)
+                gameUpdates.status = 'finished';
+                gameUpdates.result = state.currentTurn === 'white' ? '1-0' : '0-1';
+                gameUpdates.endReason = 'checkmate';
+              } else {
+                // Stalemate
+                gameUpdates.status = 'finished';
+                gameUpdates.result = '1/2-1/2';
+                gameUpdates.endReason = 'stalemate';
+              }
+            } else if (state.chess.inDraw()) {
+              // Other draw conditions (insufficient material, threefold repetition, etc.)
               gameUpdates.status = 'finished';
               gameUpdates.result = '1/2-1/2';
-              gameUpdates.endReason = state.chess.inStalemate() ? 'stalemate' : 'draw';
+              gameUpdates.endReason = 'draw';
             }
             
             // Update all state at once
@@ -904,16 +927,36 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
               lastMove: { from, to },
             };
             
-            // Check for game over
-            if (state.chess.inCheckmate()) {
+            // Check for game over (Ban Chess variant rules)
+            const isInCheck = state.chess.inCheck();
+            const legalMoves = state.chess.moves({ verbose: true });
+            
+            if (isInCheck && legalMoves.length === 1) {
+              // Ban Chess checkmate: King in check with only one legal move (which can be banned)
               gameUpdates.status = 'finished';
               gameUpdates.result = state.currentTurn === 'white' ? '1-0' : '0-1';
               gameUpdates.endReason = 'checkmate';
               set({ showGameOverModal: true });
-            } else if (state.chess.inStalemate() || state.chess.inDraw()) {
+            } else if (legalMoves.length === 0) {
+              // No legal moves at all
+              if (isInCheck) {
+                // Standard checkmate (shouldn't happen in Ban Chess but kept for safety)
+                gameUpdates.status = 'finished';
+                gameUpdates.result = state.currentTurn === 'white' ? '1-0' : '0-1';
+                gameUpdates.endReason = 'checkmate';
+                set({ showGameOverModal: true });
+              } else {
+                // Stalemate
+                gameUpdates.status = 'finished';
+                gameUpdates.result = '1/2-1/2';
+                gameUpdates.endReason = 'stalemate';
+                set({ showGameOverModal: true });
+              }
+            } else if (state.chess.inDraw()) {
+              // Other draw conditions (insufficient material, threefold repetition, etc.)
               gameUpdates.status = 'finished';
               gameUpdates.result = '1/2-1/2';
-              gameUpdates.endReason = state.chess.inStalemate() ? 'stalemate' : 'draw';
+              gameUpdates.endReason = 'draw';
               set({ showGameOverModal: true });
             }
             
@@ -1026,9 +1069,11 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           
           // Game over states
           if (state.game.status === 'finished') {
-            if (state.game.result === '1-0') return 'White wins by checkmate!';
-            if (state.game.result === '0-1') return 'Black wins by checkmate!';
-            if (state.game.result === '1/2-1/2') {
+            const result = state.game?.result;
+            if (!result) return 'Game over';
+            if (result === '1-0') return 'White wins by checkmate!';
+            if (result === '0-1') return 'Black wins by checkmate!';
+            if (result === '1/2-1/2') {
               if (state.game.endReason === 'stalemate') return 'Draw by stalemate!';
               return 'Draw!';
             }

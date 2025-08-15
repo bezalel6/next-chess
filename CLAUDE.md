@@ -16,6 +16,8 @@ Real-time multiplayer chess with Ban Chess variant - Black bans one of White's m
 4. Black makes their move (avoiding the ban)
 5. Pattern continues: After each move, the player who just moved bans opponent's next move
 
+**Checkmate in Ban Chess**: A player is checkmated when their king is in check and they have only one legal move available (which the opponent can ban), resulting in no legal moves to escape check.
+
 ## Key Files
 - `src/services/gameService.ts` - Game operations
 - `src/stores/unifiedGameStore.ts` - State management (Zustand)
@@ -33,13 +35,14 @@ bun run build   # Build for production
 ### Logic Test Suite (`/test/logic-test`)
 Comprehensive test suite for Ban Chess game logic with automated testing framework.
 
-**Test Status (as of 2025-01-15): 4/5 Core Tests Passing ✅**
+**Test Status (as of 2025-08-15): 5/6 Core Tests Passing ✅**
 
 **Ban Chess Core Tests (All Passing):**
 - ✅ **Basic Ban Test** - Tests ban operations (PASSING)
 - ✅ **Basic Move Validation** - Tests move execution after bans (PASSING)
 - ✅ **Ban Mechanism Test** - Tests the ban chess variant rules (PASSING)
 - ✅ **Illegal Move Prevention** - Tests illegal move rejection (PASSING - fixed test verification)
+- ✅ **Ban Chess Checkmate Detection** - Tests checkmate when king in check with only 1 legal move (PASSING - implemented 2025-08-15)
 
 **Standard Chess Tests (Not Critical for Ban Chess MVP):**
 - ❌ **Castling Rights Test** - Tests castling mechanics (FAILING - standard chess feature)
@@ -77,7 +80,7 @@ This eliminates the need for manual sign-up/login during development.
 - Supabase is source of truth
 - Move/ban validation happens server-side
 
-## Current Status (2025-01-15)
+## Current Status (2025-08-15)
 
 ### Core Ban Chess Logic - WORKING ✅
 The fundamental Ban Chess game mechanics are now functioning correctly:
@@ -85,7 +88,8 @@ The fundamental Ban Chess game mechanics are now functioning correctly:
 - Move execution respects banned moves
 - Phase transitions (selecting_ban → making_move) work properly
 - State management via Zustand store is synchronized
-- 3 out of 4 basic logic tests are passing
+- Ban Chess checkmate detection properly implemented (king in check with 1 legal move)
+- 5 out of 6 Ban Chess core tests are passing
 
 ## Previous Updates (2025-08-15)
 

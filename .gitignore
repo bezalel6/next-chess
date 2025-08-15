@@ -121,3 +121,7 @@ e2escreenshots/
 # IDE settings
 .vscode/settings.json
 nul
+
+# Temporary files
+public.games
+.serena/

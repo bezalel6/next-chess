@@ -12,10 +12,23 @@ export default function GameBoardV2({
 }: {
   orientation?: "white" | "black";
 }) {
+  // Use individual selectors to avoid infinite loops
+  // Creating new objects in selectors causes React to think state changed
   const game = useUnifiedGameStore(s => s.game);
   const myColor = useUnifiedGameStore(s => s.myColor);
-  const canBan = useUnifiedGameStore(s => s.canBan());
-  const canMove = useUnifiedGameStore(s => s.canMove());
+  const phase = useUnifiedGameStore(s => s.phase);
+  const mode = useUnifiedGameStore(s => s.mode);
+  const localPhase = useUnifiedGameStore(s => s.localPhase);
+  const localGameStatus = useUnifiedGameStore(s => s.localGameStatus);
+  
+  // Calculate canBan and canMove based on the state
+  const canBan = mode === 'local' 
+    ? (localPhase === 'banning' && localGameStatus === 'active')
+    : phase === 'selecting_ban';
+    
+  const canMove = mode === 'local'
+    ? (localPhase === 'playing' && localGameStatus === 'active')
+    : (phase === 'making_move' && game?.turn === myColor && game?.status === 'active');
   const [boardSize, setBoardSize] = useState(560);
   const [isResizing, setIsResizing] = useState(false);
   const boardRef = useRef<HTMLDivElement>(null);

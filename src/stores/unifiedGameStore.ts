@@ -277,7 +277,11 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           if (state.mode === 'local') {
             return state.localPhase === 'playing' && state.localGameStatus === 'active';
           }
-          return state.phase === 'making_move' && state.isMyTurn();
+          // Don't call isMyTurn() here to avoid circular dependency
+          const isMyTurn = state.mode !== 'spectator' && 
+                          state.game?.turn === state.myColor && 
+                          state.game?.status === 'active';
+          return state.phase === 'making_move' && isMyTurn;
         },
         
         canBan: () => {
@@ -340,8 +344,8 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           
           // Extract player usernames
           const playerUsernames = {
-            white: game.whiteUsername || 'White',
-            black: game.blackUsername || 'Black',
+            white: game.whitePlayer || 'White',
+            black: game.blackPlayer || 'Black',
           };
           
           set({
@@ -369,10 +373,37 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         
         initLocalGame: () => {
           const chess = new Chess();
+          const initialFen = chess.fen();
+          
+          // Create a minimal game object for MoveHistory component
+          const localGameObj = {
+            id: 'local',
+            pgn: chess.pgn(),
+            currentFen: initialFen,
+            status: 'active' as const,
+            turn: 'white' as PlayerColor,
+            currentBannedMove: null,
+            whitePlayer: 'Player 1',
+            blackPlayer: 'Player 2',
+            whitePlayerId: 'local-white',
+            blackPlayerId: 'local-black',
+            result: null,
+            lastMove: null,
+            banningPlayer: 'black' as PlayerColor, // Black bans first
+            drawOfferedBy: null,
+            endReason: null,
+            rematchOfferedBy: null,
+            parentGameId: null,
+            chess: chess,
+            startTime: Date.now(),
+            lastMoveTime: Date.now(),
+          } as Game;
+          
           set({
             mode: 'local',
+            game: localGameObj,
             chess,
-            currentFen: chess.fen(),
+            currentFen: initialFen,
             localCurrentPlayer: 'white',
             localPhase: 'banning',
             localBannedMove: null,
@@ -480,9 +511,15 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         
         receiveBan: (ban) => {
           const state = get();
+          console.log('[Store] Receiving ban:', ban);
+          
+          // Determine the new phase after receiving a ban
+          const newPhase = state.currentTurn === state.myColor ? 'making_move' : 'waiting_for_move';
+          
           set({
             currentBannedMove: { from: ban.from, to: ban.to },
             banHistory: [...state.banHistory, ban],
+            phase: newPhase,
             
             // Clear optimistic state if this confirms our ban
             ...(state.optimisticBan?.from === ban.from && state.optimisticBan?.to === ban.to ? {
@@ -495,6 +532,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         updateGame: (gameUpdate) => {
           const state = get();
           if (state.game) {
+            console.log('[Store] Updating game with:', gameUpdate);
             set({ game: { ...state.game, ...gameUpdate } });
           }
         },
@@ -524,76 +562,6 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         },
         
         // ============= Local Game Actions =============
-        
-        localSelectBan: (from, to) => {
-          const state = get();
-          const bannedBy = state.localCurrentPlayer === 'white' ? 'black' : 'white';
-          set({
-            localBannedMove: { from, to, bannedBy },
-            localPhase: 'playing',
-          });
-        },
-        
-        localMakeMove: (from, to, promotion) => {
-          const state = get();
-          if (!state.chess || state.localPhase !== 'playing') return false;
-          
-          // Check if move is banned
-          if (state.localBannedMove && 
-              state.localBannedMove.from === from && 
-              state.localBannedMove.to === to) {
-            return false;
-          }
-          
-          // Try to make the move
-          const move = state.chess.move({ from, to, promotion: promotion as any });
-          if (!move) return false;
-          
-          const newFen = state.chess!.fen();
-          const newMoveHistory = [...state.moveHistory, {
-            from,
-            to,
-            san: move.san,
-            fen: newFen,
-            ply: state.moveHistory.length,
-            bannedMove: state.localBannedMove ? {
-              from: state.localBannedMove.from,
-              to: state.localBannedMove.to,
-              byPlayer: state.localBannedMove.bannedBy,
-              atMoveNumber: Math.floor(state.moveHistory.length / 2) + 1,
-            } : undefined,
-          }];
-          
-          // Check game status
-          let updates: any = {
-            currentFen: newFen,
-            lastMove: { from, to },
-            moveHistory: newMoveHistory,
-            localCurrentPlayer: state.localCurrentPlayer === 'white' ? 'black' : 'white',
-            localBannedMove: null,
-          };
-          
-          if (state.chess!.inCheckmate()) {
-            updates.localGameStatus = 'checkmate';
-            updates.localWinner = state.localCurrentPlayer;
-            updates.showGameOverModal = true;
-            updates.localPhase = 'playing';
-          } else if (state.chess!.inStalemate()) {
-            updates.localGameStatus = 'stalemate';
-            updates.showGameOverModal = true;
-            updates.localPhase = 'playing';
-          } else if (state.chess!.inDraw()) {
-            updates.localGameStatus = 'draw';
-            updates.showGameOverModal = true;
-            updates.localPhase = 'playing';
-          } else {
-            updates.localPhase = 'banning';
-          }
-          
-          set(updates);
-          
-          return true;
-        },
         
         // ============= UI Actions =============
         
@@ -749,111 +717,156 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         
         selectLocalBan: (from, to) => {
           const state = get();
-          if (!state.localGame) return;
+          const bannedBy = state.localCurrentPlayer === 'white' ? 'black' : 'white';
           
-          const bannedBy = state.localGame.currentPlayer === 'white' ? 'black' : 'white';
-          set({
-            localGame: {
-              ...state.localGame,
-              bannedMove: { from, to, bannedBy },
-              phase: 'playing',
-            },
-            localBannedMove: { from, to, bannedBy },
-            localPhase: 'playing',
-          });
+          // Update the game's PGN with the ban comment
+          if (state.game && state.chess) {
+            state.chess.setComment(`banning: ${from}${to}`);
+            const updatedPgn = state.chess.pgn();
+            console.log('[Local Game] Ban selected:', from, to, 'PGN:', updatedPgn);
+            
+            set({
+              localBannedMove: { from, to, bannedBy },
+              localPhase: 'playing',
+              game: { ...state.game, pgn: updatedPgn, currentBannedMove: { from, to } }
+            });
+          } else {
+            set({
+              localBannedMove: { from, to, bannedBy },
+              localPhase: 'playing',
+            });
+          }
         },
         
         makeLocalMove: (from, to, promotion) => {
           const state = get();
-          if (!state.localGame || state.localGame.phase !== 'playing') return false;
+          if (!state.chess || state.localPhase !== 'playing') return false;
           
           // Check if move is banned
-          if (state.localGame.bannedMove && 
-              state.localGame.bannedMove.from === from && 
-              state.localGame.bannedMove.to === to) {
+          if (state.localBannedMove && 
+              state.localBannedMove.from === from && 
+              state.localBannedMove.to === to) {
             return false;
           }
           
           // Try to make the move
-          const move = state.localGame.chess.move({ from, to, promotion: promotion as any });
+          const move = state.chess.move({ from, to, promotion: promotion as any });
           if (!move) return false;
           
-          const newFen = state.localGame.chess.fen();
-          const newCurrentPlayer = state.localGame.currentPlayer === 'white' ? 'black' : 'white';
-          
-          // Check game status
-          let newStatus = state.localGame.status;
-          let newWinner = state.localGame.winner;
-          
-          if (state.localGame.chess.inCheckmate()) {
-            newStatus = 'checkmate';
-            newWinner = state.localGame.currentPlayer;
-          } else if (state.localGame.chess.inStalemate()) {
-            newStatus = 'stalemate';
-          } else if (state.localGame.chess.inDraw()) {
-            newStatus = 'draw';
-          }
-          
-          const newMoveHistory = [...state.localGame.moveHistory, {
+          const newFen = state.chess.fen();
+          const newMoveHistory = [...state.moveHistory, {
             from,
             to,
             san: move.san,
-            playerColor: state.localGame.currentPlayer,
-            moveNumber: Math.floor(state.localGame.moveHistory.length / 2) + 1,
-            bannedMove: state.localGame.bannedMove,
+            fen: newFen,
+            ply: state.moveHistory.length,
+            bannedMove: state.localBannedMove ? {
+              from: state.localBannedMove.from,
+              to: state.localBannedMove.to,
+              byPlayer: state.localBannedMove.bannedBy,
+              atMoveNumber: Math.floor(state.moveHistory.length / 2) + 1,
+            } : undefined,
           }];
           
-          set({
-            localGame: {
-              ...state.localGame,
-              currentPlayer: newCurrentPlayer,
-              phase: newStatus === 'active' ? 'banning' : 'playing',
-              bannedMove: null,
-              status: newStatus,
-              winner: newWinner,
-              moveHistory: newMoveHistory,
-            },
-            localCurrentPlayer: newCurrentPlayer,
-            localPhase: newStatus === 'active' ? 'banning' : 'playing',
-            localBannedMove: null,
-            localGameStatus: newStatus,
-            localWinner: newWinner,
+          // Update the game's PGN
+          const updatedPgn = state.chess.pgn();
+          
+          // Check game status
+          let updates: any = {
             currentFen: newFen,
             lastMove: { from, to },
-          });
+            moveHistory: newMoveHistory,
+            localCurrentPlayer: state.localCurrentPlayer === 'white' ? 'black' : 'white',
+            localBannedMove: null,
+          };
+          
+          if (state.game) {
+            updates.game = { ...state.game, pgn: updatedPgn, currentFen: newFen };
+          }
+          
+          if (state.chess.inCheckmate()) {
+            updates.localGameStatus = 'checkmate';
+            updates.localWinner = state.localCurrentPlayer;
+            updates.showGameOverModal = true;
+            updates.localPhase = 'playing';
+            if (state.game) {
+              updates.game = { ...updates.game, status: 'finished', result: state.localCurrentPlayer === 'white' ? '1-0' : '0-1' };
+            }
+          } else if (state.chess.inStalemate()) {
+            updates.localGameStatus = 'stalemate';
+            updates.showGameOverModal = true;
+            updates.localPhase = 'playing';
+            if (state.game) {
+              updates.game = { ...updates.game, status: 'finished', result: '1/2-1/2' };
+            }
+          } else if (state.chess.inDraw()) {
+            updates.localGameStatus = 'draw';
+            updates.showGameOverModal = true;
+            updates.localPhase = 'playing';
+            if (state.game) {
+              updates.game = { ...updates.game, status: 'finished', result: '1/2-1/2' };
+            }
+          } else {
+            updates.localPhase = 'banning';
+          }
+          
+          set(updates);
           
           return true;
         },
         
         resetLocalGame: () => {
           const chess = new Chess();
+          const initialFen = chess.fen();
+          
+          // Create a minimal game object for MoveHistory component
+          const localGameObj = {
+            id: 'local',
+            pgn: chess.pgn(),
+            currentFen: initialFen,
+            status: 'active' as const,
+            turn: 'white' as PlayerColor,
+            currentBannedMove: null,
+            whitePlayer: 'Player 1',
+            blackPlayer: 'Player 2',
+            whitePlayerId: 'local-white',
+            blackPlayerId: 'local-black',
+            result: null,
+            lastMove: null,
+            banningPlayer: 'black' as PlayerColor, // Black bans first
+            drawOfferedBy: null,
+            endReason: null,
+            rematchOfferedBy: null,
+            parentGameId: null,
+            chess: chess,
+            startTime: Date.now(),
+            lastMoveTime: Date.now(),
+          } as Game;
+          
           set({
-            localGame: {
-              chess,
-              currentPlayer: 'white',
-              phase: 'banning',
-              bannedMove: null,
-              status: 'active',
-              winner: null,
-              moveHistory: [],
-            },
+            mode: 'local',
+            game: localGameObj,
+            chess,
+            currentFen: initialFen,
             localCurrentPlayer: 'white',
             localPhase: 'banning',
             localBannedMove: null,
             localGameStatus: 'active',
             localWinner: null,
-            currentFen: chess.fen(),
             moveHistory: [],
             banHistory: [],
             lastMove: null,
+            selectedSquare: null,
+            possibleMoves: [],
+            highlightedSquares: [],
           });
         },
         
         getLocalPossibleMoves: () => {
           const state = get();
-          if (!state.localGame) return [];
+          if (!state.chess) return [];
           
-          return state.localGame.chess.moves({ verbose: true }).map(move => ({
+          return state.chess.moves({ verbose: true }).map(move => ({
             from: move.from as Square,
             to: move.to as Square,
             san: move.san,
@@ -862,27 +875,27 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         
         isLocalMoveBanned: (from, to) => {
           const state = get();
-          if (!state.localGame || !state.localGame.bannedMove) return false;
-          return state.localGame.bannedMove.from === from && state.localGame.bannedMove.to === to;
+          if (!state.localBannedMove) return false;
+          return state.localBannedMove.from === from && state.localBannedMove.to === to;
         },
         
         getLocalGameStatusMessage: () => {
           const state = get();
-          if (!state.localGame) return '';
+          if (state.mode !== 'local') return '';
           
-          switch (state.localGame.status) {
+          switch (state.localGameStatus) {
             case 'checkmate':
-              return `Checkmate! ${state.localGame.winner === 'white' ? 'White' : 'Black'} wins!`;
+              return `Checkmate! ${state.localWinner === 'white' ? 'White' : 'Black'} wins!`;
             case 'stalemate':
               return 'Stalemate! The game is a draw.';
             case 'draw':
               return 'Draw!';
             default:
-              if (state.localGame.phase === 'banning') {
-                const banningPlayer = state.localGame.currentPlayer === 'white' ? 'Black' : 'White';
+              if (state.localPhase === 'banning') {
+                const banningPlayer = state.localCurrentPlayer === 'white' ? 'Black' : 'White';
                 return `${banningPlayer} is selecting a move to ban`;
               } else {
-                const currentPlayer = state.localGame.currentPlayer === 'white' ? 'White' : 'Black';
+                const currentPlayer = state.localCurrentPlayer === 'white' ? 'White' : 'Black';
                 return `${currentPlayer} to move`;
               }
           }
@@ -992,8 +1005,38 @@ export const useGameMode = () => useUnifiedGameStore((s) => s.mode);
 export const useGamePhase = () => useUnifiedGameStore((s) => s.phase);
 export const useMyColor = () => useUnifiedGameStore((s) => s.myColor);
 export const useCurrentTurn = () => useUnifiedGameStore((s) => s.currentTurn);
-export const useCanMove = () => useUnifiedGameStore((s) => s.canMove());
-export const useCanBan = () => useUnifiedGameStore((s) => s.canBan());
+export const useCanMove = () => {
+  const storeState = useUnifiedGameStore((s) => ({
+    mode: s.mode,
+    phase: s.phase,
+    game: s.game,
+    myColor: s.myColor,
+    localPhase: s.localPhase,
+    localGameStatus: s.localGameStatus,
+  }));
+  
+  if (storeState.mode === 'local') {
+    return storeState.localPhase === 'playing' && storeState.localGameStatus === 'active';
+  }
+  const isMyTurn = storeState.mode !== 'spectator' && 
+                  storeState.game?.turn === storeState.myColor && 
+                  storeState.game?.status === 'active';
+  return storeState.phase === 'making_move' && isMyTurn;
+};
+
+export const useCanBan = () => {
+  const storeState = useUnifiedGameStore((s) => ({
+    mode: s.mode,
+    phase: s.phase,
+    localPhase: s.localPhase,
+    localGameStatus: s.localGameStatus,
+  }));
+  
+  if (storeState.mode === 'local') {
+    return storeState.localPhase === 'banning' && storeState.localGameStatus === 'active';
+  }
+  return storeState.phase === 'selecting_ban';
+};
 export const useBoardOrientation = () => useUnifiedGameStore((s) => s.boardOrientation);
 export const useHighlightedSquares = () => useUnifiedGameStore((s) => s.highlightedSquares);
 export const useLastMove = () => useUnifiedGameStore((s) => s.lastMove);

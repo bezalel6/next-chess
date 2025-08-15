@@ -1,17 +1,33 @@
 import { useCallback, useRef, useEffect } from "react";
 import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
+import { useBanMutation } from "@/hooks/useGameQueries";
 import { Chess } from "chess.ts";
 import type { Square } from "chess.ts/dist/types";
 
 export default function BoardMoveInput() {
+  // Use individual selectors to avoid infinite loops
   const game = useUnifiedGameStore(s => s.game);
   const myColor = useUnifiedGameStore(s => s.myColor);
-  const canBan = useUnifiedGameStore(s => s.canBan());
-  const canMove = useUnifiedGameStore(s => s.canMove());
+  const mode = useUnifiedGameStore(s => s.mode);
+  const phase = useUnifiedGameStore(s => s.phase);
+  const localPhase = useUnifiedGameStore(s => s.localPhase);
+  const localGameStatus = useUnifiedGameStore(s => s.localGameStatus);
   const makeMove = useUnifiedGameStore(s => s.makeMove);
-  const banMove = useUnifiedGameStore(s => s.banMove);
+  const storeBanMove = useUnifiedGameStore(s => s.banMove); // Rename to avoid conflict
   const previewBan = useUnifiedGameStore(s => s.previewBan);
+  
+  // Use ban mutation for online games
+  const banMutation = useBanMutation(game?.id);
+  
+  // Calculate canBan and canMove based on the state
+  const canBan = mode === 'local' 
+    ? (localPhase === 'banning' && localGameStatus === 'active')
+    : phase === 'selecting_ban';
+    
+  const canMove = mode === 'local'
+    ? (localPhase === 'playing' && localGameStatus === 'active')
+    : (phase === 'making_move' && game?.turn === myColor && game?.status === 'active');
   
   const testInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,7 +66,12 @@ export default function BoardMoveInput() {
   // Handle piece movement
   const handleMove = useCallback((from: string, to: string) => {
     if (canBan) {
-      banMove(from as Square, to as Square);
+      // Use mutation for online games, store for local games
+      if (mode === 'online') {
+        banMutation.mutate({ from: from as Square, to: to as Square });
+      } else {
+        storeBanMove(from as Square, to as Square);
+      }
     } else if (canMove) {
       // Check for promotion
       const move = chess?.move({ 
@@ -67,20 +88,33 @@ export default function BoardMoveInput() {
         }
       }
     }
-  }, [canBan, canMove, banMove, makeMove, chess]);
+  }, [canBan, canMove, storeBanMove, makeMove, chess, mode, banMutation]);
 
   // Handle square-based input
   const handleSquareInput = useCallback((input: string) => {
     if (!chess || !input.trim()) return false;
     
-    const parts = input.trim().toLowerCase().split(/\s+/);
+    const cleanInput = input.trim().toLowerCase();
+    
+    // Try to parse as a move notation (e2e4 or e2 e4)
+    // First check if it's a compact notation like "e2e4"
+    const compactMatch = cleanInput.match(/^([a-h][1-8])([a-h][1-8])$/);
+    if (compactMatch) {
+      const [, from, to] = compactMatch;
+      handleMove(from, to);
+      
+      if (testInputRef.current) {
+        testInputRef.current.value = "";
+      }
+      return true;
+    }
+    
+    // Try space-separated format
+    const parts = cleanInput.split(/\s+/);
     
     // Single square - trigger selection
-    if (parts.length === 1) {
+    if (parts.length === 1 && /^[a-h][1-8]$/.test(parts[0])) {
       const square = parts[0];
-      if (!/^[a-h][1-8]$/.test(square)) {
-        return false;
-      }
       
       if (canBan) {
         const dests = legalMoves.get(square);

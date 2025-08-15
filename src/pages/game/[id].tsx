@@ -11,6 +11,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import RightSidebar from "@/components/RightSidebar";
 import NotFoundScreen from "@/components/NotFoundScreen";
 import BoardMoveInput from "@/components/BoardMoveInput";
+import DebugLog from "@/components/DebugLog";
 
 // Left sidebar components
 const LeftSidebar = () => {
@@ -66,6 +67,8 @@ const LeftSidebar = () => {
             flexDirection: 'column',
             width: 240,
             flexShrink: 0,
+            gap: 2,
+            height: '100%',
         }}>
             {/* Game info */}
             <Box sx={{
@@ -79,6 +82,16 @@ const LeftSidebar = () => {
                 <Typography sx={{ color: '#7a7a7a', fontSize: '0.8rem' }}>
                     {getTimeAgo()}
                 </Typography>
+            </Box>
+            
+            {/* Debug Log */}
+            <Box sx={{ 
+                flex: 1, 
+                minHeight: 0, 
+                display: 'flex',
+                flexDirection: 'column',
+            }}>
+                <DebugLog />
             </Box>
         </Box>
     );

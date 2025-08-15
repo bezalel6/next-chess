@@ -34,8 +34,8 @@ export function useGameInit() {
     }
   }, [isLocalGame, mode, initLocalGame, playGameStart]);
   
-  // Initialize online game
-  const gameQuery = gameId ? useGameQuery(gameId, user?.id) : null;
+  // Initialize online game - Always call the hook, but enable/disable based on gameId
+  const gameQuery = useGameQuery(gameId, user?.id);
   
   return {
     gameId,

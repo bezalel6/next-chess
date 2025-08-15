@@ -3,6 +3,7 @@ import { useEffect, useCallback } from 'react';
 import { GameService } from '@/services/gameService';
 import { supabase } from '@/utils/supabase';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
+import { useDebugLogStore } from '@/stores/debugLogStore';
 import { useChessSounds } from './useChessSounds';
 import type { Game, ChessMove, PlayerColor } from '@/types/game';
 import type { Square } from 'chess.ts/dist/types';
@@ -11,12 +12,15 @@ import { Chess } from 'chess.ts';
 // ============= Game Query Hook =============
 export function useGameQuery(gameId: string | undefined, userId: string | undefined) {
   const queryClient = useQueryClient();
+  
+  // Get store functions individually to avoid creating new objects in selector
   const setLoading = useUnifiedGameStore(s => s.setLoading);
   const initGame = useUnifiedGameStore(s => s.initGame);
   const syncWithServer = useUnifiedGameStore(s => s.syncWithServer);
   const receiveMove = useUnifiedGameStore(s => s.receiveMove);
   const receiveBan = useUnifiedGameStore(s => s.receiveBan);
   const setConnected = useUnifiedGameStore(s => s.setConnected);
+  const updateGame = useUnifiedGameStore(s => s.updateGame);
   
   // Fetch game data
   const query = useQuery({
@@ -43,7 +47,13 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
         game.whitePlayerId === userId ? 'white' :
         game.blackPlayerId === userId ? 'black' : null;
       
-      initGame(gameId, game, myColor);
+      // Only initialize if game data has actually changed
+      const currentGameId = useUnifiedGameStore.getState().gameId;
+      const currentGame = useUnifiedGameStore.getState().game;
+      
+      if (currentGameId !== gameId || currentGame?.currentFen !== game.currentFen) {
+        initGame(gameId, game, myColor);
+      }
     }
   }, [query.data, gameId, userId, initGame]);
   
@@ -51,10 +61,13 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
   useEffect(() => {
     if (!gameId) return;
     
+    const { logBroadcastReceived, logStateChange } = useDebugLogStore.getState();
+    
     const channel = supabase
       .channel(`game:${gameId}:unified`)
       .on('broadcast', { event: 'game_update' }, (payload) => {
         console.log('[useGameQuery] Received game update:', payload);
+        logBroadcastReceived('game_update', payload.payload);
         
         // Update React Query cache
         queryClient.setQueryData(['game', gameId], (old: Game | null) => {
@@ -69,6 +82,7 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
       })
       .on('broadcast', { event: 'move' }, (payload) => {
         console.log('[useGameQuery] Received move:', payload);
+        logBroadcastReceived('move', payload.payload);
         
         // Refetch to get latest state
         queryClient.invalidateQueries({ queryKey: ['game', gameId] });
@@ -80,9 +94,24 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
       })
       .on('broadcast', { event: 'ban' }, (payload) => {
         console.log('[useGameQuery] Received ban:', payload);
+        logBroadcastReceived('ban', payload.payload);
         
-        // Refetch to get latest state
-        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+        // If PGN is included in the broadcast, update immediately
+        if (payload.payload?.pgn) {
+          console.log('[useGameQuery] Updating game with broadcasted PGN');
+          updateGame({ pgn: payload.payload.pgn });
+        }
+        
+        // Refetch to get latest state and update store with PGN
+        queryClient.invalidateQueries({ queryKey: ['game', gameId] }).then(() => {
+          // After invalidation completes, the query will refetch
+          // Get the updated game data and update the store
+          const updatedGame = queryClient.getQueryData<Game>(['game', gameId]);
+          if (updatedGame) {
+            console.log('[useGameQuery] Updating game after refetch');
+            updateGame(updatedGame);
+          }
+        });
         
         // Update store
         if (payload.payload) {
@@ -96,7 +125,7 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
     return () => {
       channel.unsubscribe();
     };
-  }, [gameId, queryClient, syncWithServer, receiveMove, receiveBan, setConnected]);
+  }, [gameId, queryClient, syncWithServer, receiveMove, receiveBan, updateGame, setConnected]);
   
   return query;
 }
@@ -106,6 +135,7 @@ export function useMoveMutation(gameId: string | undefined) {
   const store = useUnifiedGameStore();
   const queryClient = useQueryClient();
   const { playMoveSound } = useChessSounds();
+  const { logApiCall, logApiResponse, logBroadcastSent, logError } = useDebugLogStore.getState();
   
   return useMutation({
     mutationFn: async ({ from, to, promotion }: ChessMove) => {
@@ -125,31 +155,45 @@ export function useMoveMutation(gameId: string | undefined) {
       // Optimistic update in store
       store.makeMove(from as Square, to as Square, promotion);
       
+      // Log API call
+      logApiCall('makeMove', { gameId, from, to, promotion });
+      
       // Send to server
       return GameService.makeMove(gameId, { from, to, promotion });
     },
     
     onSuccess: (data) => {
+      // Log API response
+      logApiResponse('makeMove', data);
+      
       // Confirm optimistic update
       store.confirmOptimisticUpdate();
       
       // Update cache with server response
       queryClient.setQueryData(['game', gameId], data);
       
+      // Update store's game object with the updated PGN
+      store.updateGame(data);
+      
       // Broadcast move to other clients
+      const broadcastPayload = {
+        from: data.lastMove?.from,
+        to: data.lastMove?.to,
+        fen: data.currentFen,
+      };
+      
+      logBroadcastSent('move', broadcastPayload);
+      
       supabase.channel(`game:${gameId}:unified`).send({
         type: 'broadcast',
         event: 'move',
-        payload: {
-          from: data.lastMove?.from,
-          to: data.lastMove?.to,
-          fen: data.currentFen,
-        },
+        payload: broadcastPayload,
       });
     },
     
     onError: (error) => {
       console.error('[useMoveMutation] Error:', error);
+      logError('Move mutation failed', error);
       
       // Rollback optimistic update
       store.rollbackOptimisticUpdate();
@@ -166,6 +210,8 @@ export function useBanMutation(gameId: string | undefined) {
   const queryClient = useQueryClient();
   const { playBan } = useChessSounds();
   
+  const { logApiCall, logApiResponse, logBroadcastSent, logError } = useDebugLogStore.getState();
+  
   return useMutation({
     mutationFn: async ({ from, to }: { from: string; to: string }) => {
       if (!gameId) throw new Error('No game ID');
@@ -176,30 +222,48 @@ export function useBanMutation(gameId: string | undefined) {
       // Optimistic update in store
       store.banMove(from as Square, to as Square);
       
+      // Log API call
+      logApiCall('banMove', { gameId, from, to });
+      
       // Send to server
       return GameService.banMove(gameId, { from: from as Square, to: to as Square });
     },
     
     onSuccess: (data) => {
+      console.log('[useBanMutation] Ban success, data:', data);
+      
+      // Log API response
+      logApiResponse('banMove', data);
+      
       // Confirm optimistic update
       store.confirmOptimisticUpdate();
       
       // Update cache with server response
       queryClient.setQueryData(['game', gameId], data);
       
+      // Update store's game object with the updated PGN
+      store.updateGame(data);
+      
       // Broadcast ban to other clients
+      console.log('[useBanMutation] Broadcasting ban:', data.currentBannedMove);
+      const broadcastPayload = {
+        from: data.currentBannedMove?.from,
+        to: data.currentBannedMove?.to,
+        pgn: data.pgn, // Include PGN in broadcast
+      };
+      
+      logBroadcastSent('ban', broadcastPayload);
+      
       supabase.channel(`game:${gameId}:unified`).send({
         type: 'broadcast',
         event: 'ban',
-        payload: {
-          from: data.currentBannedMove?.from,
-          to: data.currentBannedMove?.to,
-        },
+        payload: broadcastPayload,
       });
     },
     
     onError: (error) => {
       console.error('[useBanMutation] Error:', error);
+      logError('Ban mutation failed', error);
       
       // Rollback optimistic update
       store.rollbackOptimisticUpdate();
@@ -277,13 +341,26 @@ export function useGame(gameId: string | undefined, userId: string | undefined) 
   const banMutation = useBanMutation(gameId);
   const mutations = useGameMutations(gameId);
   
-  // Get store values using selectors for performance
-  const mode = useUnifiedGameStore((s) => s.mode);
-  const myColor = useUnifiedGameStore((s) => s.myColor);
-  const phase = useUnifiedGameStore((s) => s.phase);
-  const canMove = useUnifiedGameStore((s) => s.canMove());
-  const canBan = useUnifiedGameStore((s) => s.canBan());
-  const isMyTurn = useUnifiedGameStore((s) => s.isMyTurn());
+  // Use individual selectors to avoid infinite loops
+  const mode = useUnifiedGameStore(s => s.mode);
+  const myColor = useUnifiedGameStore(s => s.myColor);
+  const phase = useUnifiedGameStore(s => s.phase);
+  const game = useUnifiedGameStore(s => s.game);
+  const localPhase = useUnifiedGameStore(s => s.localPhase);
+  const localGameStatus = useUnifiedGameStore(s => s.localGameStatus);
+  
+  // Calculate these values outside the selector
+  const canMove = mode === 'local'
+    ? (localPhase === 'playing' && localGameStatus === 'active')
+    : (phase === 'making_move' && game?.turn === myColor && game?.status === 'active');
+    
+  const canBan = mode === 'local' 
+    ? (localPhase === 'banning' && localGameStatus === 'active')
+    : phase === 'selecting_ban';
+    
+  const isMyTurn = mode === 'local' 
+    ? true
+    : (mode !== 'spectator' && game?.turn === myColor && game?.status === 'active');
   
   const makeMove = useCallback((from: string, to: string, promotion?: string) => {
     if (mode === 'local') {
@@ -314,9 +391,9 @@ export function useGame(gameId: string | undefined, userId: string | undefined) 
     error: query.error,
     
     // Game state
-    mode,
-    myColor,
-    phase,
+    mode: mode,
+    myColor: myColor,
+    phase: phase,
     canMove,
     canBan,
     isMyTurn,

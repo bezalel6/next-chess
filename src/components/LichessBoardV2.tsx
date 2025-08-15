@@ -9,6 +9,7 @@ import {
 import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
+import { useBanMutation } from "@/hooks/useGameQueries";
 import { Chess } from "chess.ts";
 import type { Square } from "chess.ts/dist/types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,18 +25,32 @@ interface LichessBoardV2Props {
 }
 
 export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
+  // Use individual selectors to avoid infinite loops
   const game = useUnifiedGameStore(s => s.game);
   const myColor = useUnifiedGameStore(s => s.myColor);
-  const canBan = useUnifiedGameStore(s => s.canBan());
-  const canMove = useUnifiedGameStore(s => s.canMove());
-  const makeMove = useUnifiedGameStore(s => s.makeMove);
-  const banMove = useUnifiedGameStore(s => s.banMove);
+  const mode = useUnifiedGameStore(s => s.mode);
   const phase = useUnifiedGameStore(s => s.phase);
+  const localPhase = useUnifiedGameStore(s => s.localPhase);
+  const localGameStatus = useUnifiedGameStore(s => s.localGameStatus);
+  const makeMove = useUnifiedGameStore(s => s.makeMove);
+  const storeBanMove = useUnifiedGameStore(s => s.banMove); // Rename to avoid conflict
   const currentBannedMove = useUnifiedGameStore(s => s.currentBannedMove);
   const highlightedSquares = useUnifiedGameStore(s => s.highlightedSquares);
   const previewMove = useUnifiedGameStore(s => s.previewMove);
   const optimisticMove = useUnifiedGameStore(s => s.optimisticMove);
   const optimisticBan = useUnifiedGameStore(s => s.optimisticBan);
+  
+  // Use ban mutation for online games
+  const banMutation = useBanMutation(game?.id);
+  
+  // Calculate canBan and canMove based on the state
+  const canBan = mode === 'local' 
+    ? (localPhase === 'banning' && localGameStatus === 'active')
+    : phase === 'selecting_ban';
+    
+  const canMove = mode === 'local'
+    ? (localPhase === 'playing' && localGameStatus === 'active')
+    : (phase === 'making_move' && game?.turn === myColor && game?.status === 'active');
   
   // Get navigation state and pending operation from store
   const { navigationFen, navigationBan, viewingPly, pendingOperation, optimisticFen } = useGameStore();
@@ -136,8 +151,8 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     
     console.log('[LichessBoardV2] Shapes debug:', {
       bannedToShow,
-      optimisticBan,
-      currentBannedMove,
+      optimisticBan: optimisticBan,
+      currentBannedMove: currentBannedMove,
       canBan,
       viewingPly
     });
@@ -171,7 +186,12 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
         // Play ban sound
         const audio = new Audio("/sounds/check.wav");
         audio.play().catch(() => {});
-        banMove(from as Square, to as Square);
+        // Use mutation for online games, store for local games
+        if (mode === 'online') {
+          banMutation.mutate({ from: from as Square, to: to as Square });
+        } else {
+          storeBanMove(from as Square, to as Square);
+        }
       } else if (canMove) {
         // Check for promotion
         const move = chess?.move({
@@ -191,7 +211,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
         }
       }
     },
-    [canBan, canMove, banMove, makeMove, chess]
+    [canBan, canMove, storeBanMove, makeMove, chess, mode, banMutation]
   );
 
   // Handle square-based input (e.g., "e2" for selection, "e2 e4" for move)

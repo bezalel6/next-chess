@@ -1,5 +1,5 @@
 /// <reference lib="deno.ns" />
-import { Chess } from "chess-ts";
+import { Chess } from "https://esm.sh/chess.ts@0.16.2";
 import {
   verifyGameAccess,
   validateMove,
@@ -300,12 +300,14 @@ async function handleBanMove(
   }
 
   // Parse the existing PGN and add the banned move as a comment
+  logger.info(`Current game PGN: ${game.pgn || 'empty'}`);
   const chess = new Chess(game.current_fen);
   if (game.pgn) {
     chess.loadPgn(game.pgn);
   }
   chess.setComment(`banning: ${move.from}${move.to}`);
   const updatedPgn = chess.pgn();
+  logger.info(`Updated PGN after adding ban comment: ${updatedPgn}`);
 
   // Check if the game is over after banning this move
   const gameOverState = isGameOver(game.current_fen, updatedPgn);
@@ -338,8 +340,32 @@ async function handleBanMove(
     return errorResponse(`Failed to update game: ${updateError.message}`, 500);
   }
 
+  // Calculate ply number for the ban
+  // Bans happen before moves, so the ply number is the current turn's ply
+  const moveHistory = chess.history({ verbose: true });
+  const plyNumber = moveHistory.length; // This will be 0 for first ban, 1 after white's first move, etc.
+  const moveNumber = Math.floor(plyNumber / 2) + 1;
+  
+  // Insert ban record into moves table for real-time updates
+  // This is a "placeholder" move record that shows the ban but no actual move
+  const { error: moveError } = await (supabase as any).from("moves").insert({
+    game_id: gameId,
+    move_number: moveNumber,
+    ply_number: plyNumber,
+    player_color: game.turn, // The player whose move is being banned
+    from_square: '', // No actual move made yet
+    to_square: '',
+    san: '', // No SAN for ban-only record
+    fen_after: game.current_fen, // FEN doesn't change with just a ban
+    banned_from: move.from,
+    banned_to: move.to,
+    banned_by: userColor,
+    created_by: user.id,
+  });
+  
+  logOperation("record ban in moves table", moveError);
+  
   // Store ban in history table for analysis
-  const moveNumber = game.pgn ? game.pgn.split(' ').filter(s => s.includes('.')).length + 1 : 1;
   const { error: historyError } = await (supabase as any).from("ban_history").insert({
     game_id: gameId,
     move_number: moveNumber,

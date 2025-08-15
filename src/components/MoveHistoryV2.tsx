@@ -49,16 +49,23 @@ const MoveHistoryV2 = () => {
   const { data: movesData = [], isLoading } = useQuery({
     queryKey: ['moves', game?.id],
     queryFn: async () => {
-      if (!game?.id) return [];
+      console.log('[MoveHistoryV2] Fetching moves for game:', game?.id);
+      console.log('[MoveHistoryV2] Current game PGN:', game?.pgn);
+      
+      if (!game?.id) {
+        console.log('[MoveHistoryV2] No game ID, returning empty array');
+        return [];
+      }
       
       const { data, error } = await supabase
         .rpc('get_game_moves', { p_game_id: game.id });
       
       if (error) {
-        console.error('Error fetching moves:', error);
+        console.error('[MoveHistoryV2] Error fetching moves:', error);
         return [];
       }
       
+      console.log('[MoveHistoryV2] Fetched moves data:', data);
       return (data as MoveData[]) || [];
     },
     enabled: !!game?.id,
@@ -90,28 +97,25 @@ const MoveHistoryV2 = () => {
   // Convert flat moves array to paired moves for display
   const moves = useMemo<Move[]>(() => {
     const paired: Move[] = [];
+    const movesByNumber = new Map<number, Move>();
     
     for (let i = 0; i < movesData.length; i++) {
       const move = movesData[i];
       const moveNumber = move.move_number;
       
+      // Get or create the move pair for this move number
+      let movePair = movesByNumber.get(moveNumber);
+      if (!movePair) {
+        movePair = { number: moveNumber };
+        movesByNumber.set(moveNumber, movePair);
+        paired.push(movePair);
+      }
+      
+      // Add the move data to the appropriate color slot
       if (move.player_color === 'white') {
-        paired.push({
-          number: moveNumber,
-          white: move,
-        });
+        movePair.white = move;
       } else {
-        // Find the corresponding white move
-        const lastMove = paired[paired.length - 1];
-        if (lastMove && lastMove.number === moveNumber) {
-          lastMove.black = move;
-        } else {
-          // Shouldn't happen, but handle edge case
-          paired.push({
-            number: moveNumber,
-            black: move,
-          });
-        }
+        movePair.black = move;
       }
     }
     
@@ -229,11 +233,33 @@ const MoveHistoryV2 = () => {
     }
   );
 
+  console.log('[MoveHistoryV2] Rendering - isLoading:', isLoading);
+  console.log('[MoveHistoryV2] Rendering - movesData:', movesData);
+  console.log('[MoveHistoryV2] Rendering - movesData length:', movesData.length);
+  console.log('[MoveHistoryV2] Rendering - game PGN:', game?.pgn);
+  
   if (isLoading) {
     return (
       <Box sx={{ p: 2, textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
           Loading moves...
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Add debug message when no moves
+  if (!movesData || movesData.length === 0) {
+    return (
+      <Box sx={{ p: 2, textAlign: 'center', bgcolor: 'error.dark' }}>
+        <Typography variant="body1" color="error.main">
+          DEBUG: No moves in database
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Game PGN: {game?.pgn || 'undefined'}
+        </Typography>
+        <Typography variant="caption" display="block" color="text.secondary">
+          Game ID: {game?.id || 'undefined'}
         </Typography>
       </Box>
     );
@@ -456,6 +482,9 @@ function MovesRow({
 }
 
 function MoveComponent({ move }: { move: MoveData }) {
+  // Check if this is a ban-only record (no actual move made yet)
+  const isBanOnly = !move.san && move.banned_from && move.banned_to;
+  
   return (
     <Box
       sx={{
@@ -468,44 +497,69 @@ function MoveComponent({ move }: { move: MoveData }) {
         padding: '4px'
       }}
     >
-      <Typography
-        component="span"
-        sx={{
-          fontWeight: 'normal',
-          display: 'flex',
-          alignItems: 'center',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap'
-        }}
-      >
-        {move.san}
-      </Typography>
-
-      {move.banned_from && move.banned_to && (
-        <Tooltip title={`Banned: ${move.banned_from}${move.banned_to}`} arrow>
+      {isBanOnly ? (
+        // Display ban information when no move has been made yet
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <BlockIcon 
             sx={{ 
-              fontSize: '16px', 
-              color: 'error.main',
-              ml: 0.5
+              fontSize: '14px', 
+              color: 'error.main'
             }} 
           />
-        </Tooltip>
-      )}
+          <Typography
+            component="span"
+            sx={{
+              fontWeight: 'normal',
+              color: 'error.main',
+              fontSize: '0.9rem',
+              fontStyle: 'italic'
+            }}
+          >
+            {move.banned_from}{move.banned_to} banned
+          </Typography>
+        </Box>
+      ) : (
+        <>
+          <Typography
+            component="span"
+            sx={{
+              fontWeight: 'normal',
+              display: 'flex',
+              alignItems: 'center',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {move.san}
+          </Typography>
 
-      {move.time_taken_ms && (
-        <Typography
-          component="span"
-          sx={{
-            fontSize: '0.75rem',
-            color: 'text.secondary',
-            ml: 'auto',
-            pl: 1
-          }}
-        >
-          {(move.time_taken_ms / 1000).toFixed(1)}s
-        </Typography>
+          {move.banned_from && move.banned_to && (
+            <Tooltip title={`Banned: ${move.banned_from}${move.banned_to}`} arrow>
+              <BlockIcon 
+                sx={{ 
+                  fontSize: '16px', 
+                  color: 'error.main',
+                  ml: 0.5
+                }} 
+              />
+            </Tooltip>
+          )}
+
+          {move.time_taken_ms && (
+            <Typography
+              component="span"
+              sx={{
+                fontSize: '0.75rem',
+                color: 'text.secondary',
+                ml: 'auto',
+                pl: 1
+              }}
+            >
+              {(move.time_taken_ms / 1000).toFixed(1)}s
+            </Typography>
+          )}
+        </>
       )}
     </Box>
   );

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useGameStore, type GamePhase, type BannedMove } from '@/stores/gameStore';
 import { GameService } from '@/services/gameService';
 import { useAuth } from './AuthContext';
+import { useNotification } from './NotificationContext';
 import { supabase } from '@/utils/supabase';
 import { useChessSounds } from '@/hooks/useChessSounds';
 import type { ChessMove, Game, PlayerColor } from '@/types/game';
@@ -72,6 +73,7 @@ const GameContext = createContext<GameContextType | null>(null);
 export function GameProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user } = useAuth();
+  const { notifyError, notifySuccess } = useNotification();
   const queryClient = useQueryClient();
   const { playMoveSound, playGameStart, playGameEnd, playBan } = useChessSounds();
   const gameId = router.query.id as string | undefined;
@@ -178,16 +180,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (game.status === 'finished') {
       setPhase('game_over');
     } else if (game.banningPlayer === myColor) {
-      // I need to ban the opponent's move
+      // I need to ban opponent's move BEFORE they play
+      // The banningPlayer bans moves for the turn player
       setPhase('selecting_ban');
     } else if (game.banningPlayer && game.banningPlayer !== myColor) {
-      // Opponent is banning my move
+      // Opponent is banning one of my moves BEFORE I play
       setPhase('waiting_for_ban');
     } else if (!game.banningPlayer && game.turn === myColor) {
-      // It's my turn to move (ban has been completed)
+      // It's my turn to move (opponent already banned one of my moves)
       setPhase('making_move');
     } else if (!game.banningPlayer && game.turn !== myColor) {
-      // It's opponent's turn to move (ban has been completed)
+      // It's opponent's turn to move (I already banned one of their moves)
       setPhase('waiting_for_move');
     } else {
       // Default to waiting
@@ -199,6 +202,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!gameId) return;
 
+    // Debounce timer reference
+    let debounceTimer: NodeJS.Timeout;
+    
+    const debouncedInvalidate = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+        queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
+      }, 100); // 100ms debounce
+    };
+
     const channel = supabase
       .channel(`game:${gameId}`)
       // Subscribe to game updates (fallback)
@@ -208,25 +222,35 @@ export function GameProvider({ children }: { children: ReactNode }) {
         table: 'games',
         filter: `id=eq.${gameId}`,
       }, () => {
-        // Invalidate to trigger refetch
-        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+        // Debounced invalidate to prevent race conditions
+        debouncedInvalidate();
       })
       // Subscribe to move broadcasts for instant updates
       .on('broadcast', { event: 'move' }, (payload) => {
-        // Optimistically update move history
         console.log('[GameContext] Received move broadcast:', payload);
-        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
-        queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
+        // Don't invalidate if this is our own optimistic update
+        const { optimisticMove } = useGameStore.getState();
+        if (!optimisticMove || 
+            optimisticMove.from !== payload.payload?.from || 
+            optimisticMove.to !== payload.payload?.to) {
+          debouncedInvalidate();
+        }
       })
       // Subscribe to ban broadcasts
       .on('broadcast', { event: 'ban' }, (payload) => {
         console.log('[GameContext] Received ban broadcast:', payload);
-        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
-        queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
+        // Don't invalidate if this is our own optimistic update
+        const { optimisticBan } = useGameStore.getState();
+        if (!optimisticBan || 
+            optimisticBan.from !== payload.payload?.from || 
+            optimisticBan.to !== payload.payload?.to) {
+          debouncedInvalidate();
+        }
       })
       .subscribe();
 
     return () => {
+      clearTimeout(debounceTimer);
       channel.unsubscribe();
     };
   }, [gameId, queryClient]);
@@ -235,6 +259,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const banMoveMutation = useMutation({
     mutationFn: async ({ from, to }: { from: string; to: string }) => {
       if (!gameId) throw new Error('No game');
+      
+      // Save state before optimistic update
+      useGameStore.getState().saveStateForRollback();
       
       // Optimistic update
       confirmBan(from as Square, to as Square);
@@ -247,10 +274,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
     },
-    onError: () => {
-      // Reset on error
-      useGameStore.getState().reset();
+    onError: (error: any) => {
+      // Rollback on error
+      useGameStore.getState().rollback();
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+      
+      // Show error notification
+      const errorMessage = error?.message || 'Failed to ban move';
+      notifyError(errorMessage);
     },
   });
 
@@ -258,6 +289,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const makeMoveMutation = useMutation({
     mutationFn: async ({ from, to, promotion }: ChessMove) => {
       if (!gameId || !game) throw new Error('No game');
+      
+      // Save state before optimistic update
+      useGameStore.getState().saveStateForRollback();
       
       // Optimistic update
       confirmMove(from, to);
@@ -274,10 +308,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
     },
-    onError: () => {
-      // Reset on error
-      useGameStore.getState().reset();
+    onError: (error: any) => {
+      // Rollback on error
+      useGameStore.getState().rollback();
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+      
+      // Show error notification
+      const errorMessage = error?.message || 'Failed to make move';
+      notifyError(errorMessage);
     },
   });
 
@@ -356,10 +394,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
     },
 
-    setPgn: (pgn: string) => {
-      // For move history navigation - this would need proper implementation
-      // For now, we'll keep it as a no-op since the V2 context uses TanStack Query
-      console.log('setPgn called with:', pgn);
+    setPgn: (fen: string) => {
+      // This is actually receiving FEN, not PGN from MoveHistoryV2
+      // Used for move history navigation
+      const { navigateToPosition } = useGameStore.getState();
+      
+      // The MoveHistoryV2 component will handle setting the correct ply and banned move
+      // For now, just set the FEN for board display
+      navigateToPosition(null, fen, null);
     },
     
     // UI Actions from store

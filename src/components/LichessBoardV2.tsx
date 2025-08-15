@@ -8,6 +8,7 @@ import {
 } from "react";
 import { Box } from "@mui/material";
 import { useGame } from "@/contexts/GameContextV2";
+import { useGameStore } from "@/stores/gameStore";
 import { Chess } from "chess.ts";
 import type { Square } from "chess.ts/dist/types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,13 +37,24 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     previewBan,
     previewMove,
   } = useGame();
+  
+  // Get navigation state from store
+  const { navigationFen, navigationBan, viewingPly } = useGameStore();
 
   // Test input refs for automation
   const testInputRef = useRef<HTMLInputElement>(null);
 
-  // Parse current position
+  // Parse current position (use navigation FEN if navigating)
   const chess = useMemo(() => {
     if (!game) return null;
+    
+    // If navigating through history, use the navigation FEN
+    if (navigationFen && viewingPly !== null) {
+      const c = new Chess(navigationFen);
+      return c;
+    }
+    
+    // Otherwise use current game position
     const c = new Chess(game.currentFen);
     if (game.pgn) {
       try {
@@ -50,7 +62,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       } catch {}
     }
     return c;
-  }, [game?.currentFen, game?.pgn]);
+  }, [game?.currentFen, game?.pgn, navigationFen, viewingPly]);
 
   // Calculate legal moves (excluding banned move)
   const legalMoves = useMemo(() => {
@@ -60,11 +72,15 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
 
     // If we're in ban phase, show opponent's moves
     if (canBan) {
-      const opponentColor = myColor === "white" ? "black" : "white";
+      // Determine who will be moving after the ban
+      // The banning player bans the opponent's next move
+      const movingPlayerColor = game.turn; // The player who will move after ban
+      const movingPlayerNotation = movingPlayerColor === "white" ? "w" : "b";
+      
       chess.moves({ verbose: true }).forEach((move) => {
-        // Only show opponent's pieces' moves
+        // Only show the moving player's pieces' moves (these are what can be banned)
         const piece = chess.get(move.from as Square);
-        if (piece && piece.color === (opponentColor === "white" ? "w" : "b")) {
+        if (piece && piece.color === movingPlayerNotation) {
           const from = move.from;
           const to = move.to;
           const dests = moves.get(from) || [];
@@ -111,11 +127,14 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   const shapes = useMemo(() => {
     const s: Config["drawable"]["shapes"] = [];
 
-    // Show current banned move with red
-    if (currentBannedMove && !canBan) {
+    // Determine which banned move to show (navigation or current)
+    const bannedToShow = viewingPly !== null ? navigationBan : currentBannedMove;
+
+    // Show banned move with red
+    if (bannedToShow && !canBan) {
       s.push({
-        orig: currentBannedMove.from as Square,
-        dest: currentBannedMove.to as Square,
+        orig: bannedToShow.from as Square,
+        dest: bannedToShow.to as Square,
         brush: "red",
         modifiers: { lineWidth: 10 },
       });
@@ -132,7 +151,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     }
 
     return s;
-  }, [currentBannedMove, canBan, highlightedSquares]);
+  }, [currentBannedMove, canBan, highlightedSquares, viewingPly, navigationBan]);
 
   // Handle piece movement
   const handleMove = useCallback(
@@ -321,23 +340,41 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
 
   // Calculate banned square positions for overlay
   const bannedSquareOverlays = useMemo(() => {
+    // Determine which banned move to show (navigation or current)
+    const bannedToShow = viewingPly !== null ? navigationBan : currentBannedMove;
+    
     console.log(
-      "[LichessBoardV2] currentBannedMove:",
-      currentBannedMove,
+      "[LichessBoardV2] bannedToShow:",
+      bannedToShow,
       "canBan:",
-      canBan
+      canBan,
+      "viewingPly:",
+      viewingPly
     );
 
-    if (!currentBannedMove || canBan) return null;
+    if (!bannedToShow || canBan) return null;
 
     const squareSize = 100 / 8; // 12.5% of board size
-    const fileToX = (file: string) => (file.charCodeAt(0) - 97) * squareSize;
-    const rankToY = (rank: string) => (8 - parseInt(rank)) * squareSize;
+    
+    // Calculate coordinates based on board orientation
+    const fileToX = (file: string) => {
+      const fileIndex = file.charCodeAt(0) - 97;
+      return orientation === 'white' 
+        ? fileIndex * squareSize 
+        : (7 - fileIndex) * squareSize;
+    };
+    
+    const rankToY = (rank: string) => {
+      const rankIndex = 8 - parseInt(rank);
+      return orientation === 'white'
+        ? rankIndex * squareSize
+        : (7 - rankIndex) * squareSize;
+    };
 
-    const fromFile = currentBannedMove.from[0];
-    const fromRank = currentBannedMove.from[1];
-    const toFile = currentBannedMove.to[0];
-    const toRank = currentBannedMove.to[1];
+    const fromFile = bannedToShow.from[0];
+    const fromRank = bannedToShow.from[1];
+    const toFile = bannedToShow.to[0];
+    const toRank = bannedToShow.to[1];
 
     const overlays = {
       from: {
@@ -352,7 +389,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
 
     console.log("[LichessBoardV2] bannedSquareOverlays:", overlays);
     return overlays;
-  }, [currentBannedMove, canBan]);
+  }, [currentBannedMove, canBan, viewingPly, navigationBan, orientation]);
 
   return (
     <>

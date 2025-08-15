@@ -35,6 +35,19 @@ interface GameStore {
   optimisticMove: { from: Square; to: Square } | null;
   optimisticBan: { from: Square; to: Square } | null;
   
+  // Navigation state for move history
+  viewingPly: number | null; // null means viewing current position
+  navigationFen: string | null; // FEN of the position being viewed
+  navigationBan: { from: Square; to: Square } | null; // Banned move at viewed position
+  
+  // Previous state for rollback
+  previousState: {
+    phase: GamePhase;
+    currentBannedMove: { from: Square; to: Square } | null;
+    banHistory: BannedMove[];
+    moveHistory: Array<{ from: Square; to: Square; san: string }>;
+  } | null;
+  
   // Actions
   setGameId: (id: string) => void;
   setPhase: (phase: GamePhase) => void;
@@ -58,6 +71,12 @@ interface GameStore {
   
   // Reset
   reset: () => void;
+  rollback: () => void;
+  saveStateForRollback: () => void;
+  
+  // Navigation actions
+  navigateToPosition: (ply: number | null, fen: string | null, ban: { from: Square; to: Square } | null) => void;
+  clearNavigation: () => void;
 }
 
 const initialState = {
@@ -73,6 +92,10 @@ const initialState = {
   isAnimating: false,
   optimisticMove: null,
   optimisticBan: null,
+  previousState: null,
+  viewingPly: null,
+  navigationFen: null,
+  navigationBan: null,
 };
 
 export const useGameStore = create<GameStore>()(
@@ -182,5 +205,49 @@ export const useGameStore = create<GameStore>()(
     setAnimating: (animating) => set({ isAnimating: animating }),
     
     reset: () => set(initialState),
+    
+    saveStateForRollback: () => {
+      const { phase, currentBannedMove, banHistory, moveHistory } = get();
+      set({
+        previousState: {
+          phase,
+          currentBannedMove,
+          banHistory: [...banHistory],
+          moveHistory: [...moveHistory],
+        }
+      });
+    },
+    
+    rollback: () => {
+      const { previousState } = get();
+      if (previousState) {
+        set({
+          phase: previousState.phase,
+          currentBannedMove: previousState.currentBannedMove,
+          banHistory: previousState.banHistory,
+          moveHistory: previousState.moveHistory,
+          optimisticMove: null,
+          optimisticBan: null,
+          highlightedSquares: [],
+          isAnimating: false,
+        });
+      }
+    },
+    
+    navigateToPosition: (ply, fen, ban) => {
+      set({
+        viewingPly: ply,
+        navigationFen: fen,
+        navigationBan: ban,
+      });
+    },
+    
+    clearNavigation: () => {
+      set({
+        viewingPly: null,
+        navigationFen: null,
+        navigationBan: null,
+      });
+    },
   }))
 );

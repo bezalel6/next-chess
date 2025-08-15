@@ -183,7 +183,7 @@ async function handleMakeMove(
         pgn: moveResult.newPgn,
         last_move: move as unknown as Json, // Type cast for database storage
         turn: playerColor === "white" ? "black" : "white",
-        banning_player: status === "finished" ? null : (playerColor === "white" ? "black" : "white"), // Opponent must now ban the next move
+        banning_player: status === "finished" ? null : playerColor, // Player who just moved now bans opponent's next move
         current_banned_move: null, // Clear the banned move after it's been avoided
         status,
         result: gameOverState.result,

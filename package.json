@@ -10,7 +10,7 @@
     "supabase:start": "dotenv -e ./.env.local -- npx supabase start",
     "typegen": "supabase gen types --local > src/types/database.ts; cp src/types/database.ts supabase/functions/_shared/database-types.ts",
     "db:remote-reset": "npx supabase@beta db reset --linked",
-    "dev": "dotenv -e ./.env -- npx tsx src/server/server.ts",
+    "dev": "portio --mine 3000 && dotenv -e ./.env -- npx tsx src/server/server.ts",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",

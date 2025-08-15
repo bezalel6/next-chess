@@ -1,6 +1,8 @@
 import { Box, Typography, Tooltip, IconButton } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useGame } from "@/contexts/GameContextV2";
+import { useGameStore } from "@/stores/gameStore";
+import type { Square } from 'chess.ts/dist/types';
 import BlockIcon from '@mui/icons-material/Block';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -118,19 +120,47 @@ const MoveHistoryV2 = () => {
       : null;
   }, [currentPlyIndex, movesData]);
 
-  // Auto-scroll to the latest move
+  // Auto-scroll to the latest move when new moves are added
   useEffect(() => {
-    if (moveHistoryRef.current && moves.length > 0) {
+    if (moveHistoryRef.current && moves.length > 0 && currentPlyIndex === -1) {
+      // Only auto-scroll if not navigating (at current position)
       moveHistoryRef.current.scrollTop = moveHistoryRef.current.scrollHeight;
     }
-  }, [moves.length]);
+  }, [moves.length, currentPlyIndex]);
+  
+  // Scroll to the selected move when navigating
+  useEffect(() => {
+    if (moveHistoryRef.current && currentPlyIndex >= 0) {
+      // Find the element for the current move
+      const moveElements = moveHistoryRef.current.querySelectorAll('[data-ply]');
+      const targetElement = Array.from(moveElements).find(
+        el => el.getAttribute('data-ply') === currentPlyIndex.toString()
+      );
+      
+      if (targetElement) {
+        // Scroll the element into view smoothly
+        targetElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }
+    }
+  }, [currentPlyIndex]);
 
   // Handle move selection - load position from FEN
   const handleMoveClick = useCallback((move: MoveData) => {
-    // Load the position after this move
-    setPgn(move.fen_after);
+    // Navigate to this position
+    const { navigateToPosition } = useGameStore.getState();
+    
+    // Set the banned move for this position if it exists
+    const bannedMove = move.banned_from && move.banned_to 
+      ? { from: move.banned_from as Square, to: move.banned_to as Square }
+      : null;
+    
+    // Navigate to the position with banned move info
+    navigateToPosition(move.ply_number, move.fen_after, bannedMove);
     setCurrentPlyIndex(move.ply_number);
-  }, [setPgn]);
+  }, []);
 
   // Navigation functions
   const navigateToFirst = useCallback(() => {
@@ -154,6 +184,11 @@ const MoveHistoryV2 = () => {
   const navigateToLast = useCallback(() => {
     if (movesData.length > 0) {
       handleMoveClick(movesData[movesData.length - 1]);
+    } else {
+      // If no moves, clear navigation to show starting position
+      const { clearNavigation } = useGameStore.getState();
+      clearNavigation();
+      setCurrentPlyIndex(-1);
     }
   }, [handleMoveClick, movesData]);
 
@@ -361,7 +396,9 @@ function MovesRow({
         {move.number}.
       </Box>
       {move.white && (
-        <Box sx={{
+        <Box 
+          data-ply={move.white.ply_number}
+          sx={{
           display: 'table-cell',
           py: 0.5,
           px: 1.5,
@@ -382,7 +419,9 @@ function MovesRow({
         </Box>
       )}
       {move.black ? (
-        <Box sx={{
+        <Box 
+          data-ply={move.black.ply_number}
+          sx={{
           display: 'table-cell',
           py: 0.5,
           px: 1.5,

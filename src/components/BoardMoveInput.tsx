@@ -1,26 +1,49 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import type { Square } from "chess.ts/dist/types";
 
 export default function BoardMoveInput() {
   const testInputRef = useRef<HTMLInputElement>(null);
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   
   // Get game state
   const game = useUnifiedGameStore(s => s.game);
   const mode = useUnifiedGameStore(s => s.mode);
   const phase = useUnifiedGameStore(s => s.phase);
   const executeGameOperation = useUnifiedGameStore(s => s.executeGameOperation);
+  const selectSquare = useUnifiedGameStore(s => s.selectSquare);
+  const clearHighlights = useUnifiedGameStore(s => s.clearHighlights);
   
   const canBan = phase === 'selecting_ban' && game?.status === 'active';
   const canMove = phase === 'making_move' && game?.status === 'active';
   
-  // Handle square-based input (e.g., "e2 e4" for move/ban)
+  // Handle square-based input (e.g., "e2" for selection, "e2 e4" for move/ban)
   const handleSquareInput = useCallback(() => {
     const input = testInputRef.current;
     if (!input || !input.value.trim()) return;
     
     const parts = input.value.trim().toLowerCase().split(/\s+/);
+    
+    // Single square - show available moves
+    if (parts.length === 1) {
+      const square = parts[0];
+      // Validate square format
+      if (!/^[a-h][1-8]$/.test(square)) {
+        // Flash red border for invalid input
+        input.style.borderColor = "#ff0000";
+        setTimeout(() => {
+          input.style.borderColor = canBan ? "#ff6b6b" : "#4CAF50";
+        }, 500);
+        return;
+      }
+      
+      // Select the square to show available moves
+      selectSquare(square as Square);
+      setSelectedSquare(square as Square);
+      // Don't clear input - wait for destination
+      return;
+    }
     
     // Two squares - execute move/ban
     if (parts.length === 2) {
@@ -40,8 +63,10 @@ export default function BoardMoveInput() {
       const success = executeGameOperation(operation, from as Square, to as Square, 'q');
       
       if (success) {
-        // Clear input on success
+        // Clear input and selection on success
         input.value = "";
+        setSelectedSquare(null);
+        clearHighlights();
       } else {
         // Flash red border for invalid move/ban
         input.style.borderColor = "#ff0000";
@@ -56,7 +81,7 @@ export default function BoardMoveInput() {
         input.style.borderColor = canBan ? "#ff6b6b" : "#4CAF50";
       }, 500);
     }
-  }, [canBan, executeGameOperation]);
+  }, [canBan, executeGameOperation, selectSquare, clearHighlights]);
   
   // Handle Enter key press
   useEffect(() => {
@@ -89,7 +114,15 @@ export default function BoardMoveInput() {
       <input
         ref={testInputRef}
         type="text"
-        placeholder={canBan ? "e2 e4 (ban)" : canMove ? "e2 e4 (move)" : "waiting..."}
+        placeholder={
+          selectedSquare 
+            ? `${selectedSquare} → ?` 
+            : canBan 
+              ? "e2 or e2 e4 (ban)" 
+              : canMove 
+                ? "e2 or e2 e4 (move)" 
+                : "waiting..."
+        }
         disabled={!canBan && !canMove}
         style={{
           padding: '8px 12px',

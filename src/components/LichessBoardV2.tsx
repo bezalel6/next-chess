@@ -201,6 +201,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
         enabled: true,
         duration: 250,
       },
+      coordinates: true, // Enable coordinate display
     }),
     [
       chess,
@@ -261,6 +262,22 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
             width: "100% !important",
             height: "100% !important",
             borderRadius: "inherit",
+            // Add padding to prevent coordinate cutoff
+            padding: "4px",
+            boxSizing: "border-box",
+          },
+          // Make coordinate labels larger
+          "& coords": {
+            fontSize: "16px !important",
+            fontWeight: "600 !important",
+          },
+          "& coords.ranks coord": {
+            fontSize: "16px !important",
+            fontWeight: "600 !important",
+          },
+          "& coords.files coord": {
+            fontSize: "16px !important",
+            fontWeight: "600 !important",
           },
           // Styles for banned move squares
           "& .cg-wrap square.banned-from": {

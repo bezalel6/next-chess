@@ -74,7 +74,12 @@ export default function GameBoardV2({
   const boardOrientation = orientation || myColor || "white";
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+    <Box sx={{ 
+      display: "flex", 
+      flexDirection: "column", 
+      alignItems: "center", 
+      gap: 2,
+    }}>
       <Box
         sx={{
           position: "relative",

@@ -122,6 +122,24 @@ export default function LocalGamePage() {
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'flex-start',
+                // Make coordinate labels larger
+                '& div[style*="grid-template"]': {
+                  '& > div': {
+                    fontSize: '20px !important',
+                    fontWeight: '600 !important',
+                  }
+                },
+                // Alternative: target divs containing single letters/numbers
+                '& div': {
+                  '&:has(> div:first-child:last-child)': {
+                    '& > div': {
+                      '&:where(:matches([1-8a-h]))': {
+                        fontSize: '20px !important',
+                        fontWeight: '600 !important',
+                      }
+                    }
+                  }
+                }
               }}>
                 <GameBoardV2 />
               </Box>

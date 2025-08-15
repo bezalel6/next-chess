@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Box, Typography, Button, Paper, Alert, CircularProgress } from '@mui/material';
 import { supabase } from '@/utils/supabase';
 import { GameService } from '@/services/gameService';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AutoBanTest() {
+  const { signIn, user } = useAuth();
   const [logs, setLogs] = useState<string[]>([]);
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
   const [gameId, setGameId] = useState<string>('');
@@ -35,19 +37,14 @@ export default function AutoBanTest() {
     try {
       // Step 1: Sign in with test auth if available
       addLog('Checking authentication...');
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
       
-      if (!currentUser) {
-        // Try to sign in with test account
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: 'test@example.com',
-          password: 'test123456'
-        });
-        
-        if (signInError) {
-          addLog('No authentication available, using mock IDs', 'error');
-        } else {
+      if (!user) {
+        // Try to sign in with test account using AuthContext
+        try {
+          await signIn('test@example.com', 'test123456');
           addLog('Signed in with test account', 'success');
+        } catch (signInError) {
+          addLog('No authentication available, using mock IDs', 'error');
         }
       }
       

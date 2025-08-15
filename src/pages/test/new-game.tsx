@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '@/utils/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { CircularProgress, Box, Typography } from '@mui/material';
 
 export default function NewGameTest() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [status, setStatus] = useState('Creating test game...');
   const [error, setError] = useState<string | null>(null);
 
@@ -35,15 +36,8 @@ export default function NewGameTest() {
         
         setStatus('Signing in as test user...');
         
-        // Sign in as the selected test user
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (signInError) {
-          throw new Error(`Failed to sign in: ${signInError.message}`);
-        }
+        // Sign in using AuthContext to keep it aware of auth changes
+        await signIn(email, password);
 
         setStatus('Redirecting to game...');
         

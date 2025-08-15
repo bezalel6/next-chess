@@ -1,7 +1,7 @@
 import { Box, Container, Typography, Button, Paper } from "@mui/material";
 import { useRouter } from "next/router";
 import { useGameInit } from "@/hooks/useGameInit";
-import LocalGameBoard from "@/components/LocalGameBoard";
+import GameBoardV2 from "@/components/GameBoardV2";
 import LocalMoveHistory from "@/components/LocalMoveHistory";
 import HomeIcon from '@mui/icons-material/Home';
 import InfoIcon from '@mui/icons-material/Info';
@@ -123,7 +123,7 @@ export default function LocalGamePage() {
                 justifyContent: 'center',
                 alignItems: 'flex-start',
               }}>
-                <LocalGameBoard />
+                <GameBoardV2 />
               </Box>
               
               {/* Right sidebar - Move history */}

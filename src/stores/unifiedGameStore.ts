@@ -762,6 +762,9 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
               // Update game object PGN
               state.chess.setComment(`banning: ${from}${to}`);
               const updatedPgn = state.chess.pgn();
+              
+              // After a ban, the banningPlayer doesn't change yet - it changes after the next move
+              // The current turn player will move next, then they will become the banning player
               set({
                 game: { 
                   ...state.game, 
@@ -964,8 +967,10 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           }];
           
           // Update core state
+          const newTurn = state.chess.turn() === 'w' ? 'white' : 'black';
           set({
             currentFen: newFen,
+            currentTurn: newTurn,
             lastMove: { from, to },
             moveHistory: newMoveHistory,
             currentBannedMove: null, // Clear banned move after successful move
@@ -977,7 +982,10 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             let gameUpdates: any = {
               pgn: updatedPgn,
               currentFen: newFen,
+              turn: newTurn,
               lastMove: { from, to },
+              // After a move, the player who just moved becomes the banning player
+              banningPlayer: state.currentTurn,
             };
             
             // Check for game over (Ban Chess variant rules)
@@ -1171,15 +1179,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
                 phase: 'making_move',
               });
               
-              // Update game object - clear banning player
-              if (state.game) {
-                set({
-                  game: { 
-                    ...state.game, 
-                    banningPlayer: null // Clear banning player after ban is selected
-                  }
-                });
-              }
+              // Don't update banningPlayer here - it stays the same until after the next move
             } else if (state.phase === 'making_move') {
               // After a move is made, the phase changes to selecting_ban
               // The turn has already been updated in executeMove

@@ -341,6 +341,7 @@ export function useGame(gameId: string | undefined, userId: string | undefined) 
   const moveMutation = useMoveMutation(gameId);
   const banMutation = useBanMutation(gameId);
   const mutations = useGameMutations(gameId);
+  const { playMoveSound, playBan } = useChessSounds();
   
   // Use individual selectors to avoid infinite loops
   const mode = useUnifiedGameStore(s => s.mode);
@@ -363,25 +364,36 @@ export function useGame(gameId: string | undefined, userId: string | undefined) 
   
   const makeMove = useCallback((from: string, to: string, promotion?: string) => {
     if (mode === 'local') {
-      // Handle local move
+      // Handle local move with sound
       const store = useUnifiedGameStore.getState();
+      
+      // Calculate move sound before making the move
+      if (store.chess && store.game) {
+        const chess = new Chess(store.chess.fen());
+        const move = chess.move({ from: from as Square, to: to as Square, promotion });
+        if (move) {
+          playMoveSound(move, chess);
+        }
+      }
+      
       store.executeMove(from as Square, to as Square, promotion);
     } else {
-      // Handle online move
+      // Handle online move (sound is played in mutation)
       moveMutation.mutate({ from: from as Square, to: to as Square, promotion: promotion as any });
     }
-  }, [mode, moveMutation]);
+  }, [mode, moveMutation, playMoveSound]);
   
   const banMove = useCallback((from: string, to: string) => {
     if (mode === 'local') {
-      // Handle local ban
+      // Handle local ban with sound
+      playBan();
       const store = useUnifiedGameStore.getState();
       store.executeBan(from as Square, to as Square);
     } else {
-      // Handle online ban
+      // Handle online ban (sound is played in mutation)
       banMutation.mutate({ from, to });
     }
-  }, [mode, banMutation]);
+  }, [mode, banMutation, playBan]);
   
   return {
     // Game data

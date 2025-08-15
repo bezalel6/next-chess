@@ -26,6 +26,9 @@ interface LichessBoardV2Props {
 }
 
 export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
+  // Get auth context
+  const { user } = useAuth();
+  
   // Use individual selectors to avoid infinite loops
   // Use atomic selectors to avoid reference changes and infinite loops
   const game = useUnifiedGameStore(s => s.game);
@@ -36,13 +39,11 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   const highlightedSquares = useUnifiedGameStore(s => s.highlightedSquares);
   const optimisticMove = useUnifiedGameStore(s => s.optimisticMove);
   const optimisticBan = useUnifiedGameStore(s => s.optimisticBan);
-  const executeGameOperation = useUnifiedGameStore(s => s.executeGameOperation);
   const selectedSquare = useUnifiedGameStore(s => s.selectedSquare);
   const possibleMoves = useUnifiedGameStore(s => s.possibleMoves);
   
-  // Use mutations for online games
-  const banMutation = useBanMutation(game?.id);
-  const moveMutation = useMoveMutation(game?.id);
+  // Use the unified game hook which includes sound-enabled mutations
+  const { makeMove, banMove } = useGame(game?.id, user?.id);
   
   // Use unified selectors - computed values to avoid infinite loops
   const canBan = useUnifiedGameStore(s => s.phase === 'selecting_ban' && s.game?.status === 'active');
@@ -156,15 +157,14 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   // Handle piece movement using unified operation
   const handleMove = useCallback(
     (from: string, to: string) => {
-      // Use unified operation handler
-      const operation = canBan ? 'ban' : 'move';
-      const success = executeGameOperation(operation, from as Square, to as Square, 'q');
-      
-      if (!success) {
-        console.log(`Failed to execute ${operation}:`, from, to);
+      // Use the hook functions which include sound effects
+      if (canBan) {
+        banMove(from, to);
+      } else if (canMove) {
+        makeMove(from, to, 'q'); // Always promote to queen for simplicity
       }
     },
-    [canBan, canMove, executeGameOperation]
+    [canBan, canMove, makeMove, banMove]
   );
 
 

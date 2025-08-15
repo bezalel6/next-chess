@@ -45,6 +45,53 @@ This eliminates the need for manual sign-up/login during development.
 
 ## Current Status (2025-08-15)
 
+### Row Level Security (RLS) Fix - COMPLETED ✅
+**Problem**: Database operations were failing with "permission denied" errors (403 Forbidden)
+
+**Root Cause**: 
+- Conflicting RLS policies from multiple migrations
+- Overly restrictive policies blocking edge functions despite using service_role
+- Policies not properly configured for different roles (anon, authenticated, service_role)
+
+**Solution Applied**: 
+Created comprehensive RLS migration (`20251218_comprehensive_rls_fix.sql`) that:
+1. Drops all existing conflicting policies to start fresh
+2. Creates clean, simple policies for each role:
+   - `service_role`: Full bypass of RLS (admin access)
+   - `authenticated`: Full CRUD for local development
+   - `anon`: Read-only access
+3. Grants proper database-level permissions to each role
+4. Sets default privileges for future tables
+
+**To Run Services**:
+```bash
+# Start Supabase (if not running)
+npx supabase start
+
+# Start edge functions
+npx supabase functions serve
+
+# Start dev server (kills existing process on port 3000)
+npm run dev:local
+```
+
+**Test Commands**:
+```bash
+# Create test user and get token
+curl -X POST "http://127.0.0.1:54321/auth/v1/signup" \
+  -H "apikey: [ANON_KEY]" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "testpassword123"}'
+
+# Test with authenticated token
+curl -X POST "http://127.0.0.1:54321/functions/v1/matchmaking" \
+  -H "Authorization: Bearer [ACCESS_TOKEN]" \
+  -H "Content-Type: application/json" \
+  -d '{"operation":"joinQueue"}'
+```
+
+## Current Status (2025-08-15)
+
 ### Ban Move Updates Issue - FIXED ✅
 **Problem**: Banned moves weren't appearing in the moves list when they occurred
 

@@ -59,12 +59,17 @@ export default function RealtimeMonitor() {
       )
       .subscribe();
 
-    // Subscribe to ban updates
+    // Subscribe to ban updates (from moves table)
     const banChannel = supabase
       .channel("admin-bans")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "ban_history" },
+        { 
+          event: "INSERT", 
+          schema: "public", 
+          table: "moves",
+          filter: "banned_from=neq.null"
+        },
         (payload) => {
           handleBanEvent(payload);
         }
@@ -139,13 +144,15 @@ export default function RealtimeMonitor() {
   };
 
   const handleBanEvent = (payload: any) => {
-    addEvent({
-      id: `ban-${Date.now()}`,
-      type: "ban_made",
-      timestamp: new Date().toISOString(),
-      data: payload.new,
-      message: `Ban in game ${payload.new.game_id}: ${payload.new.banned_move.from}${payload.new.banned_move.to} blocked`,
-    });
+    if (payload.new.banned_from && payload.new.banned_to) {
+      addEvent({
+        id: `ban-${Date.now()}`,
+        type: "ban_made",
+        timestamp: new Date().toISOString(),
+        data: payload.new,
+        message: `Ban in game ${payload.new.game_id}: ${payload.new.banned_from}${payload.new.banned_to} blocked`,
+      });
+    }
   };
 
   const handleUserEvent = (payload: any) => {

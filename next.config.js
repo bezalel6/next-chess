@@ -18,7 +18,7 @@ const config = {
       config.cache = {
         type: 'filesystem',
         buildDependencies: {
-          config: [import.meta.url]
+          config: ['./next.config.js']
         },
         // Reduce memory overhead by using smaller cache chunks
         compression: 'gzip',

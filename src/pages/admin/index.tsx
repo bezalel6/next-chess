@@ -36,6 +36,7 @@ import {
   CheckCircle as ActiveIcon,
   Cancel as InactiveIcon,
   Timer as TimerIcon,
+  CheckCircle,
 } from "@mui/icons-material";
 import { useRouter } from "next/router";
 import { supabase } from "@/utils/supabase";
@@ -71,10 +72,10 @@ interface GameData {
 
 interface UserData {
   id: string;
-  email: string;
+  email?: string;
   username: string;
   created_at: string;
-  last_sign_in_at: string;
+  last_sign_in_at?: string;
   games_played: number;
   games_won: number;
   games_drawn: number;
@@ -179,8 +180,9 @@ export default function AdminDashboard() {
         .select("*", { count: "exact", head: true });
 
       const { count: totalBans } = await supabase
-        .from("ban_history")
-        .select("*", { count: "exact", head: true });
+        .from("moves")
+        .select("*", { count: "exact", head: true })
+        .not("banned_from", "is", null);
 
       // Calculate average game duration
       const { data: finishedGames } = await supabase
@@ -231,9 +233,10 @@ export default function AdminDashboard() {
               .eq("game_id", game.id);
 
             const { count: banCount } = await supabase
-              .from("ban_history")
+              .from("moves")
               .select("*", { count: "exact", head: true })
-              .eq("game_id", game.id);
+              .eq("game_id", game.id)
+              .not("banned_from", "is", null);
 
             // Fetch usernames separately
             const { data: whiteProfile } = await supabase
@@ -269,7 +272,7 @@ export default function AdminDashboard() {
     try {
       const { data: usersData } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, username, created_at, updated_at")
         .order("created_at", { ascending: false });
 
       if (usersData) {
@@ -342,8 +345,7 @@ export default function AdminDashboard() {
 
   const filteredUsers = users.filter(
     (user) =>
-      user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      user.username?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -559,7 +561,7 @@ export default function AdminDashboard() {
               {filteredUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>{user.username || "No username"}</TableCell>
-                  <TableCell>{user.email}</TableCell>
+                  <TableCell>{user.email || "N/A"}</TableCell>
                   <TableCell>{user.games_played}</TableCell>
                   <TableCell>{user.games_won}</TableCell>
                   <TableCell>{user.games_drawn}</TableCell>
@@ -574,7 +576,7 @@ export default function AdminDashboard() {
                   <TableCell>
                     {user.last_sign_in_at
                       ? format(new Date(user.last_sign_in_at), "MMM d, HH:mm")
-                      : "Never"}
+                      : "N/A"}
                   </TableCell>
                   <TableCell>
                     <Tooltip title="Ban User">

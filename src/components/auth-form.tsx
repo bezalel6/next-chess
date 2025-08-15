@@ -16,8 +16,9 @@ import {
 } from "@/contexts/AuthContext";
 import { z } from "zod";
 import { debounce } from "lodash";
+import { validateUsername } from "@/utils/usernameFilter";
 
-// Zod schema for username validation
+// Enhanced Zod schema for username validation with filtering
 const usernameSchema = z
   .string()
   .min(3, "Username must be at least 3 characters")
@@ -25,7 +26,13 @@ const usernameSchema = z
   .regex(
     /^[a-zA-Z0-9_-]+$/,
     "Username can only contain letters, numbers, underscores, and hyphens",
-  );
+  )
+  .refine((username) => {
+    const result = validateUsername(username);
+    return result.isValid;
+  }, {
+    message: "Username is not allowed"
+  });
 
 export type AuthFormProps = {
   redirectOnSuccess?: boolean;
@@ -83,9 +90,17 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
     [checkUsernameExists],
   );
 
-  // Validate username with Zod when it changes
+  // Validate username with enhanced filtering when it changes
   useEffect(() => {
     if (username && isSignUp) {
+      // First check our custom validation for better error messages
+      const filterResult = validateUsername(username);
+      if (!filterResult.isValid) {
+        setUsernameError(filterResult.reason || "Username is not allowed");
+        return;
+      }
+      
+      // Then run Zod validation for format checks
       try {
         usernameSchema.parse(username);
         setUsernameError(null);

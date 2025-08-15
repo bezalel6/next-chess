@@ -9,12 +9,16 @@
  * Usage: npm run setup:admins
  */
 
-const { createClient } = require('@supabase/supabase-js');
-const path = require('path');
-const fs = require('fs');
-require('dotenv').config({ path: '.env.local' });
+import { createClient } from '@supabase/supabase-js';
+import path from 'path';
+import fs from 'fs';
+import { config } from 'dotenv';
+config({ path: '.env.local' });
 
 // Read admin config
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const configPath = path.join(__dirname, '..', 'admin-config.ts');
 const configContent = fs.readFileSync(configPath, 'utf-8');
 

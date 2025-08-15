@@ -9,6 +9,10 @@ Real-time multiplayer chess with Ban Chess variant - Black bans one of White's m
 - Material-UI + Framer Motion
 - Chess.ts for game logic
 
+## Dependencies
+- bad-words: Profanity filtering for username validation
+- the-big-username-blacklist: Comprehensive username blacklist validation
+
 ## Ban Chess Rules
 1. Black bans one of White's possible first moves
 2. White makes first move (avoiding the ban)  
@@ -101,6 +105,49 @@ This eliminates the need for manual sign-up/login during development.
 - TypeScript strict mode disabled
 - Supabase is source of truth
 - Move/ban validation happens server-side
+
+## Agent Usage Guidelines
+
+### Available Agents
+Claude Code includes specialized agents for different tasks. Use these agents proactively:
+
+1. **general-purpose**: Complex multi-step tasks, file searches, research
+2. **quality-control-enforcer**: Code review, validation, ensuring best practices  
+3. **claude-md-checker**: Verify adherence to CLAUDE.md guidelines
+4. **banchess-grandmaster**: Ban Chess rules, game logic, move validation
+5. **dev-culture-mentor**: Pragmatic code reviews, architecture discussions
+6. **playwright-automation-executor**: Browser automation, E2E testing, web scraping
+
+### Agent Usage Rules
+
+#### Quality Control Integration
+- **MANDATORY**: End every todo list with claude-md-checker verification
+- **MANDATORY**: Use quality-control-enforcer at feature completion
+- **MANDATORY**: Use quality-control-enforcer when user suspects quality issues
+
+#### Ban Chess Expertise  
+- Use banchess-grandmaster for ANY Ban Chess rule questions
+- Use banchess-grandmaster to validate Ban Chess game logic implementations
+- Use banchess-grandmaster for edge cases in ban mechanics
+
+#### Development Workflow
+1. Start complex tasks with general-purpose agent for research/planning
+2. Implement features following project conventions
+3. Use quality-control-enforcer to review implementation
+4. Use claude-md-checker to verify CLAUDE.md compliance
+5. Use playwright-automation-executor for E2E test validation
+
+#### Example Todo List Structure
+```
+1. Research existing implementation
+2. Design new feature architecture  
+3. Implement core functionality
+4. Add tests and error handling
+5. Use quality-control-enforcer to review implementation
+6. Use claude-md-checker to verify CLAUDE.md compliance
+```
+
+This ensures every feature meets quality standards and follows project guidelines.
 
 ## Performance Optimizations
 

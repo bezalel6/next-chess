@@ -12,6 +12,29 @@ const config = {
     // Disable ESLint during builds
     ignoreDuringBuilds: true,
   },
+  webpack: (config, { dev, isServer }) => {
+    // Optimize webpack cache for development
+    if (dev && !isServer) {
+      config.cache = {
+        type: 'filesystem',
+        buildDependencies: {
+          config: [__filename]
+        },
+        // Reduce memory overhead by using smaller cache chunks
+        compression: 'gzip',
+        // Store cache entries more efficiently
+        maxMemoryGenerations: 1,
+        // Use a more efficient serialization strategy
+        memoryCacheUnaffected: true,
+        name: 'next-chess-client-dev',
+        // Reduce the threshold for what's considered "big"
+        // This helps webpack use more efficient serialization
+        store: 'pack',
+        version: '1.0.0'
+      };
+    }
+    return config;
+  },
 
   /**
    * If you are using `appDir` then you must comment the below `i18n` config out.

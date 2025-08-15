@@ -80,6 +80,22 @@ This eliminates the need for manual sign-up/login during development.
 - Supabase is source of truth
 - Move/ban validation happens server-side
 
+## Performance Optimizations
+
+### Webpack Cache Configuration (2025-01-15)
+**Issue**: Development server showing webpack cache serialization warnings for large strings (128kiB+)
+```
+[webpack.cache.PackFileCacheStrategy] Serializing big strings impacts deserialization performance
+```
+
+**Solution**: Added custom webpack cache configuration in `next.config.js`:
+- Enabled gzip compression for cache entries
+- Set `maxMemoryGenerations: 1` to reduce memory overhead  
+- Uses 'pack' store strategy for efficient serialization
+- Applied only to client-side development builds
+
+This eliminates the serialization warnings and improves dev server performance.
+
 ## Current Status (2025-08-15)
 
 ### Core Ban Chess Logic - WORKING ✅

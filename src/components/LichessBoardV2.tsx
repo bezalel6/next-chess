@@ -9,7 +9,8 @@ import {
 import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
-import { useBanMutation, useMoveMutation } from "@/hooks/useGameQueries";
+import { useGame } from "@/hooks/useGameQueries";
+import { useAuth } from "@/contexts/AuthContext";
 import { Chess } from "chess.ts";
 import type { Square } from "chess.ts/dist/types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -155,12 +156,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   // Handle piece movement using unified operation
   const handleMove = useCallback(
     (from: string, to: string) => {
-      // Play sound based on operation type
-      if (canBan) {
-        const audio = new Audio("/sounds/check.wav");
-        audio.play().catch(() => {});
-      }
-      
       // Use unified operation handler
       const operation = canBan ? 'ban' : 'move';
       const success = executeGameOperation(operation, from as Square, to as Square, 'q');

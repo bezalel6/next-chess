@@ -9,7 +9,7 @@ import {
 import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
-import { useBanMutation } from "@/hooks/useGameQueries";
+import { useBanMutation, useMoveMutation } from "@/hooks/useGameQueries";
 import { Chess } from "chess.ts";
 import type { Square } from "chess.ts/dist/types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,8 +40,9 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   const optimisticMove = useUnifiedGameStore(s => s.optimisticMove);
   const optimisticBan = useUnifiedGameStore(s => s.optimisticBan);
   
-  // Use ban mutation for online games
+  // Use mutations for online games
   const banMutation = useBanMutation(game?.id);
+  const moveMutation = useMoveMutation(game?.id);
   
   // Calculate canBan and canMove based on the state
   const canBan = mode === 'local' 
@@ -202,16 +203,25 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
         if (move) {
           chess?.undo(); // Undo local move, server will handle it
 
-          if (move.promotion) {
-            // TODO: Show promotion dialog
-            makeMove(from as Square, to as Square, "q");
+          // Use mutation for online games, direct store update for local
+          if (mode === 'online' && moveMutation) {
+            if (move.promotion) {
+              // TODO: Show promotion dialog
+              moveMutation.mutate({ from: from as Square, to: to as Square, promotion: "q" });
+            } else {
+              moveMutation.mutate({ from: from as Square, to: to as Square });
+            }
           } else {
-            makeMove(from as Square, to as Square);
+            if (move.promotion) {
+              makeMove(from as Square, to as Square, "q");
+            } else {
+              makeMove(from as Square, to as Square);
+            }
           }
         }
       }
     },
-    [canBan, canMove, storeBanMove, makeMove, chess, mode, banMutation]
+    [canBan, canMove, storeBanMove, makeMove, chess, mode, banMutation, moveMutation]
   );
 
   // Handle square-based input (e.g., "e2" for selection, "e2 e4" for move)

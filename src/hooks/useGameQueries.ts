@@ -180,6 +180,7 @@ export function useMoveMutation(gameId: string | undefined) {
         from: data.lastMove?.from,
         to: data.lastMove?.to,
         fen: data.currentFen,
+        pgn: data.pgn,
       };
       
       logBroadcastSent('move', broadcastPayload);

@@ -25,6 +25,21 @@ const LocalGameBoard: React.FC = () => {
   const [optionSquares, setOptionSquares] = useState<Record<string, any>>({});
   const [boardOrientation, setBoardOrientation] = useState<'white' | 'black'>('white');
 
+  // Update board orientation based on game phase and current player
+  useEffect(() => {
+    if (!gameState) return;
+    
+    // During banning phase, orient board from the perspective of the banning player
+    if (gameState.phase === 'banning') {
+      // The banning player is the one who just moved (opposite of current turn)
+      const banningPlayer = gameState.chess.turn() === 'w' ? 'black' : 'white';
+      setBoardOrientation(banningPlayer);
+    } else {
+      // During playing phase, keep board oriented for current player
+      setBoardOrientation(gameState.currentPlayer);
+    }
+  }, [gameState?.phase, gameState?.currentPlayer, gameState?.chess]);
+
   // Get move options for highlighting
   const getMoveOptions = useCallback((square: Square) => {
     if (!gameState) return {};
@@ -98,8 +113,6 @@ const LocalGameBoard: React.FC = () => {
         if (success) {
           setMoveFrom(null);
           setOptionSquares({});
-          // Flip board for next player
-          setBoardOrientation(prev => prev === 'white' ? 'black' : 'white');
         } else {
           // Try selecting a new piece if move failed
           const piece = gameState.chess.get(square);
@@ -120,9 +133,6 @@ const LocalGameBoard: React.FC = () => {
     if (!gameState || gameState.phase !== 'playing') return false;
     
     const success = makeMove(sourceSquare, targetSquare);
-    if (success) {
-      setBoardOrientation(prev => prev === 'white' ? 'black' : 'white');
-    }
     return success;
   }, [gameState, makeMove]);
 

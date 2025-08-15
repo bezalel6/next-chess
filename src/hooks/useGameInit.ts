@@ -13,7 +13,8 @@ export function useGameInit() {
   const router = useRouter();
   const { user } = useAuth();
   const { playGameStart } = useChessSounds();
-  const store = useUnifiedGameStore();
+  const mode = useUnifiedGameStore(s => s.mode);
+  const initLocalGame = useUnifiedGameStore(s => s.initLocalGame);
   
   const gameId = router.query.id as string | undefined;
   const isLocalGame = router.pathname === '/local-game';
@@ -27,11 +28,11 @@ export function useGameInit() {
   
   // Initialize local game
   useEffect(() => {
-    if (isLocalGame && store.mode !== 'local') {
-      store.initLocalGame();
+    if (isLocalGame && mode !== 'local') {
+      initLocalGame();
       playGameStart();
     }
-  }, [isLocalGame, store, playGameStart]);
+  }, [isLocalGame, mode, initLocalGame, playGameStart]);
   
   // Initialize online game
   const gameQuery = gameId ? useGameQuery(gameId, user?.id) : null;

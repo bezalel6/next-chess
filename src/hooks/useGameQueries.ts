@@ -10,8 +10,13 @@ import { Chess } from 'chess.ts';
 
 // ============= Game Query Hook =============
 export function useGameQuery(gameId: string | undefined, userId: string | undefined) {
-  const store = useUnifiedGameStore();
   const queryClient = useQueryClient();
+  const setLoading = useUnifiedGameStore(s => s.setLoading);
+  const initGame = useUnifiedGameStore(s => s.initGame);
+  const syncWithServer = useUnifiedGameStore(s => s.syncWithServer);
+  const receiveMove = useUnifiedGameStore(s => s.receiveMove);
+  const receiveBan = useUnifiedGameStore(s => s.receiveBan);
+  const setConnected = useUnifiedGameStore(s => s.setConnected);
   
   // Fetch game data
   const query = useQuery({
@@ -27,8 +32,8 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
   
   // Update loading state
   useEffect(() => {
-    store.setLoading(query.isLoading);
-  }, [query.isLoading, store]);
+    setLoading(query.isLoading);
+  }, [query.isLoading, setLoading]);
   
   // Initialize store when game data is loaded
   useEffect(() => {
@@ -38,9 +43,9 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
         game.whitePlayerId === userId ? 'white' :
         game.blackPlayerId === userId ? 'black' : null;
       
-      store.initGame(gameId, game, myColor);
+      initGame(gameId, game, myColor);
     }
-  }, [query.data, gameId, userId, store]);
+  }, [query.data, gameId, userId, initGame]);
   
   // Set up realtime subscription
   useEffect(() => {
@@ -59,7 +64,7 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
         
         // Sync store with server
         if (payload.payload) {
-          store.syncWithServer(payload.payload);
+          syncWithServer(payload.payload);
         }
       })
       .on('broadcast', { event: 'move' }, (payload) => {
@@ -70,7 +75,7 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
         
         // Update store
         if (payload.payload) {
-          store.receiveMove(payload.payload);
+          receiveMove(payload.payload);
         }
       })
       .on('broadcast', { event: 'ban' }, (payload) => {
@@ -81,17 +86,17 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
         
         // Update store
         if (payload.payload) {
-          store.receiveBan(payload.payload);
+          receiveBan(payload.payload);
         }
       })
       .subscribe((status) => {
-        store.setConnected(status === 'SUBSCRIBED');
+        setConnected(status === 'SUBSCRIBED');
       });
     
     return () => {
       channel.unsubscribe();
     };
-  }, [gameId, queryClient]);
+  }, [gameId, queryClient, syncWithServer, receiveMove, receiveBan, setConnected]);
   
   return query;
 }

@@ -247,8 +247,10 @@ const GamePanel = () => {
   // Navigation functions with half-move support
   const navigateToFirst = useCallback(() => {
     // Go to initial position (before any moves)
-    const { clearNavigation } = useGameStore.getState();
-    clearNavigation();
+    const { navigateToPosition } = useGameStore.getState();
+    // Navigate to initial chess position with ply -1
+    const initialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    navigateToPosition(-1, initialFen, null);
     setNavigationState({ moveIndex: -1, phase: 'initial' });
   }, []);
 

@@ -438,8 +438,7 @@ const GamePanel = () => {
     <Box
       sx={{
         width: "100%",
-        height: 400,
-        maxHeight: "60vh",
+        height: "100%",
         bgcolor: "rgba(255,255,255,0.03)",
         borderRadius: 0.5,
         overflow: "hidden",
@@ -612,11 +611,12 @@ const GamePanel = () => {
       <Box
         ref={moveHistoryRef}
         sx={{
-          flex: 1,
+          height: "200px", // Fixed height of about half the panel
           overflowY: "auto",
           overflowX: "hidden",
           width: "100%",
           p: 0,
+          bgcolor: "rgba(0,0,0,0.1)",
           "&::-webkit-scrollbar": {
             width: "6px",
           },
@@ -692,6 +692,9 @@ function MovesRow({
   onMoveClick: (move: MoveData, phase: 'after-ban' | 'after-move') => void;
   layout: BanMoveLayout;
 }) {
+  // Determine if this row should have dark squares (checkered pattern)
+  const isDarkRow = move.number % 2 === 0;
+  
   return (
     <Box
       sx={{
@@ -709,6 +712,7 @@ function MovesRow({
           verticalAlign: "middle",
           width: "15%",
           fontWeight: 400,
+          bgcolor: isDarkRow ? "rgba(0,0,0,0.15)" : "transparent",
         }}
       >
         {move.number}.
@@ -718,28 +722,24 @@ function MovesRow({
           data-ply={move.white.ply_number}
           sx={{
             display: "table-cell",
-            py: 0.5,
+            py: 0.75,
             px: 1.5,
-            color:
-              selectedMove?.ply_number === move.white.ply_number
-                ? "#fff"
-                : "#bababa",
+            color: "#bababa",
             fontSize: "0.95rem",
             textAlign: "left",
             verticalAlign: "middle",
-            bgcolor:
-              selectedMove?.ply_number === move.white.ply_number
-                ? "rgba(255,204,0,0.25)"
-                : "transparent",
+            bgcolor: isDarkRow ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
             cursor: "pointer",
             width: "42.5%",
             fontWeight:
               selectedMove?.ply_number === move.white.ply_number ? 600 : 400,
-            "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
-            borderRadius:
-              selectedMove?.ply_number === move.white.ply_number
-                ? "3px 0 0 3px"
-                : 0,
+            "&:hover": { bgcolor: isDarkRow ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)" },
+            // Use outline for selection instead of background
+            outline: selectedMove?.ply_number === move.white.ply_number
+              ? "2px solid rgba(255,204,0,0.8)"
+              : "none",
+            outlineOffset: "-2px",
+            position: "relative",
           }}
           onClick={() => onMoveClick(move.white!, 'after-move')}
         >
@@ -757,28 +757,24 @@ function MovesRow({
           data-ply={move.black.ply_number}
           sx={{
             display: "table-cell",
-            py: 0.5,
+            py: 0.75,
             px: 1.5,
-            color:
-              selectedMove?.ply_number === move.black.ply_number
-                ? "#fff"
-                : "#bababa",
+            color: "#bababa",
             fontSize: "0.95rem",
             textAlign: "left",
             verticalAlign: "middle",
-            bgcolor:
-              selectedMove?.ply_number === move.black.ply_number
-                ? "rgba(255,204,0,0.25)"
-                : "transparent",
+            bgcolor: !isDarkRow ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
             cursor: "pointer",
             width: "42.5%",
             fontWeight:
               selectedMove?.ply_number === move.black.ply_number ? 600 : 400,
-            "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
-            borderRadius:
-              selectedMove?.ply_number === move.black.ply_number
-                ? "0 3px 3px 0"
-                : 0,
+            "&:hover": { bgcolor: !isDarkRow ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)" },
+            // Use outline for selection instead of background
+            outline: selectedMove?.ply_number === move.black.ply_number
+              ? "2px solid rgba(255,204,0,0.8)"
+              : "none",
+            outlineOffset: "-2px",
+            position: "relative",
           }}
           onClick={() => onMoveClick(move.black!, 'after-move')}
         >
@@ -795,6 +791,9 @@ function MovesRow({
           sx={{
             display: "table-cell",
             width: "42.5%",
+            bgcolor: !isDarkRow ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+            py: 0.75,
+            px: 1.5,
           }}
         />
       )}

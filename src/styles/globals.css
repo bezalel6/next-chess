@@ -238,7 +238,15 @@ piece.disabled {
 
 /* Hide Next.js error overlay in development */
 /* We'll show our own error toast instead */
-nextjs-portal {
+/* But keep React Scan visible */
+nextjs-portal:not([data-react-scan-root]) {
+  /* Only hide if it's not React Scan */
+  display: none !important;
+}
+
+/* Alternative: Only hide the specific error overlay */
+#__next-build-watcher,
+nextjs-portal > div[style*="position: fixed"][style*="z-index: 9999"] {
   display: none !important;
 }
 

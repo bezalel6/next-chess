@@ -31,9 +31,11 @@ import {
   BugReport as BugIcon,
   CheckCircle as CheckCircleIcon,
   ErrorOutline as ErrorOutlineIcon,
+  Announcement as AnnouncementIcon,
 } from "@mui/icons-material";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
+import NewsManager from "@/components/admin/NewsManager";
 
 interface DashboardStats {
   totalUsers: number;
@@ -427,12 +429,13 @@ export default function AdminDashboard() {
           </Card>
         </Grid>
       </Grid>
-      {/* Tabs for Stats, Settings, Bug Reports */}
+      {/* Tabs for Stats, Settings, Bug Reports, News */}
       <Paper sx={{ mb: 2 }}>
         <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
           <Tab label="Statistics" />
           <Tab label="Settings" />
           <Tab label="Bug Reports" />
+          <Tab label="News" icon={<AnnouncementIcon />} iconPosition="start" />
         </Tabs>
       </Paper>
       {/* Statistics Tab */}
@@ -633,6 +636,8 @@ export default function AdminDashboard() {
           )}
         </Paper>
       )}
+      {/* News Tab */}
+      {tabValue === 3 && <NewsManager />}
     </Container>
   );
 }

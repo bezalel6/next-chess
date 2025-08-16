@@ -1,3 +1,4 @@
+import { scan } from "react-scan/all-environments";
 import { type AppType } from "next/dist/shared/lib/utils";
 // these styles must be imported somewhere
 import "chessground/assets/chessground.base.css";
@@ -15,7 +16,7 @@ import Head from "next/head";
 import Layout from "@/components/Layout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HeartbeatProvider } from "@/components/HeartbeatProvider";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -30,6 +31,19 @@ const defaultPageProps: PageProps = {
   title: "Ban Chess",
 };
 const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
+  useEffect(() => {
+    // Only enable React Scan in development
+    if (
+      process.env.NODE_ENV === "development" &&
+      typeof window !== "undefined"
+    ) {
+      scan({
+        enabled: true,
+        log: true, // Enable console logging to debug
+      });
+      console.log("React Scan initialized");
+    }
+  }, []);
   const [queryClient] = useState(
     () =>
       new QueryClient({

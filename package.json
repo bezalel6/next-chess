@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "diagnose:game": "node scripts/diagnose_game.mjs" ,
+    "diagnose:game": "node scripts/diagnose_game.mjs",
     "kill-running": "portio --mine 3000",
     "build": "next build",
     "check": "next lint && tsc --noEmit",
@@ -16,7 +16,6 @@
     "dev:watch": "npm run kill-running && tsx --watch -r dotenv/config src/server/server.ts",
     "build:server:dev": "echo \"(disabled) esbuild bundling is incompatible with Next internals in dev; using tsx watch instead.\"",
     "dev:ultra": "npm run kill-running && cross-env NEXT_CACHE_DIR=\"$LOCALAPPDATA/next-cache\" NEXT_TELEMETRY_DISABLED=1 TSX_NO_SOURCEMAP=1 DOTENV_CONFIG_PATH=.env nodemon --quiet --watch src/server --ext ts,tsx --ignore .next --ignore node_modules --exec \"tsx -r dotenv/config src/server/server.ts\"",
-
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",

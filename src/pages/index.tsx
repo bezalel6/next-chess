@@ -1,13 +1,20 @@
 import Head from "next/head";
 import QueueSystem from "@/components/QueueSystem";
 import AuthForm from "@/components/auth-form";
+import NewsFeed from "@/components/NewsFeed";
+import DraggableNewsFeed from "@/components/DraggableNewsFeed";
 import { Box, Container, Typography, Fade, Paper } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 
 export default function Home() {
   const { user, loading } = useAuth();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  
+  // Enable draggable news feed with ?news=drag query param
+  const isDraggable = router.query.news === 'drag';
 
   useEffect(() => {
     setMounted(true);
@@ -70,24 +77,51 @@ export default function Home() {
             </Box>
           </Fade>
 
-          {/* Main Content Area */}
+          {/* Main Content Area - Using Grid for better control */}
           <Box
             sx={{
-              display: "flex",
-              gap: 4,
+              display: "grid",
+              gridTemplateColumns: { 
+                xs: "1fr", // Single column on mobile
+                md: user ? "280px 500px 280px" : "1fr 500px 1fr" // 3 columns on desktop
+              },
+              gap: 3,
               width: "100%",
-              maxWidth: 600,
-              flexDirection: "column",
-              alignItems: "center",
+              maxWidth: 1060,
+              alignItems: "flex-start",
               justifyContent: "center",
             }}
           >
-            {/* Center - Auth or Queue System */}
+            {/* News Feed - Left column on desktop, below on mobile */}
+            {user && !isDraggable ? (
+              <Fade in={mounted} timeout={800}>
+                <Box 
+                  sx={{ 
+                    gridColumn: { xs: 1, md: 1 },
+                    gridRow: { xs: 2, md: 1 }, // Second row on mobile, first row on desktop
+                    width: "100%",
+                    maxWidth: { xs: 500, md: "none" },
+                    margin: { xs: "0 auto", md: 0 },
+                  }}
+                >
+                  <NewsFeed />
+                </Box>
+              </Fade>
+            ) : !user ? (
+              // Empty spacer for non-logged in users to keep queue centered
+              <Box sx={{ display: { xs: "none", md: "block" } }} />
+            ) : (
+              // Empty spacer when using draggable news feed
+              <Box sx={{ display: { xs: "none", md: "block" } }} />
+            )}
+
+            {/* Center - Auth or Queue System (always centered) */}
             <Fade in={mounted} timeout={1000}>
               <Box
                 sx={{
+                  gridColumn: { xs: 1, md: 2 },
+                  gridRow: { xs: 1, md: 1 }, // First row on mobile, first row on desktop
                   width: "100%",
-                  maxWidth: 500,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -144,9 +178,15 @@ export default function Home() {
                 )}
               </Box>
             </Fade>
+
+            {/* Right column - Empty spacer for balance on desktop */}
+            <Box sx={{ display: { xs: "none", md: "block" } }} />
           </Box>
         </Box>
-    </Container>
+      </Container>
+
+      {/* Draggable News Feed - Rendered outside the main layout */}
+      {user && isDraggable && mounted && <DraggableNewsFeed />}
     </>
   );
 }

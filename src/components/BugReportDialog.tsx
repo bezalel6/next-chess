@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -65,6 +65,10 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
 
   const { startUpload, isUploading } = useUploadThing();
   
+  // Uncontrolled refs for main text inputs
+  const titleRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const descriptionRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+
   const [formData, setFormData] = useState<Partial<BugReport>>({
     category: 'other',
     severity: 'medium',
@@ -79,14 +83,18 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
   // Populate form with error details if provided
   useEffect(() => {
     if (errorDetails && open) {
+      const prefilledTitle = `Error: ${errorDetails.message.substring(0, 100)}`;
+      const prefilledDesc = `An error occurred at ${errorDetails.timestamp}:\n\n${errorDetails.message}`;
       setFormData(prev => ({
         ...prev,
         category: 'other',
         severity: 'high',
-        title: `Error: ${errorDetails.message.substring(0, 100)}`,
-        description: `An error occurred at ${errorDetails.timestamp}:\n\n${errorDetails.message}`,
+        title: prefilledTitle,
+        description: prefilledDesc,
         actual_behavior: `Error Stack:\n${errorDetails.stack || 'No stack trace available'}\n\n${errorDetails.componentStack ? `Component Stack:\n${errorDetails.componentStack}` : ''}`
       }));
+      if (titleRef.current) titleRef.current.value = prefilledTitle;
+      if (descriptionRef.current) descriptionRef.current.value = prefilledDesc;
     }
   }, [errorDetails, open]);
 
@@ -355,20 +363,22 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
 
   const handleSubmit = async () => {
     setError(null);
-    
+
+    const title = (titleRef.current?.value || '').trim();
+    const description = (descriptionRef.current?.value || '').trim();
+
     // Validate required fields
-    if (!formData.title?.trim() || !formData.description?.trim()) {
+    if (!title || !description) {
       setError('Please provide a subject and message');
       return;
     }
 
-    // Additional validation
-    if ((formData.title?.length || 0) > 200) {
+    if (title.length > 200) {
       setError('Subject must be less than 200 characters');
       return;
     }
 
-    if ((formData.description?.length || 0) > 5000) {
+    if (description.length > 5000) {
       setError('Message must be less than 5000 characters');
       return;
     }
@@ -381,6 +391,8 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
       
       const report: BugReport = {
         ...(formData as BugReport),
+        title,
+        description,
         game_id: gameId,
         additional_data: {
           currentPath: router.pathname,
@@ -417,6 +429,8 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
       actual_behavior: '',
       user_email: user?.email || ''
     });
+    if (titleRef.current) titleRef.current.value = '';
+    if (descriptionRef.current) descriptionRef.current.value = '';
     setScreenshotFiles([]);
     setScreenshotPreviews([]);
     setUploadedUrls([]);
@@ -463,11 +477,9 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
               label="Subject"
               required
               fullWidth
-              value={formData.title}
-              onChange={handleInputChange('title')}
+              inputRef={titleRef}
               placeholder={'Quick summary (e.g., "Move validation looks wrong")'}
               inputProps={{ maxLength: 200 }}
-              helperText={`${formData.title?.length || 0}/200`}
             />
             
             <TextField
@@ -476,11 +488,9 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
               fullWidth
               multiline
               rows={3}
-              value={formData.description}
-              onChange={handleInputChange('description')}
+              inputRef={descriptionRef}
               placeholder="What happened, and what did you expect instead?"
               inputProps={{ maxLength: 5000 }}
-              helperText={`${formData.description?.length || 0}/5000`}
             />
 
             {!user && (
@@ -666,8 +676,6 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
           disabled={
             loading ||
             success ||
-            !formData.title?.trim() ||
-            !formData.description?.trim() ||
             isUploading ||
             (screenshotFiles.length > 0 && uploadedUrls.some((u) => u === null))
           }

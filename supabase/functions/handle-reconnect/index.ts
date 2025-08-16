@@ -38,11 +38,11 @@ serve(async (req) => {
       );
     }
 
-    // Validate UUID format for playerId to match (text, uuid) signature
+    // Validate UUID format for gameId and playerId to match (uuid, uuid) signature
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(playerId)) {
+    if (!uuidRegex.test(gameId) || !uuidRegex.test(playerId)) {
       return new Response(
-        JSON.stringify({ error: "Invalid playerId format (expected UUID)" }),
+        JSON.stringify({ error: "Invalid id format (expected UUIDs for gameId and playerId)" }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 400,
@@ -50,8 +50,7 @@ serve(async (req) => {
       );
     }
 
-    // Call the database function to handle reconnect
-    // Note: game_id is a text field (short ID), player_id must be UUID
+    // Call the database function to handle reconnect (uuid, uuid)
     const { data, error } = await supabaseClient.rpc('handle_player_reconnect', {
       game_id: gameId,
       player_id: playerId,

@@ -3,8 +3,5 @@ import { ourFileRouter } from "@/server/uploadthing";
  
 export default createRouteHandler({
   router: ourFileRouter,
-  config: {
-    uploadthingId: process.env.UPLOADTHING_APP_ID,
-    uploadthingSecret: process.env.UPLOADTHING_SECRET,
-  },
+  // UploadThing v7 reads UPLOADTHING_TOKEN from environment automatically
 });

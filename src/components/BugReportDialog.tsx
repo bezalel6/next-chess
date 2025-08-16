@@ -58,13 +58,12 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
   const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
   const [takingScreenshot, setTakingScreenshot] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   // Track uploaded URLs aligned with screenshotPreviews/files by index
   const [uploadedUrls, setUploadedUrls] = useState<(string | null)[]>([]);
 
-  const uploadthing = useUploadThing();
+  const { startUpload, isUploading } = useUploadThing();
   
   const [formData, setFormData] = useState<Partial<BugReport>>({
     category: 'other',
@@ -158,15 +157,14 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
     // Immediately upload selected files
     (async () => {
       try {
-        setIsUploading(true);
         setUploadProgress(10);
-        const res = await uploadthing.startUpload(validFiles);
+        const res = await startUpload(validFiles);
         if (res && res.length > 0) {
           setUploadedUrls((prev) => {
             const next = [...prev];
             res.forEach((r, idx) => {
               const i = startIndex + idx;
-              next[i] = r.url;
+              next[i] = (r as any).ufsUrl || r.appUrl;
             });
             return next;
           });
@@ -178,7 +176,6 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
         console.error('Upload error', e);
         setError('Failed to upload screenshots.');
       } finally {
-        setIsUploading(false);
         // reset progress shortly after completion
         setTimeout(() => setUploadProgress(0), 400);
       }
@@ -279,13 +276,12 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
             // Upload this screenshot immediately
             (async () => {
               try {
-                setIsUploading(true);
                 setUploadProgress(10);
-                const res = await uploadthing.startUpload([file]);
+                const res = await startUpload([file]);
                 if (res && res[0]?.url) {
                   setUploadedUrls((prev) => {
                     const next = [...prev];
-                    next[next.length - 1] = res[0].url;
+                    next[next.length - 1] = (res[0] as any).ufsUrl || res[0].appUrl;
                     return next;
                   });
                   setUploadProgress(100);
@@ -296,7 +292,6 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
                 console.error('Upload error', e);
                 setError('Failed to upload screenshot.');
               } finally {
-                setIsUploading(false);
                 setTimeout(() => setUploadProgress(0), 400);
               }
             })();
@@ -318,13 +313,12 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
             // Upload this screenshot immediately
             (async () => {
               try {
-                setIsUploading(true);
                 setUploadProgress(10);
-                const res = await uploadthing.startUpload([file]);
+                const res = await startUpload([file]);
                 if (res && res[0]?.url) {
                   setUploadedUrls((prev) => {
                     const next = [...prev];
-                    next[next.length - 1] = res[0].url;
+                    next[next.length - 1] = (res[0] as any).ufsUrl || res[0].appUrl;
                     return next;
                   });
                   setUploadProgress(100);
@@ -335,7 +329,6 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
                 console.error('Upload error', e);
                 setError('Failed to upload screenshot.');
               } finally {
-                setIsUploading(false);
                 setTimeout(() => setUploadProgress(0), 400);
               }
             })();

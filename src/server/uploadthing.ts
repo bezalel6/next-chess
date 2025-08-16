@@ -20,11 +20,13 @@ export const ourFileRouter = {
       return { userId };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      console.log("Bug report screenshot uploaded:", file.url);
+      // Use ufsUrl (v8+) with fallback to appUrl for compatibility
+      const fileUrl = (file as any).ufsUrl || file.appUrl;
+      console.log("Bug report screenshot uploaded:", fileUrl);
       console.log("Upload metadata:", metadata);
       
       // Return data to the client
-      return { uploadedBy: metadata.userId, url: file.url };
+      return { uploadedBy: metadata.userId, url: fileUrl };
     }),
 } satisfies FileRouter;
  

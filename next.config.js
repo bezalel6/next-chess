@@ -13,25 +13,20 @@ const config = {
     ignoreDuringBuilds: true,
   },
   webpack: (config, { dev, isServer }) => {
-    // Optimize webpack cache for development
+    // Optimize webpack cache for development & prefer fastest devtool
     if (dev && !isServer) {
       config.cache = {
         type: 'filesystem',
-        buildDependencies: {
-          config: ['./next.config.js']
-        },
-        // Reduce memory overhead by using smaller cache chunks
+        buildDependencies: { config: ['./next.config.js'] },
         compression: 'gzip',
-        // Store cache entries more efficiently
         maxMemoryGenerations: 1,
-        // Use a more efficient serialization strategy
         memoryCacheUnaffected: true,
         name: 'next-chess-client-dev',
-        // Reduce the threshold for what's considered "big"
-        // This helps webpack use more efficient serialization
         store: 'pack',
         version: '1.0.0'
       };
+      // Use eval-based source maps for fastest incremental builds
+      config.devtool = 'eval';
     }
     return config;
   },
@@ -54,6 +49,28 @@ const config = {
     ];
   },
   async headers() {
+    const isDev = process.env.NODE_ENV !== 'production';
+    const connectSrc = [
+      "'self'",
+      "https://*.supabase.co",
+      "wss://*.supabase.co",
+      "https://challenges.cloudflare.com",
+      // Local Supabase (Dev)
+      "http://127.0.0.1:54321",
+      "ws://127.0.0.1:54321",
+      "http://localhost:54321",
+      "ws://localhost:54321",
+      // Google OAuth endpoints (some SDKs use XHR)
+      "https://accounts.google.com",
+      "https://*.googleusercontent.com",
+      // UploadThing
+      "https://*.ingest.uploadthing.com",
+      "https://api.uploadthing.com",
+    ];
+    if (isDev) {
+      connectSrc.push("ws://localhost:3000", "ws://127.0.0.1:3000");
+    }
+
     return [
       {
         source: '/:path*',
@@ -66,8 +83,9 @@ const config = {
               "style-src 'self' 'unsafe-inline' https://fonts.cdnfonts.com",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data: https://fonts.cdnfonts.com https://fonts.gstatic.com",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com http://127.0.0.1:54321 ws://127.0.0.1:54321 http://localhost:54321 ws://localhost:54321",
-              "frame-src 'self' https://challenges.cloudflare.com",
+              `connect-src ${connectSrc.join(' ')}`,
+              // Allow Google OAuth iframing/popups in dev
+              "frame-src 'self' https://challenges.cloudflare.com https://accounts.google.com https://*.googleusercontent.com",
               "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self'",

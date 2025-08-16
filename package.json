@@ -13,8 +13,8 @@
     "db:remote-reset": "npx supabase@beta db reset --linked",
     "dev": "npm run kill-running && tsx -r dotenv/config src/server/server.ts",
     "dev:watch": "npm run kill-running && tsx --watch -r dotenv/config src/server/server.ts",
-    "build:server:dev": "esbuild src/server/server.ts --bundle --platform=node --target=node20 --outfile=.dev/server.js --sourcemap=inline --define:process.env.NODE_ENV=\"development\" --log-level=info",
-    "dev:ultra": "npm run kill-running && cross-env NEXT_TELEMETRY_DISABLED=1 TSX_NO_SOURCEMAP=1 DOTENV_CONFIG_PATH=.env concurrently -k -n BUILD,SRV -c yellow,cyan \"npm:build:server:dev -- --watch\" \"nodemon --quiet --watch .dev/server.js --exec \"node -r dotenv/config .dev/server.js\"\"",
+    "build:server:dev": "echo \"(disabled) esbuild bundling is incompatible with Next internals in dev; using tsx watch instead.\"",
+    "dev:ultra": "npm run kill-running && cross-env NEXT_TELEMETRY_DISABLED=1 TSX_NO_SOURCEMAP=1 DOTENV_CONFIG_PATH=.env tsx --watch -r dotenv/config src/server/server.ts",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",
@@ -27,7 +27,10 @@
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug --headed",
     "test:cleanup": "node tests/cleanup-processes.js",
-    "test:install": "playwright install"
+    "test:install": "playwright install",
+    "functions:serve": "supabase functions serve --env-file supabase/functions/.env",
+    "functions:secrets:push": "supabase functions secrets set --env-file supabase/functions/.env",
+    "functions:secrets:list": "supabase functions secrets list"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",

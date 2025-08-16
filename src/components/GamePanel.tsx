@@ -712,7 +712,8 @@ function MovesRow({
           verticalAlign: "middle",
           width: "15%",
           fontWeight: 400,
-          bgcolor: isDarkRow ? "rgba(0,0,0,0.15)" : "transparent",
+          bgcolor: isDarkRow ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+          py: 0.75,
         }}
       >
         {move.number}.

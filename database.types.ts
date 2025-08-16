@@ -4,256 +4,598 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
+  | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      ban_history: {
+        Row: {
+          banned_at: string
+          banned_by: Database["public"]["Enums"]["player_color"]
+          banned_move: Json
+          game_id: string
+          id: string
+          move_number: number
+        }
+        Insert: {
+          banned_at?: string
+          banned_by: Database["public"]["Enums"]["player_color"]
+          banned_move: Json
+          game_id: string
+          id?: string
+          move_number: number
+        }
+        Update: {
+          banned_at?: string
+          banned_by?: Database["public"]["Enums"]["player_color"]
+          banned_move?: Json
+          game_id?: string
+          id?: string
+          move_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ban_history_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_log: {
+        Row: {
+          created_at: string
+          data: Json | null
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          entity_id?: string
+          entity_type?: string
+          event_type?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follows_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games: {
         Row: {
-          banningPlayer: string | null;
-          black_player_id: string | null;
-          created_at: string;
-          current_fen: string;
-          draw_offered_by: string | null;
-          end_reason: string | null;
-          id: string;
-          last_move: Json | null;
-          parent_game_id: string | null;
-          pgn: string;
-          rematch_offered_by: string | null;
-          result: string | null;
-          status: string;
-          turn: string;
-          updated_at: string;
-          white_player_id: string | null;
-          black_time_remaining: number | null;
-          white_time_remaining: number | null;
-          time_control: Json | null;
-        };
+          banning_player: Database["public"]["Enums"]["player_color"] | null
+          black_player_id: string
+          black_time_remaining: number | null
+          black_turn_start_time: number | null
+          claim_available_at: string | null
+          clock_state: Json | null
+          created_at: string
+          current_banned_move: Json | null
+          current_fen: string
+          disconnect_allowance_seconds: number | null
+          disconnect_started_at: string | null
+          draw_offered_by: Database["public"]["Enums"]["player_color"] | null
+          end_reason: Database["public"]["Enums"]["end_reason"] | null
+          id: string
+          lag_compensation_ms: number | null
+          last_clock_update: string | null
+          last_connection_type: string | null
+          last_move: Json | null
+          parent_game_id: string | null
+          pgn: string
+          rematch_offered_by: Database["public"]["Enums"]["player_color"] | null
+          result: Database["public"]["Enums"]["game_result"] | null
+          status: Database["public"]["Enums"]["game_status"]
+          time_control: Json | null
+          total_disconnect_seconds: number | null
+          turn: Database["public"]["Enums"]["player_color"]
+          updated_at: string
+          white_player_id: string
+          white_time_remaining: number | null
+          white_turn_start_time: number | null
+        }
         Insert: {
-          banningPlayer?: string | null;
-          black_player_id?: string | null;
-          created_at?: string;
-          current_fen: string;
-          draw_offered_by?: string | null;
-          end_reason?: string | null;
-          id?: string;
-          last_move?: Json | null;
-          parent_game_id?: string | null;
-          pgn?: string;
-          rematch_offered_by?: string | null;
-          result?: string | null;
-          status: string;
-          turn: string;
-          updated_at?: string;
-          white_player_id?: string | null;
-          black_time_remaining?: number | null;
-          white_time_remaining?: number | null;
-          time_control?: Json | null;
-        };
+          banning_player?: Database["public"]["Enums"]["player_color"] | null
+          black_player_id: string
+          black_time_remaining?: number | null
+          black_turn_start_time?: number | null
+          claim_available_at?: string | null
+          clock_state?: Json | null
+          created_at?: string
+          current_banned_move?: Json | null
+          current_fen: string
+          disconnect_allowance_seconds?: number | null
+          disconnect_started_at?: string | null
+          draw_offered_by?: Database["public"]["Enums"]["player_color"] | null
+          end_reason?: Database["public"]["Enums"]["end_reason"] | null
+          id: string
+          lag_compensation_ms?: number | null
+          last_clock_update?: string | null
+          last_connection_type?: string | null
+          last_move?: Json | null
+          parent_game_id?: string | null
+          pgn?: string
+          rematch_offered_by?:
+            | Database["public"]["Enums"]["player_color"]
+            | null
+          result?: Database["public"]["Enums"]["game_result"] | null
+          status?: Database["public"]["Enums"]["game_status"]
+          time_control?: Json | null
+          total_disconnect_seconds?: number | null
+          turn?: Database["public"]["Enums"]["player_color"]
+          updated_at?: string
+          white_player_id: string
+          white_time_remaining?: number | null
+          white_turn_start_time?: number | null
+        }
         Update: {
-          banningPlayer?: string | null;
-          black_player_id?: string | null;
-          created_at?: string;
-          current_fen?: string;
-          draw_offered_by?: string | null;
-          end_reason?: string | null;
-          id?: string;
-          last_move?: Json | null;
-          parent_game_id?: string | null;
-          pgn?: string;
-          rematch_offered_by?: string | null;
-          result?: string | null;
-          status?: string;
-          turn?: string;
-          updated_at?: string;
-          white_player_id?: string | null;
-          black_time_remaining?: number | null;
-          white_time_remaining?: number | null;
-          time_control?: Json | null;
-        };
+          banning_player?: Database["public"]["Enums"]["player_color"] | null
+          black_player_id?: string
+          black_time_remaining?: number | null
+          black_turn_start_time?: number | null
+          claim_available_at?: string | null
+          clock_state?: Json | null
+          created_at?: string
+          current_banned_move?: Json | null
+          current_fen?: string
+          disconnect_allowance_seconds?: number | null
+          disconnect_started_at?: string | null
+          draw_offered_by?: Database["public"]["Enums"]["player_color"] | null
+          end_reason?: Database["public"]["Enums"]["end_reason"] | null
+          id?: string
+          lag_compensation_ms?: number | null
+          last_clock_update?: string | null
+          last_connection_type?: string | null
+          last_move?: Json | null
+          parent_game_id?: string | null
+          pgn?: string
+          rematch_offered_by?:
+            | Database["public"]["Enums"]["player_color"]
+            | null
+          result?: Database["public"]["Enums"]["game_result"] | null
+          status?: Database["public"]["Enums"]["game_status"]
+          time_control?: Json | null
+          total_disconnect_seconds?: number | null
+          turn?: Database["public"]["Enums"]["player_color"]
+          updated_at?: string
+          white_player_id?: string
+          white_time_remaining?: number | null
+          white_turn_start_time?: number | null
+        }
         Relationships: [
           {
-            foreignKeyName: "games_parent_game_id_fkey";
-            columns: ["parent_game_id"];
-            isOneToOne: false;
-            referencedRelation: "games";
-            referencedColumns: ["id"];
+            foreignKeyName: "games_parent_game_id_fkey"
+            columns: ["parent_game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
+      matchmaking: {
+        Row: {
+          game_id: string | null
+          id: string
+          joined_at: string
+          last_online: string
+          player_id: string
+          preferences: Json | null
+          status: Database["public"]["Enums"]["queue_status"]
+        }
+        Insert: {
+          game_id?: string | null
+          id?: string
+          joined_at?: string
+          last_online?: string
+          player_id: string
+          preferences?: Json | null
+          status?: Database["public"]["Enums"]["queue_status"]
+        }
+        Update: {
+          game_id?: string | null
+          id?: string
+          joined_at?: string
+          last_online?: string
+          player_id?: string
+          preferences?: Json | null
+          status?: Database["public"]["Enums"]["queue_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matchmaking_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       moves: {
         Row: {
-          created_at: string;
-          game_id: string | null;
-          id: string;
-          move: Json;
-        };
+          banned_by: string | null
+          banned_from: string | null
+          banned_to: string | null
+          created_at: string | null
+          created_by: string | null
+          fen_after: string
+          from_square: string
+          game_id: string
+          id: string
+          move_number: number
+          player_color: string
+          ply_number: number
+          promotion: string | null
+          san: string
+          time_taken_ms: number | null
+          to_square: string
+        }
         Insert: {
-          created_at?: string;
-          game_id?: string | null;
-          id?: string;
-          move: Json;
-        };
+          banned_by?: string | null
+          banned_from?: string | null
+          banned_to?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          fen_after: string
+          from_square: string
+          game_id: string
+          id?: string
+          move_number: number
+          player_color: string
+          ply_number: number
+          promotion?: string | null
+          san: string
+          time_taken_ms?: number | null
+          to_square: string
+        }
         Update: {
-          created_at?: string;
-          game_id?: string | null;
-          id?: string;
-          move?: Json;
-        };
+          banned_by?: string | null
+          banned_from?: string | null
+          banned_to?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          fen_after?: string
+          from_square?: string
+          game_id?: string
+          id?: string
+          move_number?: number
+          player_color?: string
+          ply_number?: number
+          promotion?: string | null
+          san?: string
+          time_taken_ms?: number | null
+          to_square?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "moves_game_id_fkey";
-            columns: ["game_id"];
-            isOneToOne: false;
-            referencedRelation: "games";
-            referencedColumns: ["id"];
+            foreignKeyName: "moves_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       profiles: {
         Row: {
-          created_at: string;
-          id: string;
-          updated_at: string;
-          username: string | null;
-        };
+          created_at: string
+          id: string
+          is_admin: boolean | null
+          is_online: boolean | null
+          last_active: string | null
+          last_heartbeat: string | null
+          last_online: string
+          updated_at: string
+          username: string
+        }
         Insert: {
-          created_at?: string;
-          id: string;
-          updated_at?: string;
-          username?: string | null;
-        };
+          created_at?: string
+          id: string
+          is_admin?: boolean | null
+          is_online?: boolean | null
+          last_active?: string | null
+          last_heartbeat?: string | null
+          last_online?: string
+          updated_at?: string
+          username: string
+        }
         Update: {
-          created_at?: string;
-          id?: string;
-          updated_at?: string;
-          username?: string | null;
-        };
-        Relationships: [];
-      };
-      queue: {
-        Row: {
-          id: string;
-          joined_at: string;
-          preferences: Json | null;
-          status: string;
-          user_id: string;
-        };
-        Insert: {
-          id?: string;
-          joined_at?: string;
-          preferences?: Json | null;
-          status?: string;
-          user_id: string;
-        };
-        Update: {
-          id?: string;
-          joined_at?: string;
-          preferences?: Json | null;
-          status?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
-      queue_notifications: {
-        Row: {
-          black_player_id: string | null;
-          created_at: string;
-          data: Json | null;
-          game_id: string | null;
-          id: string;
-          type: string;
-          white_player_id: string | null;
-        };
-        Insert: {
-          black_player_id?: string | null;
-          created_at?: string;
-          data?: Json | null;
-          game_id?: string | null;
-          id?: string;
-          type: string;
-          white_player_id?: string | null;
-        };
-        Update: {
-          black_player_id?: string | null;
-          created_at?: string;
-          data?: Json | null;
-          game_id?: string | null;
-          id?: string;
-          type?: string;
-          white_player_id?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "queue_notifications_game_id_fkey";
-            columns: ["game_id"];
-            isOneToOne: false;
-            referencedRelation: "games";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
+          created_at?: string
+          id?: string
+          is_admin?: boolean | null
+          is_online?: boolean | null
+          last_active?: string | null
+          last_heartbeat?: string | null
+          last_online?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       settings: {
         Row: {
-          key: string;
-          value: Json;
-          description: string | null;
-          created_at: string;
-          updated_at: string;
-        };
+          created_at: string
+          description: string | null
+          key: string
+          updated_at: string
+          value: Json
+        }
         Insert: {
-          key: string;
-          value: Json;
-          description?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
+          created_at?: string
+          description?: string | null
+          key: string
+          updated_at?: string
+          value: Json
+        }
         Update: {
-          key?: string;
-          value?: Json;
-          description?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-    };
+          created_at?: string
+          description?: string | null
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
+    }
     Views: {
-      [_ in never]: never;
-    };
+      followed_users_status: {
+        Row: {
+          active_game: Json | null
+          followed_at: string | null
+          follower_id: string | null
+          following_id: string | null
+          username: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follows_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
     Functions: {
-      generate_short_id: {
-        Args: { length?: number };
-        Returns: string;
-      };
-    };
+      calculate_disconnect_allowance: {
+        Args: {
+          is_classical?: boolean
+          is_rapid?: boolean
+          time_control_minutes: number
+        }
+        Returns: number
+      }
+      calculate_time_remaining: {
+        Args: {
+          current_ts?: number
+          initial_time: number
+          turn_start_time: number
+        }
+        Returns: number
+      }
+      check_time_violations: {
+        Args: { game_id: string }
+        Returns: Database["public"]["Enums"]["player_color"]
+      }
+      claim_abandonment: {
+        Args: {
+          claim_type: string
+          claiming_player_id: string
+          game_id: string
+        }
+        Returns: Json
+      }
+      cleanup_expired_clocks: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      get_default_initial_time: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      get_default_time_control: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      get_follow_stats: {
+        Args: { user_id: string }
+        Returns: Json
+      }
+      get_game_moves: {
+        Args: { p_game_id: string }
+        Returns: {
+          banned_by: string
+          banned_from: string
+          banned_to: string
+          fen_after: string
+          from_square: string
+          id: string
+          move_number: number
+          player_color: string
+          ply_number: number
+          promotion: string
+          san: string
+          time_taken_ms: number
+          to_square: string
+        }[]
+      }
+      handle_move_clock_update: {
+        Args: {
+          game_id: string
+          moving_color: Database["public"]["Enums"]["player_color"]
+        }
+        Returns: Json
+      }
+      handle_player_disconnect: {
+        Args: { disconnect_type: string; game_id: string; player_id: string }
+        Returns: Json
+      }
+      handle_player_reconnect: {
+        Args: { game_id: string; player_id: string }
+        Returns: Json
+      }
+      is_current_user_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_following: {
+        Args: { follower: string; following: string }
+        Returns: boolean
+      }
+      is_user_alive: {
+        Args: { threshold_seconds?: number; user_id: string }
+        Returns: boolean
+      }
+      mark_stale_users_offline: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      remove_stale_from_matchmaking: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      start_player_clock: {
+        Args: {
+          game_id: string
+          player_color: Database["public"]["Enums"]["player_color"]
+        }
+        Returns: undefined
+      }
+      stop_player_clock: {
+        Args: {
+          apply_increment?: boolean
+          game_id: string
+          player_color: Database["public"]["Enums"]["player_color"]
+        }
+        Returns: number
+      }
+      update_user_heartbeat: {
+        Args: { user_id: string }
+        Returns: undefined
+      }
+    }
     Enums: {
-      [_ in never]: never;
-    };
+      end_reason:
+        | "checkmate"
+        | "resignation"
+        | "draw_agreement"
+        | "stalemate"
+        | "insufficient_material"
+        | "threefold_repetition"
+        | "fifty_move_rule"
+        | "timeout"
+      game_result: "white" | "black" | "draw"
+      game_status: "active" | "finished"
+      player_color: "white" | "black"
+      queue_status: "waiting" | "matched"
+    }
     CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
-};
+      [_ in never]: never
+    }
+  }
+}
 
-type DefaultSchema = Database[Extract<keyof Database, "public">];
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R;
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
     }
     ? R
     : never
@@ -261,90 +603,117 @@ export type Tables<
         DefaultSchema["Views"])
     ? (DefaultSchema["Tables"] &
         DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R;
+        Row: infer R
       }
       ? R
       : never
-    : never;
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I;
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I;
+        Insert: infer I
       }
       ? I
       : never
-    : never;
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U;
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U;
+        Update: infer U
       }
       ? U
       : never
-    : never;
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never;
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never;
+    : never
 
 export const Constants = {
-  public: {
+  graphql_public: {
     Enums: {},
   },
-} as const;
+  public: {
+    Enums: {
+      end_reason: [
+        "checkmate",
+        "resignation",
+        "draw_agreement",
+        "stalemate",
+        "insufficient_material",
+        "threefold_repetition",
+        "fifty_move_rule",
+        "timeout",
+      ],
+      game_result: ["white", "black", "draw"],
+      game_status: ["active", "finished"],
+      player_color: ["white", "black"],
+      queue_status: ["waiting", "matched"],
+    },
+  },
+} as const
+

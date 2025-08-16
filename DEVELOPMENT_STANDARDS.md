@@ -26,17 +26,17 @@ When creating a database function that accepts game_id or player_id:
 ```sql
 -- Primary function with correct types
 CREATE FUNCTION handle_something(
-  game_id text,  -- NOT uuid!
+  game_id uuid,
   player_id uuid
 ) RETURNS jsonb AS $$ ... $$;
 
 -- Text overload for edge functions
 CREATE FUNCTION handle_something(
-  game_id text,
+  game_id uuid,
   player_id text  -- Accepts text, converts internally
 ) RETURNS jsonb AS $$
 BEGIN
-  RETURN handle_something(game_id, player_id::uuid);
+  RETURN handle_something(game_id, player_id);
 END;
 $$;
 ```
@@ -46,13 +46,13 @@ $$;
 ```typescript
 // GOOD - Pass parameters as-is
 const { data, error } = await supabase.rpc('handle_something', {
-  game_id: gameId,  // Pass as string
+  game_id: gameId,  // UUID string
   player_id: playerId  // Pass as string
 });
 
 // BAD - Don't try to cast types
 const { data, error } = await supabase.rpc('handle_something', {
-  game_id: gameId as any,  // Don't do this!
+  game_id: gameId as any,  // Don't do this! Use proper UUID typed value.
   player_id: new UUID(playerId)  // Don't do this!
 });
 ```
@@ -71,7 +71,7 @@ interface Game {
 interface GameFunction {
   handle_player_reconnect: {
     Args: {
-      game_id: string;  // Text game ID
+      game_id: string;  // UUID
       player_id: string;  // UUID as string
     };
     Returns: {
@@ -94,13 +94,13 @@ DROP FUNCTION IF EXISTS function_name(text, text);
 
 -- 2. Create main function with correct types
 CREATE OR REPLACE FUNCTION function_name(
-  game_id text,  -- Games use text IDs
+  game_id uuid,
   player_id uuid
 ) ...
 
 -- 3. Create text overload for edge functions
 CREATE OR REPLACE FUNCTION function_name(
-  game_id text,
+  game_id uuid,
   player_id text
 ) ...
 
@@ -113,7 +113,7 @@ GRANT EXECUTE ON FUNCTION function_name(text, text) TO authenticated, service_ro
 
 Before deploying any database function:
 
-- [ ] Test with actual game ID format (8-char string)
+- [ ] Ensure game_id is a UUID (no format regex checks needed)
 - [ ] Test with actual player ID format (UUID)
 - [ ] Test text overload from edge function
 - [ ] Verify no type casting errors in logs
@@ -212,7 +212,7 @@ WHERE proname LIKE 'handle_%'
 ## Remember
 
 **The root cause of most type errors**:
-- Games use 8-character text IDs, not UUIDs
+- Games use UUIDs for IDs throughout (no short IDs)
 - Edge functions pass everything as text/JSON
 - Database functions expect specific types
 - **Solution**: Always create text overloads!

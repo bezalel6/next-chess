@@ -25,22 +25,6 @@ interface GameCreationResult {
   [key: string]: any;
 }
 
-/**
- * Generate a random short ID for games
- */
-function generateShortId(length = 8): string {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  const randomValues = new Uint8Array(length);
-  crypto.getRandomValues(randomValues);
-
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(randomValues[i] % chars.length);
-  }
-
-  return result;
-}
 
 /**
  * Gets default time control from the database
@@ -192,16 +176,12 @@ export async function createGameFromMatchedPlayers(
       `Creating game: White=${whiteId}, Black=${blackId} with default time control`,
     );
 
-    // Generate a short game ID
-    const gameId = generateShortId();
+// Get time control from database (single source of truth)
+  const timeControl = await getDefaultTimeControl(supabase);
 
-    // Get time control from database (single source of truth)
-    const timeControl = await getDefaultTimeControl(supabase);
-
-    // Create the game directly in the database
+// Create the game directly in the database
     const { data: game, error: gameError } = await getTable(supabase, "games")
       .insert({
-        id: gameId,
         white_player_id: whiteId,
         black_player_id: blackId,
         status: "active",
@@ -227,9 +207,9 @@ export async function createGameFromMatchedPlayers(
 
     logger.info(`Success: Created game ${game.id}`);
 
-    // Update matchmaking records to link to the new game
+// Update matchmaking records to link to the new game
     const { error: updateError } = await getTable(supabase, "matchmaking")
-      .update({ game_id: gameId })
+      .update({ game_id: game.id })
       .in("player_id", [whiteId, blackId]);
 
     logOperation("update matchmaking records", updateError);

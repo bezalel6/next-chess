@@ -59,7 +59,12 @@ serve(async (req) => {
     if (error) {
       console.error('Error handling reconnect:', error);
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ 
+          error: error.message, 
+          code: (error as any)?.code,
+          details: (error as any)?.details,
+          hint: (error as any)?.hint
+        }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 500,
@@ -67,16 +72,20 @@ serve(async (req) => {
       );
     }
 
-    // Broadcast reconnect event to game channel
-    const channel = supabaseClient.channel(`game:${gameId}`);
-    await channel.send({
-      type: 'broadcast',
-      event: 'player_reconnect',
-      payload: {
-        playerId,
-        ...data,
-      },
-    });
+    // Best-effort broadcast reconnect event to game channel (do not fail request)
+    try {
+      const channel = supabaseClient.channel(`game:${gameId}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'player_reconnect',
+        payload: {
+          playerId,
+          ...data,
+        },
+      });
+    } catch (broadcastErr) {
+      console.warn('handle-reconnect: broadcast failed (continuing):', broadcastErr);
+    }
 
     return new Response(
       JSON.stringify(data),

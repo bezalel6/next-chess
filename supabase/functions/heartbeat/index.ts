@@ -15,35 +15,22 @@ const logger = createLogger("HEARTBEAT");
 async function updateHeartbeat(user: any, supabase: any) {
   try {
     const now = new Date().toISOString();
-    
-    // Update heartbeat, last_active, and mark as online
+
+    // Minimal, schema-compatible heartbeat: only update last_online
     const { error } = await getTable(supabase, "profiles")
-      .update({ 
-        last_heartbeat: now,
-        last_active: now,
-        is_online: true,
-        last_online: now // Keep for backward compatibility
-      })
+      .update({ last_online: now })
       .eq("id", user.id);
-    
+
     if (error) {
       logger.error(`Failed to update heartbeat for user ${user.id}:`, error);
       throw error;
     }
-    
+
     logger.debug(`Heartbeat updated for user ${user.id}`);
-    
-    // Also clean up stale users periodically (1 in 10 chance)
-    if (Math.random() < 0.1) {
-      await supabase.rpc('mark_stale_users_offline');
-      await supabase.rpc('remove_stale_from_matchmaking');
-      logger.debug("Cleaned up stale users");
-    }
-    
-    return successResponse({ 
+
+    return successResponse({
       success: true,
-      last_heartbeat: now,
-      last_online: now 
+      last_online: now
     });
   } catch (error) {
     logger.error("Error updating heartbeat:", error);

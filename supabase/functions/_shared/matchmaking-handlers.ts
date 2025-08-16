@@ -31,22 +31,6 @@ const MatchmakingSchemas = {
   }),
 };
 
-/**
- * Generate a random short ID for games
- */
-function generateShortId(length = 8): string {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  const randomValues = new Uint8Array(length);
-  crypto.getRandomValues(randomValues);
-
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(randomValues[i] % chars.length);
-  }
-
-  return result;
-}
 
 /**
  * Gets default time control from the database
@@ -125,10 +109,9 @@ export async function handleCreateMatch(
     // Get time control from database (single source of truth)
     const timeControl = await getDefaultTimeControl(supabase);
 
-    // Create the new game
+// Create the new game
     const { data: game, error: createError } = await getTable(supabase, "games")
       .insert({
-        id: generateShortId(),
         white_player_id: player1Id,
         black_player_id: player2Id,
         status: "active",
@@ -547,10 +530,9 @@ export async function handleAutoMatch(
     // Get time control from database (single source of truth)
     const timeControl = await getDefaultTimeControl(supabase);
 
-    // Create a new game
+// Create a new game
     const { data: game, error: createError } = await getTable(supabase, "games")
       .insert({
-        id: generateShortId(),
         white_player_id: player1.player_id,
         black_player_id: player2.player_id,
         status: "active",

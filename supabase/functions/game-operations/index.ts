@@ -58,14 +58,6 @@ const gameRouter = createRouter([
     "service_role",
   ),
 
-  // Generate game ID - admin only
-  defineRoute(
-    "generate-game-id",
-    async (user, params, supabase) => {
-      return await generateGameId();
-    },
-    "service_role",
-  ),
 
   // Game operation routes using unified handler
   defineRoute("makeMove", async (user, params, supabase) => {
@@ -196,30 +188,7 @@ const gameRouter = createRouter([
   }),
 ]);
 
-/**
- * Generate a random short ID for games
- */
-function generateShortId(length = 8): string {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  const randomValues = new Uint8Array(length);
-  crypto.getRandomValues(randomValues);
 
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(randomValues[i] % chars.length);
-  }
-
-  return result;
-}
-
-/**
- * Generate a game ID
- */
-async function generateGameId() {
-  const gameId = generateShortId();
-  return successResponse({ gameId });
-}
 
 /**
  * Handles game update notifications

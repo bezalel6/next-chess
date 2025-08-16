@@ -4,6 +4,7 @@ import {
   useCallback,
   useRef,
   useEffect,
+  useState,
   type ComponentProps,
 } from "react";
 import { Box } from "@mui/material";
@@ -28,6 +29,25 @@ interface LichessBoardV2Props {
 export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   // Get auth context
   const { user } = useAuth();
+
+  // Measure container size to avoid mounting Chessground at 0x0 (can cause empty board)
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerReady, setContainerReady] = useState(false);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateReady = () => {
+      const rect = el.getBoundingClientRect();
+      const ok = rect.width > 0 && rect.height > 0;
+      setContainerReady(ok);
+    };
+
+    updateReady();
+    const ro = new ResizeObserver(() => updateReady());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Use individual selectors to avoid infinite loops
   // Use atomic selectors to avoid reference changes and infinite loops
@@ -258,6 +278,12 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     ]
   );
 
+  // Create a key that forces a safe remount on major state switches to recover from rare bad mounts
+  const safeRemountKey = useMemo(
+    () => `${game?.id || 'no-game'}-${phase}-${orientation}-${containerReady ? 'ready' : 'notready'}`,
+    [game?.id, phase, orientation, containerReady]
+  );
+
   return (
     <>
       <AnimatePresence>
@@ -286,6 +312,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       </AnimatePresence>
 
       <Box
+        ref={containerRef}
         sx={{
           position: "absolute",
           top: 0,
@@ -356,9 +383,13 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
             height: "12.5% !important",
           },
         }}
-      >
-        <Chessground config={config} />
-      </Box>
+>
+          {containerReady && chess ? (
+            <Chessground key={safeRemountKey} config={config} />
+          ) : (
+            <Box sx={{ width: '100%', height: '100%', bgcolor: 'transparent' }} data-testid="board-skeleton" />
+          )}
+        </Box>
     </>
   );
 }

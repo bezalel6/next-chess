@@ -38,22 +38,6 @@ interface PlayerParams extends GameParams {
   playerColor?: PlayerColor;
 }
 
-/**
- * Generate a random short ID for games
- */
-function generateShortId(length = 8): string {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  const randomValues = new Uint8Array(length);
-  crypto.getRandomValues(randomValues);
-
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(randomValues[i] % chars.length);
-  }
-
-  return result;
-}
 
 /**
  * Unified game operation handler that routes to specific handlers based on operation
@@ -561,16 +545,12 @@ async function handleGameOffer(
 
       return successResponse(updatedGame);
     } else if (offerType === "rematch") {
-      // Generate a new game ID
-      const newGameId = generateShortId();
-
-      // Create a new game with swapped colors
+// Create a new game with swapped colors
       const { data: newGame, error: createError } = await getTable(
         supabase,
         "games",
       )
         .insert({
-          id: newGameId,
           white_player_id: game.black_player_id,
           black_player_id: game.white_player_id,
           status: "active",

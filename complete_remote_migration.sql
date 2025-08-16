@@ -13,7 +13,7 @@ CREATE OR REPLACE FUNCTION public.handle_player_reconnect(
 DECLARE
   game_record record;
   result jsonb;
-  current_time timestamp with time zone := NOW();
+  current_ts timestamp with time zone := NOW();
 BEGIN
   -- Get the game record (games.id is text)
   SELECT * INTO game_record
@@ -36,20 +36,20 @@ BEGIN
       abandoned_by = NULL,
       abandoned_at = NULL,
       abandonment_warning_at = NULL,
-      updated_at = current_time
+      updated_at = current_ts
     WHERE id = game_id;
   END IF;
   
   -- Update player's last activity
   UPDATE profiles
-  SET last_online = current_time
+SET last_online = current_ts
   WHERE id = player_id;
   
   result := jsonb_build_object(
     'success', true,
     'gameId', game_id,
     'playerId', player_id,
-    'reconnectedAt', current_time,
+'reconnectedAt', current_ts,
     'clearedAbandonment', (game_record.abandoned_by IS NOT NULL)
   );
   
@@ -107,7 +107,7 @@ BEGIN
     DECLARE
       game_record record;
       result jsonb;
-      current_time timestamp with time zone := NOW();
+      current_ts timestamp with time zone := NOW();
     BEGIN
       -- Get the game record
       SELECT * INTO game_record
@@ -126,11 +126,11 @@ BEGIN
       -- Update disconnection tracking
       IF game_record.white_player_id = player_id THEN
         UPDATE games
-        SET white_last_disconnect = current_time
+SET white_last_disconnect = current_ts
         WHERE id = game_id;
       ELSE
         UPDATE games
-        SET black_last_disconnect = current_time
+SET black_last_disconnect = current_ts
         WHERE id = game_id;
       END IF;
       
@@ -138,7 +138,7 @@ BEGIN
         ''success'', true,
         ''gameId'', game_id,
         ''playerId'', player_id,
-        ''disconnectedAt'', current_time
+'disconnectedAt', current_ts
       );
     END;
     $func$ LANGUAGE plpgsql SECURITY DEFINER';

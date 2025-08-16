@@ -1,53 +1,17 @@
 import Head from "next/head";
-import LichessBoardV2 from "@/components/LichessBoardV2";
 import QueueSystem from "@/components/QueueSystem";
 import AuthForm from "@/components/auth-form";
-import BoardMoveInput from "@/components/BoardMoveInput";
 import { Box, Container, Typography, Fade, Paper } from "@mui/material";
-import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 
 export default function Home() {
-  const game = useUnifiedGameStore(s => s.game);
   const { user, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // If there's an active game, show the board
-  if (game) {
-    return (
-      <>
-        <Head>
-          <title>Ban Chess - Game in Progress</title>
-          <meta
-            name="description"
-            content="Play Ban Chess - the unique chess variant where you can ban one of your opponent's moves each turn"
-          />
-          <link rel="icon" href="/logo.png" />
-        </Head>
-        <Container maxWidth="lg">
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-              py: 4,
-            }}
-          >
-            <Box sx={{ position: "relative" }}>
-              <LichessBoardV2 orientation="white" />
-            </Box>
-            <BoardMoveInput />
-          </Box>
-        </Container>
-      </>
-    );
-  }
 
   return (
     <>
@@ -182,7 +146,7 @@ export default function Home() {
             </Fade>
           </Box>
         </Box>
-      </Container>
+    </Container>
     </>
   );
 }

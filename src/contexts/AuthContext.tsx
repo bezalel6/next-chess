@@ -49,20 +49,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const fetchProfile = async (userId: string) => {
-    const { data: profile } = await supabaseBrowser()
-      .from("profiles")
-      .select("username, is_admin")
-      .eq("id", userId)
-      .single();
+    try {
+      const { data: profile, error } = await supabaseBrowser()
+        .from("profiles")
+        .select("username, is_admin")
+        .eq("id", userId)
+        .maybeSingle();
 
-    setProfileUsername(profile?.username || null);
-    setIsAdmin(profile?.is_admin || false);
+      if (error) {
+        console.warn("[AuthContext] fetchProfile error:", error);
+      }
+
+      // If profile is not yet created (webhook delay), keep existing username if any
+      if (!profile) {
+        return;
+      }
+
+      setProfileUsername(profile.username || null);
+      setIsAdmin(!!profile.is_admin);
+    } catch (e) {
+      console.warn("[AuthContext] fetchProfile exception:", e);
+    }
   };
 
   const updateUserState = (session: Session | null) => {
     if (session) {
       setUser(session.user);
       setSession(session);
+      // Set a provisional username from metadata to avoid UI gaps
+      const metaUsername = (session.user.user_metadata as any)?.username || null;
+      if (metaUsername && !profileUsername) {
+        setProfileUsername(metaUsername);
+      }
       fetchProfile(session.user.id);
     } else {
       setUser(null);

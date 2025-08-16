@@ -310,11 +310,11 @@ These are hard‑won lessons from fixing type mismatches, broken migrations, and
     - Create text/uuid primary function: handle_player_reconnect(game_id text, player_id uuid)
     - Add text/text shim that casts player_id (safe_uuid_cast)
     - Do the same for handle_player_disconnect and claim_abandonment
-  - Add a validate_game_id(text) helper and use triggers to enforce on INSERT/UPDATE; avoid strict CHECK if legacy rows exist (add conditionally)
+  - IDs are UUID-only. Do not add format validation helpers or regex checks.
 
 - Defensive utilities
   - safe_uuid_cast(text) RETURNS uuid (returns NULL on failure)
-  - validate_game_id(text) RETURNS boolean (accepts 8‑char or UUID for legacy)
+  - Remove any helpers that attempt to parse/validate ID formats.
 
 - Conditional constraints to avoid blocking deploys
   - Only add games.id CHECK if all current rows match:

@@ -14,33 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      admins: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          email: string
-          id: string
-          notes: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          email: string
-          id?: string
-          notes?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          email?: string
-          id?: string
-          notes?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       ban_history: {
         Row: {
           banned_at: string
@@ -180,27 +153,6 @@ export type Database = {
           event_type?: string
           id?: string
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      follows: {
-        Row: {
-          created_at: string
-          follower_id: string
-          following_id: string
-          id: string
-        }
-        Insert: {
-          created_at?: string
-          follower_id: string
-          following_id: string
-          id?: string
-        }
-        Update: {
-          created_at?: string
-          follower_id?: string
-          following_id?: string
-          id?: string
         }
         Relationships: []
       }
@@ -439,144 +391,18 @@ export type Database = {
         }
         Relationships: []
       }
-      settings: {
-        Row: {
-          created_at: string
-          description: string | null
-          key: string
-          updated_at: string
-          value: Json
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          key: string
-          updated_at?: string
-          value: Json
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          key?: string
-          updated_at?: string
-          value?: Json
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      calculate_time_remaining: {
-        Args: {
-          current_ts?: number
-          initial_time: number
-          turn_start_time: number
-        }
-        Returns: number
-      }
-      check_time_violations: {
-        Args: { game_id: string }
-        Returns: Database["public"]["Enums"]["player_color"]
-      }
-      cleanup_expired_clocks: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      get_default_initial_time: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      get_default_time_control: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_follow_stats: {
-        Args: { user_id: string }
-        Returns: Json
-      }
-      get_game_moves: {
-        Args: { p_game_id: string }
-        Returns: {
-          banned_by: string
-          banned_from: string
-          banned_to: string
-          fen_after: string
-          from_square: string
-          id: string
-          move_number: number
-          player_color: string
-          ply_number: number
-          promotion: string
-          san: string
-          time_taken_ms: number
-          to_square: string
-        }[]
-      }
-      handle_move_clock_update: {
-        Args:
-          | {
-              game_id: string
-              moving_color: Database["public"]["Enums"]["player_color"]
-            }
-          | { p_game_id: string; p_moving_color: string }
-        Returns: Json
-      }
       handle_player_disconnect: {
-        Args:
-          | { disconnect_type?: string; game_id: string; player_id: string }
-          | { disconnect_type?: string; game_id: string; player_id: string }
+        Args: { disconnect_type?: string; game_id: string; player_id: string }
         Returns: Json
       }
       handle_player_reconnect: {
-        Args:
-          | { game_id: string; player_id: string }
-          | { game_id: string; player_id: string }
+        Args: { game_id: string; player_id: string }
         Returns: Json
-      }
-      is_admin: {
-        Args: { user_uuid: string }
-        Returns: boolean
-      }
-      is_current_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_following: {
-        Args: { follower: string; following: string }
-        Returns: boolean
-      }
-      is_user_alive: {
-        Args: { threshold_seconds?: number; user_id: string }
-        Returns: boolean
-      }
-      mark_stale_users_offline: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      remove_stale_from_matchmaking: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      start_player_clock: {
-        Args: {
-          game_id: string
-          player_color: Database["public"]["Enums"]["player_color"]
-        }
-        Returns: undefined
-      }
-      stop_player_clock: {
-        Args: {
-          apply_increment?: boolean
-          game_id: string
-          player_color: Database["public"]["Enums"]["player_color"]
-        }
-        Returns: number
-      }
-      update_user_heartbeat: {
-        Args: { user_id: string }
-        Returns: undefined
       }
     }
     Enums: {

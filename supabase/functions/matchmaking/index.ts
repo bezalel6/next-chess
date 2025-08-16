@@ -54,22 +54,6 @@ const matchmakingRouter = createRouter([
   ),
 ]);
 
-/**
- * Generate a random short ID for games
- */
-function generateShortId(length = 8): string {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  const randomValues = new Uint8Array(length);
-  crypto.getRandomValues(randomValues);
-
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(randomValues[i] % chars.length);
-  }
-
-  return result;
-}
 
 /**
  * Gets default time control from the database
@@ -445,14 +429,11 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
         });
       }
 
-      // Generate a unique game ID
-      const gameId = generateShortId();
-
-      // Log match attempt
+      // Log match attempt - entityId will be set after game creation
       await debugLog(supabase, {
         eventType: "match_attempt_started",
         entityType: "matchmaking",
-        entityId: gameId,
+        entityId: "pending",
         data: {
           player1,
           player2,
@@ -466,14 +447,13 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       await debugLog(supabase, {
         eventType: "time_control_retrieved",
         entityType: "matchmaking",
-        entityId: gameId,
+        entityId: "pending",
         data: { timeControl },
       });
 
       // Create a new game with dynamic time control
       const { data: game, error: gameError } = await getTable(supabase, "games")
         .insert({
-          id: gameId,
           white_player_id: player1,
           black_player_id: player2,
           status: "active",
@@ -497,7 +477,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
         await debugLog(supabase, {
           eventType: "game_creation_failed",
           entityType: "matchmaking",
-          entityId: gameId,
+          entityId: "pending",
           data: {
             error: gameError.message,
             player1,
@@ -514,7 +494,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
         await debugLog(supabase, {
           eventType: "game_creation_failed",
           entityType: "matchmaking",
-          entityId: gameId,
+          entityId: "pending",
           data: {
             error: "No game returned from insert",
             player1,
@@ -528,7 +508,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       await debugLog(supabase, {
         eventType: "game_created_successfully",
         entityType: "game",
-        entityId: gameId,
+        entityId: game.id,
         data: {
           white_player_id: player1,
           black_player_id: player2,
@@ -546,7 +526,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
         await debugLog(supabase, {
           eventType: "queue_cleanup_failed",
           entityType: "matchmaking",
-          entityId: gameId,
+          entityId: game.id,
           data: {
             error: error.message,
             player1,
@@ -563,7 +543,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       await debugLog(supabase, {
         eventType: "queue_cleanup_successful",
         entityType: "matchmaking",
-        entityId: gameId,
+        entityId: game.id,
         data: {
           removedPlayers: [player1, player2],
         },
@@ -573,7 +553,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       await logEvent(supabase, {
         eventType: "players_matched",
         entityType: "game",
-        entityId: gameId,
+        entityId: game.id,
         data: {
           white_player_id: player1,
           black_player_id: player2,
@@ -586,7 +566,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
         await debugLog(supabase, {
           eventType: "notification_attempt",
           entityType: "game",
-          entityId: gameId,
+entityId: game.id,
           data: {
             success: notifySuccess,
             white_player_id: player1,
@@ -608,17 +588,17 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       }
 
       logger.info(
-        `Created game ${gameId} for players ${player1} and ${player2}`,
+        `Created game ${game.id} for players ${player1} and ${player2}`,
       );
 
       // Log successful completion
       await debugLog(supabase, {
         eventType: "queue_processing_completed",
         entityType: "matchmaking",
-        entityId: gameId,
+        entityId: game.id,
         data: {
           matchCreated: true,
-          gameId,
+          gameId: game.id,
           white_player_id: player1,
           black_player_id: player2,
         },
@@ -626,7 +606,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
 
       return successResponse({
         matchCreated: true,
-        gameId,
+        gameId: game.id,
         whitePlacerId: player1,
         blackPlayerId: player2,
       });

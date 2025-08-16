@@ -27,10 +27,10 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
   const query = useQuery({
     queryKey: ['game', gameId],
     queryFn: async () => {
-      if (!gameId) return null;
+      if (!gameId || gameId === 'local') return null;
       return GameService.getGame(gameId);
     },
-    enabled: !!gameId,
+    enabled: !!gameId && gameId !== 'local',
     refetchInterval: false, // We'll use realtime updates instead
     staleTime: 1000 * 30, // 30 seconds
   });
@@ -43,10 +43,13 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
   // Initialize store when game data is loaded
   useEffect(() => {
     if (query.data && gameId) {
-      const game = query.data;
+      const game = query.data as any;
+      // Be robust to camelCase or snake_case from API
+      const whiteId = game.whitePlayerId ?? game.white_player_id;
+      const blackId = game.blackPlayerId ?? game.black_player_id;
       const myColor = !userId ? null :
-        game.whitePlayerId === userId ? 'white' :
-        game.blackPlayerId === userId ? 'black' : null;
+        whiteId === userId ? 'white' :
+        blackId === userId ? 'black' : null;
       
       // Only initialize if game data has actually changed
       const currentGameId = useUnifiedGameStore.getState().gameId;
@@ -60,7 +63,7 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
   
   // Set up realtime subscription
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || gameId === 'local') return;
     
     const { logBroadcastReceived, logStateChange } = useDebugLogStore.getState();
     
@@ -84,14 +87,34 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
       .on('broadcast', { event: 'move' }, (payload) => {
         console.log('[useGameQuery] Received move:', payload);
         logBroadcastReceived('move', payload.payload);
-        
-        // Refetch to get latest state
-        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
-        
-        // Update store
-        if (payload.payload) {
-          receiveMove(payload.payload);
+
+        const { optimisticMove, confirmOptimisticUpdate } = useUnifiedGameStore.getState();
+        const b = payload.payload as { from?: string; to?: string; fen?: string; pgn?: string } | undefined;
+
+        // If this confirms our own optimistic move, avoid a refetch to prevent flicker
+        if (b?.from && b?.to && optimisticMove && optimisticMove.from === b.from && optimisticMove.to === b.to) {
+          // Merge server-authoritative fields into cache and store
+          if (b.pgn || b.fen) {
+            updateGame({
+              ...(b.pgn ? { pgn: b.pgn } : {}),
+              ...(b.fen ? { currentFen: b.fen } : {}),
+              lastMove: b.from && b.to ? { from: b.from as any, to: b.to as any } : undefined,
+            } as any);
+          }
+          confirmOptimisticUpdate();
+          return;
         }
+
+        // For opponent moves: apply a fast UI update, then refresh in background
+        if (b?.pgn || b?.fen) {
+          updateGame({
+            ...(b.pgn ? { pgn: b.pgn } : {}),
+            ...(b.fen ? { currentFen: b.fen } : {}),
+          } as any);
+        }
+
+        // Background refresh to fully sync details (SAN, histories, etc.)
+        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
       })
       .on('broadcast', { event: 'ban' }, (payload) => {
         console.log('[useGameQuery] Received ban:', payload);
@@ -168,14 +191,20 @@ export function useMoveMutation(gameId: string | undefined) {
       // Log API response
       logApiResponse('makeMove', data);
       
-      // Confirm optimistic update
-      store.confirmOptimisticUpdate();
-      
-      // Update cache with server response
+      // Do NOT confirm optimistic update here; wait for realtime broadcast to avoid flicker
+      // Update cache with server response (keeps UI consistent if broadcast is delayed)
       queryClient.setQueryData(['game', gameId], data);
       
       // Update store's game object with the updated PGN
       store.updateGame(data);
+      
+      // Optionally auto-confirm if no broadcast arrives shortly
+      setTimeout(() => {
+        const { pendingOperation } = useUnifiedGameStore.getState();
+        if (pendingOperation === 'move') {
+          useUnifiedGameStore.getState().confirmOptimisticUpdate();
+        }
+      }, 1200);
       
       // Broadcast move to other clients
       const broadcastPayload = {

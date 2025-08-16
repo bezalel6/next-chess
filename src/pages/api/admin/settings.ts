@@ -13,13 +13,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Check if user is admin
-    const { data: adminRecord, error: adminError } = await supabase
-      .from('admins')
-      .select('id')
-      .eq('user_id', session.user.id)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', session.user.id)
       .single();
 
-    if (adminError || !adminRecord) {
+    if (profileError || !profile?.is_admin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 

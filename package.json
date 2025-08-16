@@ -19,7 +19,6 @@
     "preview": "next build && next start",
     "start": "npx dotenv-cli -e .env -- tsx src/server/server.ts",
     "typecheck": "tsc --noEmit",
-    "setup:admins": "node scripts/setup-admins.js",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",

@@ -18,17 +18,17 @@ WHERE status = 'active' AND (white_turn_start_time IS NOT NULL OR black_turn_sta
 CREATE OR REPLACE FUNCTION public.calculate_time_remaining(
   initial_time BIGINT,
   turn_start_time BIGINT,
-  current_timestamp BIGINT DEFAULT NULL
+  current_ts BIGINT DEFAULT NULL
 ) RETURNS BIGINT AS $$
 DECLARE
   now_ms BIGINT;
   time_used BIGINT;
 BEGIN
   -- Use provided timestamp or current time
-  IF current_timestamp IS NULL THEN
+  IF current_ts IS NULL THEN
     now_ms := EXTRACT(EPOCH FROM NOW()) * 1000;
   ELSE
-    now_ms := current_timestamp;
+    now_ms := current_ts;
   END IF;
   
   -- If no turn started, return initial time

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "diagnose:game": "node scripts/diagnose_game.mjs" ,
     "kill-running": "portio --mine 3000",
     "build": "next build",
     "check": "next lint && tsc --noEmit",

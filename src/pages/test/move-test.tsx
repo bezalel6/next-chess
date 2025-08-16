@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase';
 import { GameService } from '@/services/gameService';
+import { createClient } from '@supabase/supabase-js';
+
+// For local testing, use the local Supabase instance
+const localSupabase = createClient(
+  'http://127.0.0.1:54321',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+);
 import { Button, Container, Typography, Box, Paper } from '@mui/material';
 
 export default function MoveTestPage() {
@@ -34,29 +41,34 @@ export default function MoveTestPage() {
     try {
       addLog('Creating test game...');
       
-      // Create a test game directly in the database
-      const { data: game, error } = await supabase
-        .from('games')
-        .insert({
-          id: `test-game-${Date.now()}`,
-          white_player_id: userId,
-          black_player_id: userId, // Self-play for testing
-          status: 'active' as const,
-          turn: 'white' as const,
-          banning_player: 'black' as const, // Black bans first in Ban Chess
-          current_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-        })
-        .select()
-        .single();
+      // Get the current session from local Supabase for auth
+      const { data: { session } } = await localSupabase.auth.getSession();
+      if (!session) {
+        addLog('Error: Not authenticated with local Supabase');
+        return;
+      }
+      
+      // Call the test-game edge function on local Supabase
+      const { data, error } = await localSupabase.functions.invoke('test-game', {
+        body: { withBan: false },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
       if (error) {
         addLog(`Error creating game: ${error.message}`);
         return;
       }
 
-      setGameId(game.id);
-      addLog(`Game created: ${game.id}`);
-      addLog(`Game state: turn=${game.turn}, banning=${game.banning_player}`);
+      if (!data.success || !data.game) {
+        addLog(`Error: ${data.error || 'Failed to create game'}`);
+        return;
+      }
+
+      setGameId(data.game.id);
+      addLog(`Game created: ${data.game.id}`);
+      addLog(`Game state: turn=${data.game.turn}, banning=${data.game.banning_player}`);
     } catch (error: any) {
       addLog(`Error: ${error.message}`);
     }
@@ -71,11 +83,33 @@ export default function MoveTestPage() {
     try {
       addLog('Testing ban move (e2e4)...');
       
-      const result = await GameService.banMove(gameId, { from: 'e2', to: 'e4' });
+      // Get the current session from local Supabase
+      const { data: { session } } = await localSupabase.auth.getSession();
+      if (!session) {
+        addLog('Error: Not authenticated with local Supabase');
+        return;
+      }
+      
+      // Call the game-operations edge function directly on local Supabase
+      const { data, error } = await localSupabase.functions.invoke('game-operations', {
+        body: {
+          operation: 'banMove',
+          gameId,
+          move: { from: 'e2', to: 'e4' }
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      
+      if (error) {
+        addLog(`Ban error: ${error.message}`);
+        return;
+      }
       
       addLog('Ban successful!');
-      addLog(`Updated game: turn=${result.turn}, banning=${result.banningPlayer}`);
-      addLog(`Current banned move: ${JSON.stringify(result.currentBannedMove)}`);
+      addLog(`Updated game: turn=${data.turn}, banning=${data.banning_player}`);
+      addLog(`Current banned move: ${JSON.stringify(data.current_banned_move)}`);
     } catch (error: any) {
       addLog(`Ban error: ${error.message}`);
     }
@@ -90,13 +124,35 @@ export default function MoveTestPage() {
     try {
       addLog('Testing move (d2d4)...');
       
-      const result = await GameService.makeMove(gameId, { from: 'd2', to: 'd4' });
+      // Get the current session from local Supabase
+      const { data: { session } } = await localSupabase.auth.getSession();
+      if (!session) {
+        addLog('Error: Not authenticated with local Supabase');
+        return;
+      }
+      
+      // Call the game-operations edge function directly on local Supabase
+      const { data, error } = await localSupabase.functions.invoke('game-operations', {
+        body: {
+          operation: 'makeMove',
+          gameId,
+          move: { from: 'd2', to: 'd4' }
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      
+      if (error) {
+        addLog(`Move error: ${error.message}`);
+        return;
+      }
       
       addLog('Move successful!');
-      addLog(`Updated game: turn=${result.turn}, banning=${result.banningPlayer}`);
-      addLog(`PGN: ${result.pgn}`);
-      addLog(`FEN: ${result.currentFen}`);
-      addLog(`Last move: ${JSON.stringify(result.lastMove)}`);
+      addLog(`Updated game: turn=${data.turn}, banning=${data.banning_player}`);
+      addLog(`PGN: ${data.pgn}`);
+      addLog(`FEN: ${data.current_fen}`);
+      addLog(`Last move: ${JSON.stringify(data.last_move)}`);
     } catch (error: any) {
       addLog(`Move error: ${error.message}`);
     }
@@ -111,8 +167,8 @@ export default function MoveTestPage() {
     try {
       addLog('Checking database state...');
       
-      // Check game table
-      const { data: game, error: gameError } = await supabase
+      // Check game table using local Supabase
+      const { data: game, error: gameError } = await localSupabase
         .from('games')
         .select('*')
         .eq('id', gameId)
@@ -127,8 +183,8 @@ export default function MoveTestPage() {
         addLog(`Banned move: ${JSON.stringify(game.current_banned_move)}`);
       }
 
-      // Check moves table
-      const { data: moves, error: movesError } = await supabase
+      // Check moves table using local Supabase
+      const { data: moves, error: movesError } = await localSupabase
         .from('moves')
         .select('*')
         .eq('game_id', gameId)
@@ -152,17 +208,18 @@ export default function MoveTestPage() {
 
   const authenticateAsTestUser = async () => {
     try {
-      addLog('Authenticating as test user...');
+      addLog('Authenticating as test user on local Supabase...');
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Use local Supabase for authentication
+      const { data, error } = await localSupabase.auth.signInWithPassword({
         email: 'test@example.com',
         password: 'testpassword123',
       });
 
       if (error) {
         // Try to create the user if it doesn't exist
-        addLog('User not found, creating...');
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        addLog('User not found, creating on local Supabase...');
+        const { data: signUpData, error: signUpError } = await localSupabase.auth.signUp({
           email: 'test@example.com',
           password: 'testpassword123',
         });

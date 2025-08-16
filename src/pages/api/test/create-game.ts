@@ -1,3 +1,6 @@
+// DEAD ENDPOINT - DO NOT USE
+// This endpoint is no longer functional due to changes in the database schema
+// Games now use UUID format and this endpoint creates incompatible IDs
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 

@@ -227,43 +227,56 @@ export class GameService {
   }
 
   static mapGameFromDB(dbGame: any): Game {
-    const chess = new Chess(dbGame.current_fen);
-    
+    // Normalize snake_case -> camelCase once here; rest of app must use camelCase only
+    const currentFen = dbGame.current_fen ?? dbGame.currentFen;
+    const whitePlayerId = dbGame.white_player_id ?? dbGame.whitePlayerId;
+    const blackPlayerId = dbGame.black_player_id ?? dbGame.blackPlayerId;
+    const lastMoveRaw = dbGame.last_move ?? dbGame.lastMove ?? null;
+    const banningPlayer = dbGame.banning_player ?? dbGame.banningPlayer ?? null;
+    const currentBannedMove = dbGame.current_banned_move ?? dbGame.currentBannedMove ?? null;
+    const startTime = dbGame.created_at ?? dbGame.createdAt;
+    const lastMoveTime = dbGame.updated_at ?? dbGame.updatedAt;
+    const drawOfferedBy = dbGame.draw_offered_by ?? dbGame.drawOfferedBy ?? null;
+    const endReason = dbGame.end_reason ?? dbGame.endReason ?? null;
+    const rematchOfferedBy = dbGame.rematch_offered_by ?? dbGame.rematchOfferedBy ?? null;
+    const parentGameId = dbGame.parent_game_id ?? dbGame.parentGameId ?? null;
+    const whiteTimeRemaining = dbGame.white_time_remaining ?? dbGame.whiteTimeRemaining ?? null;
+    const blackTimeRemaining = dbGame.black_time_remaining ?? dbGame.blackTimeRemaining ?? null;
+    const timeControl = dbGame.time_control ?? dbGame.timeControl ?? null;
+
+    const chess = new Chess(currentFen);
+
     // Extract usernames from joined profiles or fallback to IDs
-    const whiteUsername = dbGame.white_profile?.username || dbGame.white_player_id;
-    const blackUsername = dbGame.black_profile?.username || dbGame.black_player_id;
-    
+    const whiteUsername = dbGame.white_profile?.username || whitePlayerId;
+    const blackUsername = dbGame.black_profile?.username || blackPlayerId;
+
     return {
       id: dbGame.id,
-      whitePlayerId: dbGame.white_player_id,
-      blackPlayerId: dbGame.black_player_id,
+      whitePlayerId,
+      blackPlayerId,
       whitePlayer: whiteUsername,
       blackPlayer: blackUsername,
       status: dbGame.status,
       result: dbGame.result,
-      currentFen: dbGame.current_fen,
+      currentFen,
       pgn: dbGame.pgn || "",
       chess,
-      lastMove: dbGame.last_move
-        ? (dbGame.last_move as unknown as ChessMove)
-        : null,
+      lastMove: lastMoveRaw ? (lastMoveRaw as unknown as ChessMove) : null,
       turn: dbGame.turn,
-      banningPlayer: dbGame.banning_player,
-      currentBannedMove: (dbGame as any).current_banned_move
-        ? (dbGame as any).current_banned_move as ChessMove
-        : null,
-      startTime: new Date(dbGame.created_at).getTime(),
-      lastMoveTime: new Date(dbGame.updated_at).getTime(),
-      drawOfferedBy: dbGame.draw_offered_by || null,
-      endReason: dbGame.end_reason || null,
-      rematchOfferedBy: dbGame.rematch_offered_by || null,
-      parentGameId: dbGame.parent_game_id || null,
-      whiteTimeRemaining: dbGame.white_time_remaining || null,
-      blackTimeRemaining: dbGame.black_time_remaining || null,
-      timeControl: dbGame.time_control
+      banningPlayer,
+      currentBannedMove: currentBannedMove ? (currentBannedMove as ChessMove) : null,
+      startTime: new Date(startTime).getTime(),
+      lastMoveTime: new Date(lastMoveTime).getTime(),
+      drawOfferedBy,
+      endReason,
+      rematchOfferedBy,
+      parentGameId,
+      whiteTimeRemaining,
+      blackTimeRemaining,
+      timeControl: timeControl
         ? {
-            initialTime: (dbGame.time_control as any)?.initial_time || 600000,
-            increment: (dbGame.time_control as any)?.increment || 0,
+            initialTime: (timeControl as any)?.initial_time ?? (timeControl as any)?.initialTime ?? 600000,
+            increment: (timeControl as any)?.increment ?? 0,
           }
         : { initialTime: 600000, increment: 0 },
     };

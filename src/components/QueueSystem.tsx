@@ -119,14 +119,15 @@ const QueueSystem = () => {
 
   const handleResignGame = async () => {
     if (!activeGame || !user) return;
-    
+
     setIsResigning(true);
     try {
-      const playerColor = activeGame.whitePlayerId === user.id ? "white" : "black";
+      const playerColor =
+        activeGame.whitePlayerId === user.id ? "white" : "black";
       await GameService.resign(activeGame.id, playerColor);
       // Refresh active game state
-      setActiveGame(null);
-      setHasActiveGame(false);
+      // setActiveGame(null);
+      // setHasActiveGame(false);
     } catch (error) {
       console.error("Error resigning game:", error);
     } finally {
@@ -427,21 +428,22 @@ const QueueSystem = () => {
             <Paper
               sx={{
                 p: 2.5,
-                background: "linear-gradient(135deg, rgba(255, 152, 0, 0.08) 0%, rgba(255, 193, 7, 0.05) 100%)",
+                background:
+                  "linear-gradient(135deg, rgba(255, 152, 0, 0.08) 0%, rgba(255, 193, 7, 0.05) 100%)",
                 border: "2px solid",
                 borderColor: "warning.main",
                 borderRadius: 2,
               }}
             >
-              <Typography 
-                variant="subtitle2" 
-                color="warning.main" 
+              <Typography
+                variant="subtitle2"
+                color="warning.main"
                 fontWeight={600}
                 sx={{ mb: 2, textAlign: "center" }}
               >
                 ACTIVE GAME
               </Typography>
-              
+
               <Box
                 sx={{
                   display: "flex",
@@ -453,9 +455,13 @@ const QueueSystem = () => {
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <Avatar
                     sx={{
-                      bgcolor: activeGame.turn === (activeGame.whitePlayerId === user?.id ? "white" : "black") 
-                        ? "success.main" 
-                        : "grey.700",
+                      bgcolor:
+                        activeGame.turn ===
+                        (activeGame.whitePlayerId === user?.id
+                          ? "white"
+                          : "black")
+                          ? "success.main"
+                          : "grey.700",
                       width: 40,
                       height: 40,
                     }}
@@ -469,20 +475,30 @@ const QueueSystem = () => {
                     <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
                       <Chip
                         label={
-                          activeGame.turn === (activeGame.whitePlayerId === user?.id ? "white" : "black")
+                          activeGame.turn ===
+                          (activeGame.whitePlayerId === user?.id
+                            ? "white"
+                            : "black")
                             ? "Your turn"
                             : "Their turn"
                         }
                         size="small"
                         color={
-                          activeGame.turn === (activeGame.whitePlayerId === user?.id ? "white" : "black")
+                          activeGame.turn ===
+                          (activeGame.whitePlayerId === user?.id
+                            ? "white"
+                            : "black")
                             ? "success"
                             : "default"
                         }
                         sx={{ height: 22 }}
                       />
                       <Chip
-                        label={activeGame.whitePlayerId === user?.id ? "White" : "Black"}
+                        label={
+                          activeGame.whitePlayerId === user?.id
+                            ? "White"
+                            : "Black"
+                        }
                         size="small"
                         variant="outlined"
                         sx={{ height: 22 }}

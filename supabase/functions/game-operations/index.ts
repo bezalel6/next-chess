@@ -220,11 +220,6 @@ async function notifyGameUpdate(params: any, supabase: TypedSupabaseClient) {
  * This replaces the database notify function
  */
 async function notifyGameChange(supabase: TypedSupabaseClient, gameId: string) {
-  // Return early unless LOG_GAME_CHANGES is explicitly set
-  if (!Deno.env.get("LOG_GAME_CHANGES")) {
-    return true;
-  }
-
   try {
     // Fetch the game data
     const { data: game, error: gameError } = await getTable(supabase, "games")
@@ -249,19 +244,21 @@ async function notifyGameChange(supabase: TypedSupabaseClient, gameId: string) {
         turn: game.turn,
         white_player_id: game.white_player_id,
         black_player_id: game.black_player_id,
+        draw_offered_by: (game as any).draw_offered_by ?? (game as any).drawOfferedBy ?? null,
+        result: game.result,
+        end_reason: (game as any).end_reason ?? (game as any).endReason ?? null,
       },
     });
 
-    // Use Supabase's realtime features
-    logger.info(`Game update notification: ${gameId}`);
+    // Broadcast realtime update so both clients get the change immediately
+    const channel = supabase.channel(`game:${gameId}:unified`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'game_update',
+      payload: game,
+    });
 
-    // In a real implementation, you might use something like:
-    // await supabase.from('notifications').insert({
-    //   type: 'game_update',
-    //   recipient_id: game.white_player_id,
-    //   data: { game_id: game.id, status: game.status }
-    // });
-
+    logger.info(`Broadcasted game_update for ${gameId}`);
     return true;
   } catch (error) {
     logger.warn(`Failed to notify game change: ${error.message}`);

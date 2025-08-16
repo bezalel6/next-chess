@@ -13,6 +13,8 @@
     "db:remote-reset": "npx supabase@beta db reset --linked",
     "dev": "npm run kill-running && tsx -r dotenv/config src/server/server.ts",
     "dev:watch": "npm run kill-running && tsx --watch -r dotenv/config src/server/server.ts",
+    "build:server:dev": "esbuild src/server/server.ts --bundle --platform=node --target=node20 --outfile=.dev/server.js --sourcemap=inline --define:process.env.NODE_ENV=\"development\" --log-level=info",
+    "dev:ultra": "npm run kill-running && cross-env NEXT_TELEMETRY_DISABLED=1 TSX_NO_SOURCEMAP=1 DOTENV_CONFIG_PATH=.env concurrently -k -n BUILD,SRV -c yellow,cyan \"npm:build:server:dev -- --watch\" \"nodemon --quiet --watch .dev/server.js --exec \"node -r dotenv/config .dev/server.js\"\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",
@@ -87,6 +89,8 @@
   "devDependencies": {
     "@playwright/test": "^1.54.2",
     "@types/ws": "^8.18.1",
+    "concurrently": "^9.2.0",
+    "esbuild": "^0.24.2",
     "prettier": "^3.2.5",
     "tsx": "^4.20.4",
     "typescript": "^5.3.3",

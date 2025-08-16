@@ -39,6 +39,18 @@ serve(async (req) => {
       );
     }
 
+    // Validate UUID format for playerId to match (text, uuid, text) signature
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(playerId)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid playerId format (expected UUID)" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
+    }
+
     // Call the database function to handle disconnect
     const { data, error } = await supabaseClient.rpc('handle_player_disconnect', {
       game_id: gameId,

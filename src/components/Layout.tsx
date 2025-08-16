@@ -3,6 +3,7 @@ import Header from "./Header";
 import Footer from "./Footer";
 import DevelopmentNotice from "./DevelopmentNotice";
 import ConnectionIndicator from "./ConnectionIndicator";
+import { BugReportButton } from "./BugReportButton";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
@@ -87,6 +88,7 @@ const Layout = ({ children }: LayoutProps) => {
       </Fade>
       <DevelopmentNotice />
       <Footer />
+      <BugReportButton />
     </Box>
   );
 };

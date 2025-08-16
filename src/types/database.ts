@@ -69,6 +69,83 @@ export type Database = {
           },
         ]
       }
+      bug_reports: {
+        Row: {
+          actual_behavior: string | null
+          additional_data: Json | null
+          browser_info: Json | null
+          category: string
+          created_at: string | null
+          description: string
+          expected_behavior: string | null
+          game_id: string | null
+          id: string
+          page_url: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          screenshot_url: string | null
+          severity: string
+          status: string
+          steps_to_reproduce: string | null
+          title: string
+          updated_at: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          actual_behavior?: string | null
+          additional_data?: Json | null
+          browser_info?: Json | null
+          category: string
+          created_at?: string | null
+          description: string
+          expected_behavior?: string | null
+          game_id?: string | null
+          id?: string
+          page_url?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          screenshot_url?: string | null
+          severity: string
+          status?: string
+          steps_to_reproduce?: string | null
+          title: string
+          updated_at?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          actual_behavior?: string | null
+          additional_data?: Json | null
+          browser_info?: Json | null
+          category?: string
+          created_at?: string | null
+          description?: string
+          expected_behavior?: string | null
+          game_id?: string | null
+          id?: string
+          page_url?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          screenshot_url?: string | null
+          severity?: string
+          status?: string
+          steps_to_reproduce?: string | null
+          title?: string
+          updated_at?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bug_reports_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_log: {
         Row: {
           created_at: string

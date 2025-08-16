@@ -1,1 +1,0 @@
-    EXECUTE FUNCTION update_bug_report_updated_at();

@@ -241,8 +241,8 @@ export function useGamePresence(gameId: string | null) {
     if (!gameId || !user || !game) return;
 
     const isCurrentPlayer = 
-      (game.turn === 'white' && game.white_player_id === user.id) ||
-      (game.turn === 'black' && game.black_player_id === user.id);
+      (game.turn === 'white' && game.whitePlayerId === user.id) ||
+      (game.turn === 'black' && game.blackPlayerId === user.id);
 
     const service = new GamePresenceService(
       gameId,
@@ -265,9 +265,9 @@ export function useGamePresence(gameId: string | null) {
   useEffect(() => {
     if (!presenceService || !game || !user) return;
 
-    const opponentId = game.white_player_id === user.id 
-      ? game.black_player_id 
-      : game.white_player_id;
+    const opponentId = game.whitePlayerId === user.id 
+      ? game.blackPlayerId 
+      : game.whitePlayerId;
 
     const interval = setInterval(() => {
       const status = presenceService.getPlayerStatus(opponentId);

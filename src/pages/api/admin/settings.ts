@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { createSupabaseServerClient } from '@/utils/supabase-server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -97,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { error: deleteError } = await supabase
           .from('settings')
           .delete()
-          .eq('key', deleteKey);
+          .eq('key', Array.isArray(deleteKey) ? deleteKey[0] : deleteKey);
 
         if (deleteError) {
           throw deleteError;

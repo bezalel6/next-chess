@@ -80,20 +80,23 @@ export class UserService {
     }
   }
   
-  static async getUserProfile(username: string): Promise<UserGameStats> {
-    const {
-      data: { id: userId },
-      error,
-    } = await supabase
+  static async getUserProfile(username: string):Promise<UserGameStats> {
+    const { data, error } = await supabase
       .from("profiles")
       .select("id")
       .eq("username", username)
-      .single();
+      .maybeSingle();
+
     if (error) {
-      console.error("Error Fetching userid", error);
+      console.error("Error fetching user id by username:", error);
       throw error;
     }
-    return await this.getUserGameStats(userId);
+
+    if (!data?.id) {
+      throw new Error("User not found");
+    }
+
+    return await this.getUserGameStats(data.id);
   }
   /**
    * Get a username by user ID

@@ -1,6 +1,5 @@
 import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
-import { useGameStore } from "@/stores/gameStore";
 import LichessBoardV2 from "./LichessBoardV2";
 import GameOverDetails from "./GameOverDetails";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";

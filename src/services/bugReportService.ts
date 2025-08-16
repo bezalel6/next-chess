@@ -72,6 +72,9 @@ export class BugReportService {
       // Sanitize all text inputs
       const sanitizedReport = {
         ...report,
+        // Cast enum-like fields to strings to fit Supabase Json typing
+        category: report.category,
+        severity: report.severity,
         title: sanitizeText(report.title, 200),
         description: sanitizeText(report.description, 5000),
         steps_to_reproduce: report.steps_to_reproduce ? sanitizeText(report.steps_to_reproduce, 2000) : null,
@@ -79,15 +82,16 @@ export class BugReportService {
         actual_behavior: report.actual_behavior ? sanitizeText(report.actual_behavior, 1000) : null,
         user_email: user_email ? sanitizeText(user_email, 100) : null,
         user_id,
-        browser_info,
+        browser_info: browser_info as unknown as any,
         page_url: sanitizeText(page_url, 500),
         screenshot_url: screenshotUrl ? sanitizeText(screenshotUrl, 500) : null,
+        additional_data: report.additional_data as unknown as any,
         created_at: new Date().toISOString()
-      };
+      } as any;
 
       const { data, error } = await supabase
         .from('bug_reports')
-        .insert(sanitizedReport)
+        .insert([sanitizedReport])
         .select()
         .single();
 

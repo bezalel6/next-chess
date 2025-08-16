@@ -9,7 +9,6 @@ import {
 } from "react";
 import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
-import { useGameStore } from "@/stores/gameStore";
 import { useGame } from "@/hooks/useGameQueries";
 import { useAuth } from "@/contexts/AuthContext";
 import { Chess } from "chess.ts";
@@ -81,13 +80,11 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   });
 
   // Get navigation state and pending operation from store
-  const {
-    navigationFen,
-    navigationBan,
-    viewingPly,
-    pendingOperation,
-    optimisticFen,
-  } = useGameStore();
+  const navigationFen = useUnifiedGameStore((s) => s.navigationFen);
+  const navigationBan = useUnifiedGameStore((s) => s.navigationBan);
+  const viewingPly = useUnifiedGameStore((s) => s.viewingPly);
+  const pendingOperation = useUnifiedGameStore((s) => s.pendingOperation);
+  const optimisticFen = useUnifiedGameStore((s) => s.optimisticFen);
 
   // Parse current position (use navigation FEN if navigating)
   const chess = useMemo(() => {

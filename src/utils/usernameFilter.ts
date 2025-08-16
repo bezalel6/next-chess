@@ -176,5 +176,4 @@ export function validateUsername(username: string): UsernameValidationResult {
   return usernameFilter.validateUsername(username);
 }
 
-// Export type
-export type { UsernameValidationResult };
+// Export type (already exported above)

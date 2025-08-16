@@ -9,14 +9,14 @@ if (!supabaseUrl || !supabaseKey) {
   console.error("Missing Supabase environment variables!");
 }
 
-// Create a Supabase client for the browser with cookie-based session storage
-export const createSupabaseBrowser = () => {
+// Internal helper to build a browser client with a specific flow
+const buildBrowserClient = (flow: 'pkce' | 'implicit') => {
   return createBrowserClient<Database>(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      flowType: 'pkce',
+      flowType: flow,
       storage: {
         getItem: (key: string) => {
           if (typeof window === 'undefined') return null;
@@ -52,12 +52,24 @@ export const createSupabaseBrowser = () => {
   });
 };
 
-// Create a singleton instance for the browser
+// Default PKCE client (for OAuth and same-device flows)
+export const createSupabaseBrowser = () => buildBrowserClient('pkce');
+
+// Singleton instances
 let browserClient: ReturnType<typeof createSupabaseBrowser> | undefined;
+let browserClientImplicit: ReturnType<typeof buildBrowserClient> | undefined;
 
 export const supabaseBrowser = () => {
   if (!browserClient) {
     browserClient = createSupabaseBrowser();
   }
   return browserClient;
+};
+
+// Implicit-flow client (for email confirmation and magic links to support cross-device)
+export const supabaseBrowserImplicit = () => {
+  if (!browserClientImplicit) {
+    browserClientImplicit = buildBrowserClient('implicit');
+  }
+  return browserClientImplicit;
 };

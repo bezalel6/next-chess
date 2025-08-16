@@ -36,11 +36,13 @@ export default function DisconnectHandler({ gameId }: DisconnectHandlerProps) {
     if (!game || !user) return false;
     
     const isOpponentTurn = 
-      (game.turn === 'white' && game.white_player_id !== user.id) ||
-      (game.turn === 'black' && game.black_player_id !== user.id);
+      (game.turn === 'white' && game.whitePlayerId !== user.id) ||
+      (game.turn === 'black' && game.blackPlayerId !== user.id);
     
     // Check if there's an active disconnect
-    return isOpponentTurn && game.disconnect_started_at != null;
+    // If server provides enhanced disconnect fields, you can extend Game type and mapper
+    // For now, hide handler unless claim times are present in game (feature gated)
+    return isOpponentTurn && (game as any).disconnectStartedAt != null;
   }, [game, user]);
 
   // Monitor claim availability
@@ -55,8 +57,9 @@ export default function DisconnectHandler({ gameId }: DisconnectHandlerProps) {
     setShowHandler(true);
     
     const checkClaimStatus = () => {
-      if (game.claim_available_at) {
-        const claimTime = new Date(game.claim_available_at);
+      const anyGame = game as any;
+      if (anyGame.claimAvailableAt) {
+        const claimTime = new Date(anyGame.claimAvailableAt);
         const now = new Date();
         
         if (now >= claimTime) {
@@ -69,11 +72,11 @@ export default function DisconnectHandler({ gameId }: DisconnectHandlerProps) {
         }
       } else {
         // Calculate timeout from disconnect start
-        const disconnectType = game.last_connection_type || 'disconnect';
+        const disconnectType = (anyGame.lastConnectionType as string) || 'disconnect';
         const baseTimeout = disconnectType === 'rage_quit' ? 10 : 120;
         
-        if (game.disconnect_started_at) {
-          const disconnectTime = new Date(game.disconnect_started_at);
+        if (anyGame.disconnectStartedAt) {
+          const disconnectTime = new Date(anyGame.disconnectStartedAt);
           const now = new Date();
           const elapsed = Math.floor((now.getTime() - disconnectTime.getTime()) / 1000);
           const remaining = Math.max(0, baseTimeout - elapsed);
@@ -122,14 +125,14 @@ export default function DisconnectHandler({ gameId }: DisconnectHandlerProps) {
 
   const disconnectInfo = useMemo((): DisconnectInfo | null => {
     if (!game) return null;
-    
-    const disconnectType = game.last_connection_type || 'disconnect';
+    const anyGame = game as any;
+    const disconnectType = (anyGame.lastConnectionType as string) || 'disconnect';
     return {
       icon: disconnectType === 'rage_quit' ? <RageQuitIcon /> : <DisconnectIcon />,
       label: disconnectType === 'rage_quit' ? 'Opponent left the game' : 'Opponent disconnected',
       color: disconnectType === 'rage_quit' ? 'error' : 'warning',
       timeout: disconnectType === 'rage_quit' ? 10 : 
-        (game.disconnect_allowance_seconds || 120) - (game.total_disconnect_seconds || 0),
+        ((anyGame.disconnectAllowanceSeconds as number) || 120) - ((anyGame.totalDisconnectSeconds as number) || 0),
     };
   }, [game]);
 
@@ -219,15 +222,15 @@ export default function DisconnectHandler({ gameId }: DisconnectHandlerProps) {
       )}
 
       {/* Disconnection stats */}
-      {game && (game.total_disconnect_seconds || 0) > 0 && (
+      {(game as any) && (((game as any).totalDisconnectSeconds || 0) > 0) && (
         <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
           <Typography variant="caption" color="text.secondary">
-            Total disconnection time: {formatTime(game.total_disconnect_seconds || 0)}
+            Total disconnection time: {formatTime((game as any).totalDisconnectSeconds || 0)}
           </Typography>
           <br />
           <Typography variant="caption" color="text.secondary">
             Remaining allowance: {formatTime(
-              (game.disconnect_allowance_seconds || 120) - (game.total_disconnect_seconds || 0)
+              (((game as any).disconnectAllowanceSeconds || 120) - ((game as any).totalDisconnectSeconds || 0))
             )}
           </Typography>
         </Box>

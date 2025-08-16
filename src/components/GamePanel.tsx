@@ -1,7 +1,6 @@
 import { Box, Typography, Tooltip, IconButton, Button } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
-import { useGameStore } from "@/stores/gameStore";
 import type { Square } from "chess.ts/dist/types";
 import BlockIcon from "@mui/icons-material/Block";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -315,7 +314,7 @@ const GamePanel = () => {
       move: MoveData,
       clickedPhase: "after-ban" | "after-move" = "after-move"
     ) => {
-      const { navigateToPosition } = useGameStore.getState();
+      const { navigateToPosition } = useUnifiedGameStore.getState();
 
       // Navigate to the appropriate position based on phase
       if (clickedPhase === "after-ban" && move.banned_from && move.banned_to) {
@@ -356,7 +355,7 @@ const GamePanel = () => {
   // Navigation functions with half-move support
   const navigateToFirst = useCallback(() => {
     // Go to initial position (before any moves)
-    const { navigateToPosition } = useGameStore.getState();
+    const { navigateToPosition } = useUnifiedGameStore.getState();
     // Navigate to initial chess position with ply -1
     const initialFen =
       "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -420,7 +419,7 @@ const GamePanel = () => {
     if (movesData.length > 0) {
       // Don't use handleMoveClick as it sets userNavigatedAway
       const lastMove = movesData[movesData.length - 1];
-      const { navigateToPosition } = useGameStore.getState();
+      const { navigateToPosition } = useUnifiedGameStore.getState();
       
       const bannedMove = lastMove.banned_from && lastMove.banned_to
         ? { from: lastMove.banned_from as Square, to: lastMove.banned_to as Square }

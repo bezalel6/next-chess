@@ -6,8 +6,8 @@ import WebSocket from "ws";
 import { env } from "../env";
 
 const dev = env.NODE_ENV !== "production";
-const hostname = env.HOST || "0.0.0.0"; // listen on all interfaces by default
-const port = Number(env.PORT) || 3000;
+const hostname = (process.env.HOST as string) || "0.0.0.0"; // listen on all interfaces by default
+const port = Number(process.env.PORT || env.PORT) || 3000;
 
 // Polyfill WebSocket for Node.js runtime (required by supabase-js realtime)
 // If ws isn't installed, this import will fail at build/runtime.

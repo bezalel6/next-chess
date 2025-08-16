@@ -22,7 +22,7 @@ export default function Document() {
           rel="stylesheet"
           href="https://fonts.cdnfonts.com/css/digital-7-mono"
           media="print"
-          onLoad="this.media='all'"
+          onLoad={(e) => { (e.currentTarget as HTMLLinkElement).media = 'all'; }}
         />
         <noscript>
           <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/digital-7-mono" />

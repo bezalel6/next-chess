@@ -47,7 +47,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
-
   const fetchProfile = async (userId: string) => {
     try {
       const { data: profile, error } = await supabaseBrowser()
@@ -62,14 +61,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // If profile is not yet created (webhook delay), keep existing username if any
       if (!profile) {
-        return;
+        return null;
       }
 
       setProfileUsername(profile.username || null);
       setIsAdmin(!!profile.is_admin);
+      return profile;
     } catch (e) {
       console.warn("[AuthContext] fetchProfile exception:", e);
+      return null;
     }
+  };
+
+  // Poll for profile for a short window (handles webhook delay after signup/OAuth)
+  const waitForProfile = async (userId: string, opts?: { tries?: number; intervalMs?: number }) => {
+    const tries = opts?.tries ?? 12; // ~5s with 400ms interval
+    const intervalMs = opts?.intervalMs ?? 400;
+    for (let i = 0; i < tries; i++) {
+      const profile = await fetchProfile(userId);
+      if (profile?.username) return true;
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    return false;
   };
 
   const updateUserState = (session: Session | null) => {
@@ -141,12 +154,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
-
     const initializeAuth = async () => {
       // Validate and potentially refresh the session on mount
       const session = await validateAndRefreshSession();
       updateUserState(session);
-      setLoading(false);
+
+      // If we have a fresh session but no profile yet, poll briefly for it
+      if (session?.user && !profileUsername) {
+        waitForProfile(session.user.id).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
 
       // Set up periodic session validation (every 30 seconds)
       intervalId = setInterval(async () => {
@@ -168,6 +186,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updateUserState(null);
         } else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
           updateUserState(session);
+          // If we just signed in and don't yet have a profile in state, poll for it briefly
+          if (session?.user && !profileUsername) {
+            waitForProfile(session.user.id);
+          }
         } else if (!session) {
           // Session is null, clear state
           updateUserState(null);
@@ -222,11 +244,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const normalizedUsername = username.toLowerCase().trim();
 
     try {
-      // Perform only simple client-side normalization; all validation (including uniqueness)
-      // happens server-side via the Auth webhook + edge function.
+      // Use an implicit-flow client for email confirmations to support cross-device clicks.
+      const sbImplicit = (await import("@/utils/supabase-browser")).supabaseBrowserImplicit();
 
       // Sign up with Supabase Auth (include username in user_metadata)
-      const { data, error } = await supabaseBrowser().auth.signUp({
+      const { data, error } = await sbImplicit.auth.signUp({
         email: normalizedEmail,
         password,
         options: {
@@ -337,10 +359,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithMagicLink = async (email: string) => {
-    const { error } = await supabaseBrowser().auth.signInWithOtp({
+    // Use implicit flow so the redirect contains tokens in the hash and works cross-device
+    const sbImplicit = (await import("@/utils/supabase-browser")).supabaseBrowserImplicit();
+    const { error } = await sbImplicit.auth.signInWithOtp({
       email: email.toLowerCase().trim(),
       options: {
         shouldCreateUser: false,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 

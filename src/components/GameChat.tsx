@@ -384,11 +384,11 @@ export default function GameChat({ gameId }: GameChatProps) {
           )}
           
           {/* Creation Time */}
-          {game?.createdAt && (
+          {game?.startTime && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <CalendarIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
               <Typography variant="caption" color="text.secondary">
-                {format(new Date(game.createdAt), 'MMM d, HH:mm')}
+                {format(new Date(game.startTime), 'MMM d, HH:mm')}
               </Typography>
             </Box>
           )}

@@ -80,6 +80,7 @@ interface UISlice {
   // Navigation
   viewingPly: number | null;
   navigationFen: string | null;
+  navigationBan: { from: Square; to: Square } | null;
 }
 
 interface NetworkSlice {
@@ -166,6 +167,8 @@ interface UIActions {
   // Navigation
   navigateToMove: (ply: number) => void;
   navigateToCurrent: () => void;
+  navigateToPosition: (ply: number | null, fen: string | null, ban: { from: Square; to: Square } | null) => void;
+  clearNavigation: () => void;
   
   // UI state
   flipBoard: () => void;
@@ -227,6 +230,7 @@ const initialState = {
   showGameOverModal: false,
   viewingPly: null,
   navigationFen: null,
+  navigationBan: null,
   
   // Network slice
   isConnected: true,
@@ -623,6 +627,19 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         navigateToCurrent: () => set({
           viewingPly: null,
           navigationFen: null,
+          navigationBan: null,
+        }),
+        
+        navigateToPosition: (ply, fen, ban) => set({
+          viewingPly: ply,
+          navigationFen: fen,
+          navigationBan: ban,
+        }),
+        
+        clearNavigation: () => set({
+          viewingPly: null,
+          navigationFen: null,
+          navigationBan: null,
         }),
         
         flipBoard: () => {

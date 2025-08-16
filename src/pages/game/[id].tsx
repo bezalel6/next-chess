@@ -14,7 +14,6 @@ import BoardMoveInput from "@/components/BoardMoveInput";
 import GameChat from "@/components/GameChat";
 import GameLayout from "@/components/GameLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import GameWithRecovery from "@/components/GameWithRecovery";
 import DisconnectHandler from "@/components/DisconnectHandler";
 // Left sidebar components
 const LeftSidebar = () => {

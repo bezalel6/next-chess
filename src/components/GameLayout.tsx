@@ -60,7 +60,7 @@ const LeftSidebar = () => {
       sx={{
         display: "flex",
         flexDirection: "column",
-        width: 240,
+        width: 320,
         flexShrink: 0,
         gap: 2,
         height: "100%",

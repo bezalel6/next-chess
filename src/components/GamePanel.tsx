@@ -611,7 +611,7 @@ const GamePanel = () => {
       <Box
         ref={moveHistoryRef}
         sx={{
-          height: "200px", // Fixed height of about half the panel
+          height: "180px", // Fixed height to accommodate about 5 rows
           overflowY: "auto",
           overflowX: "hidden",
           width: "100%",
@@ -645,6 +645,10 @@ const GamePanel = () => {
               onMoveClick={handleMoveClick}
               layout={banMoveLayout}
             />
+          ))}
+          {/* Empty rows to fill the table */}
+          {Array.from({ length: Math.max(0, 5 - moves.length) }).map((_, i) => (
+            <EmptyRow key={`empty-${i}`} rowNumber={moves.length + i + 1} />
           ))}
         </Box>
       </Box>
@@ -692,8 +696,9 @@ function MovesRow({
   onMoveClick: (move: MoveData, phase: 'after-ban' | 'after-move') => void;
   layout: BanMoveLayout;
 }) {
-  // Determine if this row should have dark squares (checkered pattern)
-  const isDarkRow = move.number % 2 === 0;
+  // Checkered pattern: odd rows start dark, even rows start light
+  // Row number cell counts as first cell
+  const rowStartsDark = move.number % 2 === 1;
   
   return (
     <Box
@@ -712,92 +717,133 @@ function MovesRow({
           verticalAlign: "middle",
           width: "15%",
           fontWeight: 400,
-          bgcolor: isDarkRow ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+          bgcolor: rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
           py: 0.75,
         }}
       >
         {move.number}.
       </Box>
-      {move.white && (
-        <Box
-          data-ply={move.white.ply_number}
-          sx={{
-            display: "table-cell",
-            py: 0.75,
-            px: 1.5,
-            color: "#bababa",
-            fontSize: "0.95rem",
-            textAlign: "left",
-            verticalAlign: "middle",
-            bgcolor: isDarkRow ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
-            cursor: "pointer",
-            width: "42.5%",
-            fontWeight:
-              selectedMove?.ply_number === move.white.ply_number ? 600 : 400,
-            "&:hover": { bgcolor: isDarkRow ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)" },
-            // Use outline for selection instead of background
-            outline: selectedMove?.ply_number === move.white.ply_number
-              ? "2px solid rgba(255,204,0,0.8)"
-              : "none",
-            outlineOffset: "-2px",
-            position: "relative",
-          }}
-          onClick={() => onMoveClick(move.white!, 'after-move')}
-        >
+      <Box
+        data-ply={move.white?.ply_number}
+        sx={{
+          display: "table-cell",
+          py: 0.75,
+          px: 1.5,
+          color: "#bababa",
+          fontSize: "0.95rem",
+          textAlign: "left",
+          verticalAlign: "middle",
+          bgcolor: !rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+          cursor: move.white ? "pointer" : "default",
+          width: "42.5%",
+          fontWeight:
+            selectedMove?.ply_number === move.white?.ply_number ? 600 : 400,
+          "&:hover": move.white ? { bgcolor: !rowStartsDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)" } : {},
+          // Use outline for selection instead of background
+          outline: selectedMove?.ply_number === move.white?.ply_number
+            ? "2px solid rgba(255,204,0,0.8)"
+            : "none",
+          outlineOffset: "-2px",
+          position: "relative",
+        }}
+        onClick={move.white ? () => onMoveClick(move.white, 'after-move') : undefined}
+      >
+        {move.white && (
           <MoveComponent 
             move={move.white}
             isSelected={selectedMove?.ply_number === move.white.ply_number}
             isBanPhase={navigationState.moveIndex === move.white.ply_number && navigationState.phase === 'after-ban'}
-            onBanClick={move.white.banned_from ? () => onMoveClick(move.white!, 'after-ban') : undefined}
+            onBanClick={move.white.banned_from ? () => onMoveClick(move.white, 'after-ban') : undefined}
             layout={layout}
           />
-        </Box>
-      )}
-      {move.black ? (
-        <Box
-          data-ply={move.black.ply_number}
-          sx={{
-            display: "table-cell",
-            py: 0.75,
-            px: 1.5,
-            color: "#bababa",
-            fontSize: "0.95rem",
-            textAlign: "left",
-            verticalAlign: "middle",
-            bgcolor: !isDarkRow ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
-            cursor: "pointer",
-            width: "42.5%",
-            fontWeight:
-              selectedMove?.ply_number === move.black.ply_number ? 600 : 400,
-            "&:hover": { bgcolor: !isDarkRow ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)" },
-            // Use outline for selection instead of background
-            outline: selectedMove?.ply_number === move.black.ply_number
-              ? "2px solid rgba(255,204,0,0.8)"
-              : "none",
-            outlineOffset: "-2px",
-            position: "relative",
-          }}
-          onClick={() => onMoveClick(move.black!, 'after-move')}
-        >
+        )}
+      </Box>
+      <Box
+        data-ply={move.black?.ply_number}
+        sx={{
+          display: "table-cell",
+          py: 0.75,
+          px: 1.5,
+          color: "#bababa",
+          fontSize: "0.95rem",
+          textAlign: "left",
+          verticalAlign: "middle",
+          bgcolor: rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+          cursor: move.black ? "pointer" : "default",
+          width: "42.5%",
+          fontWeight:
+            selectedMove?.ply_number === move.black?.ply_number ? 600 : 400,
+          "&:hover": move.black ? { bgcolor: rowStartsDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)" } : {},
+          // Use outline for selection instead of background
+          outline: selectedMove?.ply_number === move.black?.ply_number
+            ? "2px solid rgba(255,204,0,0.8)"
+            : "none",
+          outlineOffset: "-2px",
+          position: "relative",
+        }}
+        onClick={move.black ? () => onMoveClick(move.black, 'after-move') : undefined}
+      >
+        {move.black && (
           <MoveComponent 
             move={move.black}
             isSelected={selectedMove?.ply_number === move.black.ply_number}
             isBanPhase={navigationState.moveIndex === move.black.ply_number && navigationState.phase === 'after-ban'}
-            onBanClick={move.black.banned_from ? () => onMoveClick(move.black!, 'after-ban') : undefined}
+            onBanClick={move.black.banned_from ? () => onMoveClick(move.black, 'after-ban') : undefined}
             layout={layout}
           />
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            display: "table-cell",
-            width: "42.5%",
-            bgcolor: !isDarkRow ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
-            py: 0.75,
-            px: 1.5,
-          }}
-        />
-      )}
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+function EmptyRow({ rowNumber }: { rowNumber: number }) {
+  // Checkered pattern: odd rows start dark, even rows start light
+  const rowStartsDark = rowNumber % 2 === 1;
+  
+  return (
+    <Box
+      sx={{
+        display: "table-row",
+      }}
+    >
+      <Box
+        sx={{
+          display: "table-cell",
+          pr: 1,
+          pl: 1.5,
+          color: "#555",
+          fontSize: "0.875rem",
+          textAlign: "right",
+          verticalAlign: "middle",
+          width: "15%",
+          fontWeight: 400,
+          bgcolor: rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+          py: 0.75,
+        }}
+      >
+        {rowNumber}.
+      </Box>
+      <Box
+        sx={{
+          display: "table-cell",
+          py: 0.75,
+          px: 1.5,
+          bgcolor: !rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+          width: "42.5%",
+          height: "36px",
+        }}
+      />
+      <Box
+        sx={{
+          display: "table-cell",
+          py: 0.75,
+          px: 1.5,
+          bgcolor: rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+          width: "42.5%",
+          height: "36px",
+        }}
+      />
     </Box>
   );
 }

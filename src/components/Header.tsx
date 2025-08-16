@@ -91,7 +91,7 @@ const Header = () => {
         >
           {isMobile ? (
             // Mobile Column Layout
-            <Box
+            (<Box
               sx={{
                 display: "flex",
                 flexDirection: "column",
@@ -131,7 +131,6 @@ const Header = () => {
                   </Fade>
                 )}
               </Box>
-
               {/* Mobile Navigation Row */}
               <Slide direction="down" in={mounted} timeout={800}>
                 <Box
@@ -151,10 +150,10 @@ const Header = () => {
                   ))}
                 </Box>
               </Slide>
-            </Box>
+            </Box>)
           ) : (
             // Desktop Grid Layout
-            <Box
+            (<Box
               sx={{
                 minHeight: 72,
                 display: "grid",
@@ -179,7 +178,6 @@ const Header = () => {
                   <Logo size="medium" />
                 </Box>
               </Fade>
-
               {/* Desktop Center - Navigation */}
               <Slide direction="down" in={mounted} timeout={800}>
                 <Box
@@ -198,7 +196,6 @@ const Header = () => {
                   ))}
                 </Box>
               </Slide>
-
               {/* Desktop Right - User Info */}
               <Box
                 sx={{
@@ -217,7 +214,7 @@ const Header = () => {
                   </Fade>
                 )}
               </Box>
-            </Box>
+            </Box>)
           )}
         </Box>
       </AppBar>

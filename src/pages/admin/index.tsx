@@ -349,7 +349,6 @@ export default function AdminDashboard() {
           Refresh
         </Button>
       </Box>
-
       {/* Stats Cards */}
       <Grid container spacing={3} mb={4}>
         <Grid item xs={12} sm={6} md={3}>
@@ -428,7 +427,6 @@ export default function AdminDashboard() {
           </Card>
         </Grid>
       </Grid>
-
       {/* Tabs for Stats, Settings, Bug Reports */}
       <Paper sx={{ mb: 2 }}>
         <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
@@ -437,7 +435,6 @@ export default function AdminDashboard() {
           <Tab label="Bug Reports" />
         </Tabs>
       </Paper>
-
       {/* Statistics Tab */}
       {tabValue === 0 && (
         <Card>
@@ -452,7 +449,6 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       )}
-
       {/* Settings Tab */}
       {tabValue === 1 && (
         <Paper sx={{ p: 3 }}>
@@ -510,7 +506,6 @@ export default function AdminDashboard() {
           )}
         </Paper>
       )}
-
       {/* Bug Reports Tab */}
       {tabValue === 2 && (
         <Paper sx={{ p: 3 }}>

@@ -399,7 +399,6 @@ export default function GameChat({ gameId }: GameChatProps) {
           </Typography>
         </Stack>
       </Box>
-      
       {/* Messages */}
       <Collapse in={chatEnabled} sx={{ flex: chatEnabled ? 1 : 0, minHeight: 0 }}>
         <Box
@@ -425,7 +424,7 @@ export default function GameChat({ gameId }: GameChatProps) {
         {messages.map((message) => 
           message.type === 'server' ? (
             // Server notifications - centered with border
-            <Box
+            (<Box
               key={message.id}
               sx={{
                 display: 'flex',
@@ -472,10 +471,10 @@ export default function GameChat({ gameId }: GameChatProps) {
                   </Typography>
                 </Box>
               </Paper>
-            </Box>
+            </Box>)
           ) : (
             // Regular player and system messages
-            <Box
+            (<Box
               key={message.id}
               sx={{
                 display: 'flex',
@@ -495,7 +494,6 @@ export default function GameChat({ gameId }: GameChatProps) {
               >
                 {getMessageIcon(message.type)}
               </Avatar>
-              
               <Box
                 sx={{
                   maxWidth: '70%',
@@ -541,13 +539,12 @@ export default function GameChat({ gameId }: GameChatProps) {
                   {format(message.timestamp, 'HH:mm')}
                 </Typography>
               </Box>
-            </Box>
+            </Box>)
           )
         )}
           <div ref={messagesEndRef} />
         </Box>
       </Collapse>
-      
       {/* Chat disabled indicator */}
       {!chatEnabled && (
         <Box 
@@ -571,9 +568,7 @@ export default function GameChat({ gameId }: GameChatProps) {
           </Typography>
         </Box>
       )}
-      
       <Divider />
-      
       {/* Input */}
       <Collapse in={chatEnabled}>
         <Box sx={{ p: 2 }}>

@@ -70,7 +70,7 @@ const TabDialog: React.FC<TabDialogProps> = ({
                             borderBottom: '1px solid',
                             borderColor: 'divider',
                         }}>
-                            <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                            <Typography component="span" variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
                                 {title}
                             </Typography>
                             <IconButton

@@ -95,6 +95,7 @@
     "concurrently": "^9.2.0",
     "esbuild": "^0.24.2",
     "prettier": "^3.2.5",
+    "react-scan": "^0.4.3",
     "tsx": "^4.20.4",
     "typescript": "^5.3.3",
     "typescript-eslint": "^7.0.1"

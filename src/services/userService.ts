@@ -77,10 +77,10 @@ export class UserService {
   static async getUsernamesByIds(
     userIds: string[],
   ): Promise<Record<string, string>> {
+    const result: Record<string, string> = {};
+    
     // Filter out IDs that are already in cache
     const uncachedIds = userIds.filter((id) => !this.usernameCache.has(id));
-
-    const result: Record<string, string> = {};
 
     // Add cached usernames to result
     userIds.forEach((id) => {

@@ -39,8 +39,9 @@ serve(async (req) => {
     }
 
     // Call the database function to handle reconnect
+    // Note: game_id is a text field (short ID), not a UUID
     const { data, error } = await supabaseClient.rpc('handle_player_reconnect', {
-      game_id: gameId,
+      game_id: gameId,  // This is a text short ID like "ACEm7qFW"
       player_id: playerId,
     });
 

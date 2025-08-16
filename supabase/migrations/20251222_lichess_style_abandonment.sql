@@ -240,11 +240,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Grant permissions
-GRANT EXECUTE ON FUNCTION handle_player_disconnect TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION handle_player_reconnect TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION claim_abandonment TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION calculate_disconnect_allowance TO authenticated, service_role;
+-- Grant permissions (robust across overloads)
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname IN (
+        'handle_player_disconnect',
+        'handle_player_reconnect',
+        'claim_abandonment',
+        'calculate_disconnect_allowance'
+      )
+  LOOP
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', r.sig);
+  END LOOP;
+END $$;
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_games_disconnect_tracking 

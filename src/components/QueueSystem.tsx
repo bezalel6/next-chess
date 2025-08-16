@@ -7,9 +7,6 @@ import {
   Paper,
   LinearProgress,
   Fade,
-  Collapse,
-  List,
-  ListItem,
   Avatar,
   Chip,
   IconButton,
@@ -22,11 +19,9 @@ import {
   Timer,
   Groups,
   EmojiEvents,
-  ExpandMore,
-  ExpandLess,
-  TrendingUp,
   People,
   Psychology,
+  ExitToApp,
 } from "@mui/icons-material";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,11 +39,11 @@ const QueueSystem = () => {
   const { queue, matchDetails, handleQueueToggle, stats } = useConnection();
   const { user } = useAuth();
   const gameActions = useUnifiedGameStore((s) => s.actions);
-  const [activeGames, setActiveGames] = useState<GameWithOpponent[]>([]);
-  const [hasActiveGames, setHasActiveGames] = useState(false);
+  const [activeGame, setActiveGame] = useState<GameWithOpponent | null>(null);
+  const [hasActiveGame, setHasActiveGame] = useState(false);
   const [checking, setChecking] = useState(false);
   const [checkingMatch, setCheckingMatch] = useState(false);
-  const [showActiveGames, setShowActiveGames] = useState(false);
+  const [isResigning, setIsResigning] = useState(false);
   const [animatedPosition, setAnimatedPosition] = useState(0);
   const router = useRouter();
 
@@ -64,50 +59,48 @@ const QueueSystem = () => {
     }
   }, [queue.position, queue.inQueue]);
 
-  // Check for active games
+  // Check for active game (only one allowed)
   useEffect(() => {
-    async function checkActiveGames() {
+    async function checkActiveGame() {
       if (!user) {
-        setHasActiveGames(false);
-        setActiveGames([]);
+        setHasActiveGame(false);
+        setActiveGame(null);
         return;
       }
 
       setChecking(true);
       try {
         const games = await GameService.getUserActiveGames(user.id);
-        setHasActiveGames(games.length > 0);
+        setHasActiveGame(games.length > 0);
 
         if (games.length > 0) {
-          const opponentIds = games.map((game) =>
-            game.whitePlayerId === user.id ? game.blackPlayerId : game.whitePlayerId
-          );
+          // Only one active game allowed, take the first one
+          const game = games[0];
+          const opponentId =
+            game.whitePlayerId === user.id
+              ? game.blackPlayerId
+              : game.whitePlayerId;
 
-          const usernames = await UserService.getUsernamesByIds(opponentIds);
+          const usernames = await UserService.getUsernamesByIds([opponentId]);
 
-          const gamesWithOpponents = games.map((game) => {
-            const opponentId =
-              game.whitePlayerId === user.id
-                ? game.blackPlayerId
-                : game.whitePlayerId;
-            return {
-              ...game,
-              opponentName: usernames[opponentId] || "Unknown Player",
-            };
+          setActiveGame({
+            ...game,
+            opponentName: usernames[opponentId] || "Unknown Player",
           });
-
-          setActiveGames(gamesWithOpponents);
+        } else {
+          setActiveGame(null);
         }
       } catch (error) {
-        console.error("Error checking active games:", error);
-        setHasActiveGames(false);
+        console.error("Error checking active game:", error);
+        setHasActiveGame(false);
+        setActiveGame(null);
       } finally {
         setChecking(false);
       }
     }
 
-    checkActiveGames();
-  }, [user]);
+    checkActiveGame();
+  }, [user, isResigning]);
 
   // Handle match found
   useEffect(() => {
@@ -122,6 +115,23 @@ const QueueSystem = () => {
 
   const handleJoinGame = (gameId: string) => {
     router.push(`/game/${gameId}`);
+  };
+
+  const handleResignGame = async () => {
+    if (!activeGame || !user) return;
+    
+    setIsResigning(true);
+    try {
+      const playerColor = activeGame.whitePlayerId === user.id ? "white" : "black";
+      await GameService.resign(activeGame.id, playerColor);
+      // Refresh active game state
+      setActiveGame(null);
+      setHasActiveGame(false);
+    } catch (error) {
+      console.error("Error resigning game:", error);
+    } finally {
+      setIsResigning(false);
+    }
   };
 
   const renderQueueStatus = () => {
@@ -299,7 +309,7 @@ const QueueSystem = () => {
             startIcon={<PlayCircleOutline />}
             onClick={handleQueueToggle}
             size="large"
-            disabled={hasActiveGames || checking}
+            disabled={hasActiveGame || checking}
             sx={{
               px: 6,
               py: 2,
@@ -331,17 +341,13 @@ const QueueSystem = () => {
             color="secondary"
             startIcon={<Psychology />}
             onClick={() => {
-              console.log(
-                "Local game implemented:",
-                !!gameActions.startLocalGame
-              );
               if (gameActions.startLocalGame) {
                 gameActions.startLocalGame();
                 router.replace("/local-game");
               }
             }}
             size="large"
-            disabled={hasActiveGames || checking}
+            // disabled={hasActiveGame || checking}
             sx={{
               px: 4,
               py: 1.5,
@@ -366,9 +372,9 @@ const QueueSystem = () => {
           </Button>
         </Box>
 
-        {hasActiveGames && (
+        {hasActiveGame && (
           <Typography variant="caption" color="warning.main">
-            You must finish your active games first
+            You must finish your active game first
           </Typography>
         )}
       </Box>
@@ -416,127 +422,111 @@ const QueueSystem = () => {
       >
         {renderQueueStatus()}
 
-        {hasActiveGames && !queue.inQueue && !checkingMatch && (
-          <Box sx={{ mt: 2 }}>
-            <Button
-              variant="outlined"
-              color="warning"
-              fullWidth
-              onClick={() => setShowActiveGames(!showActiveGames)}
-              endIcon={showActiveGames ? <ExpandLess /> : <ExpandMore />}
+        {hasActiveGame && activeGame && !queue.inQueue && !checkingMatch && (
+          <Box sx={{ mt: 3 }}>
+            <Paper
               sx={{
-                mb: 2,
-                py: 1.5,
-                borderWidth: 2,
-                "&:hover": {
-                  borderWidth: 2,
-                  bgcolor: "rgba(255, 133, 0, 0.08)",
-                },
+                p: 2.5,
+                background: "linear-gradient(135deg, rgba(255, 152, 0, 0.08) 0%, rgba(255, 193, 7, 0.05) 100%)",
+                border: "2px solid",
+                borderColor: "warning.main",
+                borderRadius: 2,
               }}
             >
+              <Typography 
+                variant="subtitle2" 
+                color="warning.main" 
+                fontWeight={600}
+                sx={{ mb: 2, textAlign: "center" }}
+              >
+                ACTIVE GAME
+              </Typography>
+              
               <Box
                 sx={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 1,
-                  width: "100%",
+                  justifyContent: "space-between",
+                  mb: 2,
                 }}
               >
-                <TrendingUp />
-                <Typography variant="body1" fontWeight={600}>
-                  {activeGames.length} Active Game
-                  {activeGames.length !== 1 ? "s" : ""}
-                </Typography>
-              </Box>
-            </Button>
-
-            <Collapse in={showActiveGames}>
-              <List
-                sx={{
-                  bgcolor: "background.paper",
-                  borderRadius: 2,
-                  overflow: "hidden",
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
-                {activeGames.map((game, index) => {
-                  const isWhite = game.whitePlayer === user?.id;
-                  const colorPlaying = isWhite ? "white" : "black";
-                  const isMyTurn = game.turn === colorPlaying;
-
-                  return (
-                    <ListItem
-                      key={game.id}
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        bgcolor: isMyTurn
-                          ? "rgba(76, 175, 80, 0.08)"
-                          : "transparent",
-                        borderBottom:
-                          index < activeGames.length - 1 ? "1px solid" : "none",
-                        borderColor: "divider",
-                        py: 2,
-                        transition: "all 0.2s ease",
-                        "&:hover": {
-                          bgcolor: isMyTurn
-                            ? "rgba(76, 175, 80, 0.12)"
-                            : "rgba(255, 255, 255, 0.03)",
-                        },
-                      }}
-                    >
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                      >
-                        <Avatar
-                          sx={{
-                            bgcolor: isMyTurn ? "success.main" : "grey.700",
-                            width: 36,
-                            height: 36,
-                          }}
-                        >
-                          {game.opponentName[0].toUpperCase()}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body1" fontWeight={500}>
-                            vs {game.opponentName}
-                          </Typography>
-                          <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
-                            <Chip
-                              label={isMyTurn ? "Your turn" : "Their turn"}
-                              size="small"
-                              color={isMyTurn ? "success" : "default"}
-                              sx={{ height: 20, fontSize: "0.75rem" }}
-                            />
-                            <Chip
-                              label={colorPlaying}
-                              size="small"
-                              variant="outlined"
-                              sx={{ height: 20, fontSize: "0.75rem" }}
-                            />
-                          </Box>
-                        </Box>
-                      </Box>
-                      <Button
-                        variant="contained"
-                        color={isMyTurn ? "success" : "primary"}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <Avatar
+                    sx={{
+                      bgcolor: activeGame.turn === (activeGame.whitePlayerId === user?.id ? "white" : "black") 
+                        ? "success.main" 
+                        : "grey.700",
+                      width: 40,
+                      height: 40,
+                    }}
+                  >
+                    {activeGame.opponentName[0].toUpperCase()}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body1" fontWeight={600}>
+                      vs {activeGame.opponentName}
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
+                      <Chip
+                        label={
+                          activeGame.turn === (activeGame.whitePlayerId === user?.id ? "white" : "black")
+                            ? "Your turn"
+                            : "Their turn"
+                        }
                         size="small"
-                        startIcon={<SportsEsports />}
-                        onClick={() => handleJoinGame(game.id)}
-                        sx={{
-                          minWidth: 100,
-                          fontWeight: 600,
-                        }}
-                      >
-                        Resume
-                      </Button>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Collapse>
+                        color={
+                          activeGame.turn === (activeGame.whitePlayerId === user?.id ? "white" : "black")
+                            ? "success"
+                            : "default"
+                        }
+                        sx={{ height: 22 }}
+                      />
+                      <Chip
+                        label={activeGame.whitePlayerId === user?.id ? "White" : "Black"}
+                        size="small"
+                        variant="outlined"
+                        sx={{ height: 22 }}
+                      />
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: "flex", gap: 1.5 }}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  fullWidth
+                  startIcon={<SportsEsports />}
+                  onClick={() => handleJoinGame(activeGame.id)}
+                  sx={{
+                    fontWeight: 600,
+                    py: 1.2,
+                  }}
+                >
+                  Resume Game
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<ExitToApp />}
+                  onClick={handleResignGame}
+                  disabled={isResigning}
+                  sx={{
+                    minWidth: 120,
+                    fontWeight: 600,
+                    py: 1.2,
+                    borderWidth: 2,
+                    "&:hover": {
+                      borderWidth: 2,
+                      bgcolor: "rgba(244, 67, 54, 0.08)",
+                    },
+                  }}
+                >
+                  {isResigning ? "Resigning..." : "Resign"}
+                </Button>
+              </Box>
+            </Paper>
           </Box>
         )}
       </Paper>

@@ -192,12 +192,45 @@ export function useMoveMutation(gameId: string | undefined) {
       });
     },
     
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('[useMoveMutation] Error:', error);
       logError('Move mutation failed', error);
       
       // Rollback optimistic update
       store.rollbackOptimisticUpdate();
+      
+      // Show detailed error message
+      const errorMessage = error?.message || 'Failed to make move';
+      const detailedError = error?.details || error?.error || '';
+      
+      // Import toast notification
+      import('@/contexts/NotificationContext').then(({ showNotification }) => {
+        if (detailedError.includes('handle_move_clock_update')) {
+          showNotification(
+            'Database function missing. Please contact support to fix this issue.',
+            'error',
+            10000
+          );
+        } else if (detailedError.includes('does not exist')) {
+          showNotification(
+            `Database error: ${detailedError}. The game database may need updates.`,
+            'error',
+            10000
+          );
+        } else if (error?.status === 500) {
+          showNotification(
+            'Server error occurred. Please try again or refresh the page.',
+            'error',
+            8000
+          );
+        } else {
+          showNotification(
+            `Move failed: ${errorMessage}${detailedError ? ` - ${detailedError}` : ''}`,
+            'error',
+            6000
+          );
+        }
+      });
       
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
@@ -262,12 +295,45 @@ export function useBanMutation(gameId: string | undefined) {
       });
     },
     
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('[useBanMutation] Error:', error);
       logError('Ban mutation failed', error);
       
       // Rollback optimistic update
       store.rollbackOptimisticUpdate();
+      
+      // Show detailed error message
+      const errorMessage = error?.message || 'Failed to ban move';
+      const detailedError = error?.details || error?.error || '';
+      
+      // Import toast notification
+      import('@/contexts/NotificationContext').then(({ showNotification }) => {
+        if (detailedError.includes('handle_move_clock_update')) {
+          showNotification(
+            'Database function missing. Please contact support to fix this issue.',
+            'error',
+            10000
+          );
+        } else if (detailedError.includes('does not exist')) {
+          showNotification(
+            `Database error: ${detailedError}. The game database may need updates.`,
+            'error',
+            10000
+          );
+        } else if (error?.status === 500) {
+          showNotification(
+            'Server error occurred. Please try again or refresh the page.',
+            'error',
+            8000
+          );
+        } else {
+          showNotification(
+            `Ban failed: ${errorMessage}${detailedError ? ` - ${detailedError}` : ''}`,
+            'error',
+            6000
+          );
+        }
+      });
       
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });

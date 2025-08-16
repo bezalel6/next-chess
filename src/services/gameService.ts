@@ -8,6 +8,13 @@ type GameRow = Database["public"]["Tables"]["games"]["Row"];
 type PlayerColorEnum = Database["public"]["Enums"]["player_color"];
 type GameStatusEnum = Database["public"]["Enums"]["game_status"];
 type GameResultEnum = Database["public"]["Enums"]["game_result"];
+
+// Enhanced error type for better error handling
+interface EnhancedError extends Error {
+  details?: string;
+  status?: number;
+  code?: string;
+}
 type EndReasonEnum = Database["public"]["Enums"]["end_reason"];
 
 export class GameService {
@@ -185,9 +192,16 @@ export class GameService {
 
       if (error) {
         console.error(
-          `[GameService] Error during ${operation}: ${error.message}`,
+          `[GameService] Error during ${operation}:`,
+          error
         );
-        throw error;
+        
+        // Create enhanced error with all details
+        const enhancedError: EnhancedError = new Error(error.message || `${operation} failed`);
+        enhancedError.details = error.details || error.message || '';
+        enhancedError.status = error.status;
+        enhancedError.code = error.code;
+        throw enhancedError;
       }
 
       // Edge function returns game without usernames, so fetch the full game
@@ -196,9 +210,19 @@ export class GameService {
         throw new Error("Game not found after operation");
       }
       return fullGame;
-    } catch (error) {
-      console.error(`[GameService] Error in ${operation}: ${error.message}`);
-      throw error;
+    } catch (error: any) {
+      console.error(`[GameService] Error in ${operation}:`, error);
+      
+      // If it's already an enhanced error, pass it through
+      if (error.details) {
+        throw error;
+      }
+      
+      // Otherwise enhance it
+      const enhancedError: EnhancedError = new Error(error.message || `${operation} failed`);
+      enhancedError.details = error.message || '';
+      enhancedError.status = error.status;
+      throw enhancedError;
     }
   }
 

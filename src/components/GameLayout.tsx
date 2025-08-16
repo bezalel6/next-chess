@@ -67,27 +67,12 @@ const LeftSidebar = () => {
         height: "100%",
       }}
     >
-      {/* Game info */}
-      <Box
-        sx={{
-          bgcolor: "rgba(255,255,255,0.03)",
-          borderRadius: 0.5,
-          p: 2,
-        }}
-      >
-        <Typography sx={{ color: "#bababa", fontSize: "0.85rem", mb: 0.5 }}>
-          {getTimeControl()} • Casual • {getGameSpeed()}
-        </Typography>
-        <Typography sx={{ color: "#7a7a7a", fontSize: "0.8rem" }}>
-          {getTimeAgo()}
-        </Typography>
-      </Box>
-
       {/* Debug Log */}
       <Box
         sx={{
-          flex: 1,
+          flex: 0.5,
           minHeight: 0,
+          margin: "0 0",
           display: "flex",
           flexDirection: "column",
         }}
@@ -112,7 +97,9 @@ export default function GameLayout({
   const myColor = useUnifiedGameStore((s) => s.myColor);
   const isLocalGame = useUnifiedGameStore((s) => s.mode === "local");
   const phase = useUnifiedGameStore((s) => s.phase);
-  const canBan = useUnifiedGameStore(s => s.phase === 'selecting_ban' && s.game?.status === 'active');
+  const canBan = useUnifiedGameStore(
+    (s) => s.phase === "selecting_ban" && s.game?.status === "active"
+  );
 
   return (
     <Box
@@ -147,10 +134,10 @@ export default function GameLayout({
               : boardOrientation
           }
         />
-        
+
         {/* Ban notification banner - positioned under the board */}
         <BanPhaseOverlay isMyTurnToBan={canBan} />
-        
+
         <BoardMoveInput />
       </Box>
 

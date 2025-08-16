@@ -95,14 +95,14 @@ Comprehensive test suite for Ban Chess game logic with automated testing framewo
 2. Click "Run All Tests" or run individual tests
 3. View real-time test logs and results in the UI
 
-### Quick Test Game Creation
-Navigate to `/test/new-game?player=white` or `/test/new-game?player=black` to:
-- Automatically create test users
-- Create a new game
-- Authenticate as the selected player  
-- Redirect to the game page
+### Testing Online Games
+To test online game functionality:
+1. Agent will launch `http://localhost:3000` in the browser
+2. User will manually set up the game to the desired position/state
+3. User will notify the agent when ready for testing
+4. Agent can then interact with and debug the game
 
-This eliminates the need for manual sign-up/login during development.
+This approach gives the user full control over the game setup for testing.
 
 ## Important Notes
 - TypeScript strict mode disabled
@@ -220,6 +220,79 @@ experimental: {
 - **Server Actions**: Not available for Pages Router (App Router only)
 - **Static Generation Optimizations**: Not beneficial for real-time multiplayer games
 - **App Router Migration**: Keep Pages Router for stability with current architecture
+
+## Supabase Troubleshooting Playbook (2025-08-16)
+
+These are hard‑won lessons from fixing type mismatches, broken migrations, and resets. Follow in order.
+
+- Connectivity and URLs
+  - Prefer Session Pooler on 5432 for IPv4: aws-0-<region>.pooler.supabase.com
+  - Direct DB (…db.supabase.co:5432) is IPv6; only use if your env supports it
+  - Always URL‑encode DB passwords when used in a URL. Example (Node):
+    - DB_PASS_ENC=$(node -e "process.stdout.write(encodeURIComponent(process.env.SUPABASE_DB_PASSWORD||''))")
+  - Service role key is NOT a DB password
+
+- Backups before destructive ops
+  - Snapshot with pg_dump (works over pooler):
+    - PGPASSWORD="$SUPABASE_DB_PASSWORD" pg_dump "host=<pooler-host> port=5432 dbname=postgres user=postgres.<project-ref> sslmode=require" -Fc -f backups/remote_backup_$(date +%Y%m%d_%H%M%S).dump
+  - If CLI/host is flaky, export CSVs per table from Studio
+
+- Resets
+  - Most reliable: Studio > Settings (gear) > Database > Danger Zone > Reset Database
+  - CLI fallback: npx supabase@beta db reset --linked --no-seed
+  - If you see “must be owner of sequence …”, use Studio reset or change owner first:
+    - ALTER SEQUENCE auth.refresh_tokens_id_seq OWNER TO postgres; ALTER TABLE auth.refresh_tokens OWNER TO postgres;
+
+- Migration history drift
+  - Check: supabase migration list
+  - If local and remote diverge, either pull (supabase db pull) or repair specific versions:
+    - supabase migration repair --status reverted <version>
+    - supabase migration repair --status applied <version>
+  - If duplicate keys block repair, inspect and delete from supabase_migrations.schema_migrations explicitly (only if you know what you’re doing)
+
+- Avoid ambiguous GRANTs with overloaded functions
+  - Never: GRANT EXECUTE ON FUNCTION handle_player_disconnect TO …
+  - Do: grant per signature or loop over pg_proc. Example used in migrations:
+    - DO $$ DECLARE r record; BEGIN FOR r IN (
+      SELECT p.oid::regprocedure AS sig FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+      WHERE n.nspname='public' AND p.proname IN ('handle_player_disconnect','handle_player_reconnect','claim_abandonment','calculate_disconnect_allowance') )
+      LOOP EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', r.sig); END LOOP; END $$;
+
+- Handling short game IDs vs UUIDs
+  - Our app uses 8‑char alphanumeric game IDs; DB had legacy UUID expectations
+  - Pattern that works:
+    - Create text/uuid primary function: handle_player_reconnect(game_id text, player_id uuid)
+    - Add text/text shim that casts player_id (safe_uuid_cast)
+    - Do the same for handle_player_disconnect and claim_abandonment
+  - Add a validate_game_id(text) helper and use triggers to enforce on INSERT/UPDATE; avoid strict CHECK if legacy rows exist (add conditionally)
+
+- Defensive utilities
+  - safe_uuid_cast(text) RETURNS uuid (returns NULL on failure)
+  - validate_game_id(text) RETURNS boolean (accepts 8‑char or UUID for legacy)
+
+- Conditional constraints to avoid blocking deploys
+  - Only add games.id CHECK if all current rows match:
+    - DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM games WHERE id !~ '^[A-Za-z0-9]{8}$') THEN
+      ALTER TABLE games ADD CONSTRAINT games_id_format_check CHECK (id ~ '^[A-Za-z0-9]{8}$');
+      ELSE RAISE NOTICE 'Skipping games_id_format_check: existing rows violate format'; END IF; END $$;
+
+- Overloads inventory (post‑fix expected)
+  - handle_player_reconnect: (text, uuid), (text, text)
+  - handle_player_disconnect: (text, uuid), (text, uuid, text), (text, text), (text, text, text), (uuid, uuid, text)
+  - claim_abandonment: (text, uuid, text), (text, text, text)
+
+- Common CLI pitfalls and remedies
+  - --debug can panic due to proxying; avoid unless needed
+  - If supabase db push complains about missing remote versions, use --include-all
+  - Upgrade CLI when feasible: npm i -g supabase@latest
+
+- Minimal end‑to‑end recovery recipe
+  1) Backup (pg_dump) or CSV exports
+  2) Reset DB (Studio reset or npx supabase@beta db reset --linked --no-seed)
+  3) Apply local migrations: supabase db push --include-all
+  4) Verify: SELECT * FROM public.function_type_check; and list pg_proc signatures for target functions
+
+---
 
 ## Current Status (2025-08-15)
 

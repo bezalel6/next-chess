@@ -40,17 +40,22 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
 
   return (
     <Box sx={{ 
-      width: 280,
+      width: 250,
       display: 'flex',
       flexDirection: 'column',
-      gap: 1,
+      gap: 0.5,
       height: '100%',
+      ml: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
     }}>
       {/* Top Player Info */}
       <Box sx={{
+        width: '100%',
         bgcolor: 'rgba(255,255,255,0.03)',
         borderRadius: 0.5,
-        p: 1,
+        p: 0.75,
+        flexShrink: 0,
       }}>
         {/* Player Status */}
         <PlayerStatus
@@ -65,8 +70,8 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
           <Box sx={{
             bgcolor: 'rgba(0,0,0,0.3)',
             borderRadius: 0.5,
-            p: 1,
-            mt: 0.5,
+            p: 0.5,
+            mt: 0.25,
           }}>
             <SingleClock
               color={topColor}
@@ -89,30 +94,33 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
         )}
       </Box>
 
-      {/* Game Panel - Contains move history, navigation, and game actions */}
+      {/* Game Panel - Contains move history, navigation, and game actions - centered */}
       <Box sx={{ 
-        flex: 1,
-        minHeight: 0, // Important for scrolling
+        width: '100%',
         bgcolor: 'rgba(255,255,255,0.03)',
         borderRadius: 0.5,
         overflow: 'hidden',
+        display: 'flex',
+        flexShrink: 0,
       }}>
         <GamePanel />
       </Box>
 
       {/* Bottom Player Info */}
       <Box sx={{
+        width: '100%',
         bgcolor: 'rgba(255,255,255,0.03)',
         borderRadius: 0.5,
-        p: 1,
+        p: 0.75,
+        flexShrink: 0,
       }}>
         {/* Time display */}
         {game?.timeControl && (
           <Box sx={{
             bgcolor: 'rgba(0,0,0,0.3)',
             borderRadius: 0.5,
-            p: 1,
-            mb: 0.5,
+            p: 0.5,
+            mb: 0.25,
           }}>
             <SingleClock
               color={bottomColor}

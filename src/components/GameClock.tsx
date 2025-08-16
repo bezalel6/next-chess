@@ -42,8 +42,10 @@ export function GameClock({
   const theme = useTheme();
   const [localTime, setLocalTime] = useState(serverClock?.timeRemaining || timeControl.initialTime);
   const [isRunning, setIsRunning] = useState(false);
+  const [colonVisible, setColonVisible] = useState(true);
   const [lastSync, setLastSync] = useState(Date.now());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const colonIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const turnStartRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -138,6 +140,27 @@ export function GameClock({
     }
   }, [isActive, isMyTurn, isRunning]);
 
+  // Blink colon when running
+  useEffect(() => {
+    if (isRunning) {
+      colonIntervalRef.current = setInterval(() => {
+        setColonVisible(prev => !prev);
+      }, 500); // Blink every 500ms
+    } else {
+      if (colonIntervalRef.current) {
+        clearInterval(colonIntervalRef.current);
+        colonIntervalRef.current = null;
+      }
+      setColonVisible(true);
+    }
+
+    return () => {
+      if (colonIntervalRef.current) {
+        clearInterval(colonIntervalRef.current);
+      }
+    };
+  }, [isRunning]);
+
   // Set up clock interval
   useEffect(() => {
     if (isRunning) {
@@ -164,86 +187,48 @@ export function GameClock({
   // Calculate progress percentage
   const progressPercentage = (localTime / timeControl.initialTime) * 100;
   
-  // Determine color based on time remaining
+  // Determine color based on time remaining - 7-segment LED style
   const getTimeColor = () => {
-    if (localTime <= clockPrefs.criticalTime) return theme.palette.error.main;
-    if (localTime <= clockPrefs.warningTime) return theme.palette.warning.main;
-    if (isRunning) return theme.palette.primary.main;
-    return theme.palette.text.secondary;
+    if (localTime <= clockPrefs.criticalTime) return "#ff0000"; // LED red
+    if (localTime <= clockPrefs.warningTime) return "#ff8800"; // LED amber
+    if (isRunning) return "#00ff00"; // LED green
+    return "#333333"; // Off segments
   };
 
-  return (
-    <Box
-      sx={{
-        p: 2,
-        borderRadius: 1,
-        bgcolor: isRunning ? "action.selected" : "background.paper",
-        border: `2px solid ${isRunning ? theme.palette.primary.main : "transparent"}`,
-        transition: "all 0.3s ease",
-        minWidth: 120,
-      }}
-    >
-      {/* Player color indicator */}
-      <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-        <Box
-          sx={{
-            width: 16,
-            height: 16,
-            borderRadius: "50%",
-            bgcolor: color === "white" ? "common.white" : "common.black",
-            border: "1px solid",
-            borderColor: "divider",
-            mr: 1,
-          }}
-        />
-        <Typography variant="caption" color="text.secondary">
-          {color.charAt(0).toUpperCase() + color.slice(1)}
-        </Typography>
-        {isRunning ? (
-          <Timer sx={{ ml: "auto", fontSize: 16, color: getTimeColor() }} />
-        ) : (
-          <TimerOff sx={{ ml: "auto", fontSize: 16, color: "text.disabled" }} />
-        )}
-      </Box>
+  // Split time into parts for colon animation
+  const timeStr = formatTime(localTime);
+  const [minutePart, secondPart] = timeStr.split(':');
 
-      {/* Time display */}
-      <Typography
-        variant="h4"
+  return (
+    <Box>
+      <Box
         sx={{
-          fontFamily: "monospace",
-          fontWeight: "bold",
+          fontFamily: "'Digital-7 Mono', monospace",
+          fontWeight: "normal",
+          fontSize: "2.5rem",
           color: getTimeColor(),
           textAlign: "center",
-          mb: 1,
+          letterSpacing: "0.15em",
+          textShadow: isRunning 
+            ? `0 0 5px ${getTimeColor()}` 
+            : "none",
+          lineHeight: 1,
+          padding: "4px 8px",
+          background: "#000",
+          borderRadius: "4px",
+          display: "inline-block",
         }}
       >
-        {formatTime(localTime)}
-      </Typography>
-
-      {/* Progress bar */}
-      {clockPrefs.showProgressBar && (
-        <LinearProgress
-          variant="determinate"
-          value={progressPercentage}
-          sx={{
-            height: 4,
-            borderRadius: 2,
-            bgcolor: "action.disabled",
-            "& .MuiLinearProgress-bar": {
-              bgcolor: getTimeColor(),
-              transition: "width 0.1s linear",
-            },
-          }}
-        />
-      )}
-
-      {/* Increment indicator */}
-      {timeControl.increment > 0 && (
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block", textAlign: "center" }}>
-          +{timeControl.increment / 1000}s
-        </Typography>
-      )}
-
+        <span>{minutePart}</span>
+        <span style={{ 
+          visibility: colonVisible || !isRunning ? 'visible' : 'hidden',
+          display: 'inline-block',
+          width: '0.5em',
+          textAlign: 'center'
+        }}>:</span>
+        <span>{secondPart}</span>
+      </Box>
+      
       {/* Hidden audio element for warning sounds */}
       {clockPrefs.soundEnabled && (
         <audio

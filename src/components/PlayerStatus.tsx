@@ -36,16 +36,16 @@ export default function PlayerStatus({ username, color, status, isCurrentTurn }:
       sx={{
         display: 'flex',
         alignItems: 'center',
-        gap: 1,
-        p: 0.5,
-        borderRadius: 1,
+        gap: 0.5,
+        p: 0.25,
+        borderRadius: 0.5,
         bgcolor: isCurrentTurn ? 'rgba(33, 150, 243, 0.08)' : 'transparent',
         border: isCurrentTurn ? '1px solid rgba(33, 150, 243, 0.3)' : 'none',
       }}
     >
       <Typography 
-        variant="body2" 
         sx={{ 
+          fontSize: '0.8rem',
           fontWeight: isCurrentTurn ? 'bold' : 'normal',
           color: isCurrentTurn ? 'primary.main' : 'text.primary',
         }}
@@ -56,7 +56,7 @@ export default function PlayerStatus({ username, color, status, isCurrentTurn }:
       <Tooltip title={getStatusText()}>
         <CircleIcon 
           sx={{ 
-            fontSize: 10, 
+            fontSize: 8, 
             color: getStatusColor(),
           }} 
         />
@@ -64,8 +64,8 @@ export default function PlayerStatus({ username, color, status, isCurrentTurn }:
 
       {isCurrentTurn && (
         <Typography 
-          variant="caption" 
           sx={{ 
+            fontSize: '0.7rem',
             color: 'primary.main',
             ml: 'auto',
           }}

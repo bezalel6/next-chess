@@ -28,66 +28,83 @@ interface LichessBoardV2Props {
 export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   // Get auth context
   const { user } = useAuth();
-  
+
   // Use individual selectors to avoid infinite loops
   // Use atomic selectors to avoid reference changes and infinite loops
-  const game = useUnifiedGameStore(s => s.game);
-  const mode = useUnifiedGameStore(s => s.mode);
-  const myColor = useUnifiedGameStore(s => s.myColor);
-  const phase = useUnifiedGameStore(s => s.phase);
-  const currentBannedMove = useUnifiedGameStore(s => s.currentBannedMove);
-  const highlightedSquares = useUnifiedGameStore(s => s.highlightedSquares);
-  const optimisticMove = useUnifiedGameStore(s => s.optimisticMove);
-  const optimisticBan = useUnifiedGameStore(s => s.optimisticBan);
-  const selectedSquare = useUnifiedGameStore(s => s.selectedSquare);
-  const possibleMoves = useUnifiedGameStore(s => s.possibleMoves);
-  
+  const game = useUnifiedGameStore((s) => s.game);
+  const mode = useUnifiedGameStore((s) => s.mode);
+  const myColor = useUnifiedGameStore((s) => s.myColor);
+  const phase = useUnifiedGameStore((s) => s.phase);
+  const currentBannedMove = useUnifiedGameStore((s) => s.currentBannedMove);
+  const highlightedSquares = useUnifiedGameStore((s) => s.highlightedSquares);
+  const optimisticMove = useUnifiedGameStore((s) => s.optimisticMove);
+  const optimisticBan = useUnifiedGameStore((s) => s.optimisticBan);
+  const selectedSquare = useUnifiedGameStore((s) => s.selectedSquare);
+  const possibleMoves = useUnifiedGameStore((s) => s.possibleMoves);
+
   // Use the unified game hook which includes sound-enabled mutations
   const { makeMove, banMove } = useGame(game?.id, user?.id);
-  
-  // Use unified selectors - computed values to avoid infinite loops
-  const canBan = useUnifiedGameStore(s => s.phase === 'selecting_ban' && s.game?.status === 'active');
-  const canMove = useUnifiedGameStore(s => {
-    if (s.mode === 'local') {
-      return s.phase === 'making_move' && s.game?.status === 'active';
-    }
-    const isMyTurn = s.mode !== 'spectator' && 
-                    s.game?.turn === s.myColor && 
-                    s.game?.status === 'active';
-    return s.phase === 'making_move' && isMyTurn;
-  });
-  
-  // Get navigation state and pending operation from store
-  const { navigationFen, navigationBan, viewingPly, pendingOperation, optimisticFen } = useGameStore();
 
+  // Use unified selectors - computed values to avoid infinite loops
+  const canBan = useUnifiedGameStore(
+    (s) => s.phase === "selecting_ban" && s.game?.status === "active"
+  );
+  const canMove = useUnifiedGameStore((s) => {
+    if (s.mode === "local") {
+      return s.phase === "making_move" && s.game?.status === "active";
+    }
+    const isMyTurn =
+      s.mode !== "spectator" &&
+      s.game?.turn === s.myColor &&
+      s.game?.status === "active";
+    return s.phase === "making_move" && isMyTurn;
+  });
+
+  // Get navigation state and pending operation from store
+  const {
+    navigationFen,
+    navigationBan,
+    viewingPly,
+    pendingOperation,
+    optimisticFen,
+  } = useGameStore();
 
   // Parse current position (use navigation FEN if navigating)
   const chess = useMemo(() => {
     if (!game) return null;
-    
+
     // If navigating through history, use the navigation FEN
     if (navigationFen && viewingPly !== null) {
       const c = new Chess(navigationFen);
       return c;
     }
-    
+
     // Use optimistic FEN if we have one (after a move was made)
-    if (optimisticFen && pendingOperation === 'move') {
+    if (optimisticFen && pendingOperation === "move") {
       const c = new Chess(optimisticFen);
-      console.log('[LichessBoardV2] Using optimistic FEN');
+      console.log("[LichessBoardV2] Using optimistic FEN");
       return c;
     }
-    
+
     // Otherwise use the current game FEN
     const c = new Chess(game.currentFen);
     return c;
-  }, [game?.currentFen, navigationFen, viewingPly, optimisticFen, pendingOperation]);
+  }, [
+    game?.currentFen,
+    navigationFen,
+    viewingPly,
+    optimisticFen,
+    pendingOperation,
+  ]);
 
   // Get legal moves from unified store - fixed to avoid infinite loop
   // Don't call functions in selectors! Get the store method separately
-  const getLegalMoves = useUnifiedGameStore(s => s.getLegalMoves);
-  const allLegalMoves = useMemo(() => getLegalMoves(), [getLegalMoves, game?.currentFen, currentBannedMove]);
-  
+  const getLegalMoves = useUnifiedGameStore((s) => s.getLegalMoves);
+  const allLegalMoves = useMemo(
+    () => getLegalMoves(),
+    [getLegalMoves, game?.currentFen, currentBannedMove]
+  );
+
   // Use possibleMoves when a square is selected, otherwise show all legal moves
   const legalMoves = useMemo(() => {
     if (selectedSquare && possibleMoves.length > 0) {
@@ -122,19 +139,23 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     const s: Config["drawable"]["shapes"] = [];
 
     // Determine which banned move to show (navigation, optimistic, or current)
-    const bannedToShow = viewingPly !== null ? navigationBan : (optimisticBan || currentBannedMove);
-    
-    console.log('[LichessBoardV2] Shapes debug:', {
+    const bannedToShow =
+      viewingPly !== null ? navigationBan : optimisticBan || currentBannedMove;
+
+    console.log("[LichessBoardV2] Shapes debug:", {
       bannedToShow,
       optimisticBan: optimisticBan,
       currentBannedMove: currentBannedMove,
       canBan,
-      viewingPly
+      viewingPly,
     });
 
     // Show banned move with red arrow
     if (bannedToShow && !canBan) {
-      console.log('[LichessBoardV2] Adding red arrow for banned move:', bannedToShow);
+      console.log(
+        "[LichessBoardV2] Adding red arrow for banned move:",
+        bannedToShow
+      );
       s.push({
         orig: bannedToShow.from,
         dest: bannedToShow.to,
@@ -152,7 +173,14 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     }
 
     return s;
-  }, [currentBannedMove, canBan, highlightedSquares, viewingPly, navigationBan, optimisticBan]);
+  }, [
+    currentBannedMove,
+    canBan,
+    highlightedSquares,
+    viewingPly,
+    navigationBan,
+    optimisticBan,
+  ]);
 
   // Handle piece movement using unified operation
   const handleMove = useCallback(
@@ -161,12 +189,11 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       if (canBan) {
         banMove(from, to);
       } else if (canMove) {
-        makeMove(from, to, 'q'); // Always promote to queen for simplicity
+        makeMove(from, to, "q"); // Always promote to queen for simplicity
       }
     },
     [canBan, canMove, makeMove, banMove]
   );
-
 
   // Chessground configuration
   const config = useMemo<Config>(
@@ -181,13 +208,13 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
       movable: {
         free: false,
         color: canBan
-          ? mode === 'local'
+          ? mode === "local"
             ? game?.turn || undefined // In local mode during ban, allow moving pieces of the current turn
             : myColor === "white"
               ? "black"
               : "white" // In online mode during ban, allow moving opponent's pieces
           : canMove
-            ? mode === 'local'
+            ? mode === "local"
               ? game?.turn || undefined // In local mode during move, allow moving pieces of the current turn
               : myColor || undefined // In online mode during move, allow moving own pieces
             : undefined,
@@ -231,7 +258,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
     ]
   );
 
-
   return (
     <>
       <AnimatePresence>
@@ -259,7 +285,6 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
         )}
       </AnimatePresence>
 
-
       <Box
         sx={{
           position: "absolute",
@@ -283,6 +308,7 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
           "& coords": {
             fontSize: "16px !important",
             fontWeight: "600 !important",
+            userSelect: "none",
           },
           "& coords.ranks coord": {
             fontSize: "16px !important",

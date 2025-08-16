@@ -1,4 +1,4 @@
-import { Box, Typography, Tooltip, IconButton, Button, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, Typography, Tooltip, IconButton, Button } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
@@ -13,9 +13,7 @@ import FlagIcon from "@mui/icons-material/Flag";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
-import ViewStreamIcon from "@mui/icons-material/ViewStream";
-import ViewCompactIcon from "@mui/icons-material/ViewCompact";
-import ViewListIcon from "@mui/icons-material/ViewList";
+
 import { useSingleKeys, Keys } from "@/hooks/useKeys";
 import { supabase } from "@/utils/supabase";
 import { useQuery } from "@tanstack/react-query";
@@ -45,8 +43,7 @@ type NavigationState = {
   phase: 'initial' | 'after-ban' | 'after-move';  // Which phase within a move
 };
 
-// Layout options for ban/move display
-type BanMoveLayout = 'stacked' | 'inline' | 'side-by-side' | 'compact';
+
 
 type Move = {
   number: number;
@@ -66,19 +63,7 @@ const GamePanel = () => {
     phase: 'initial'
   });
   const [hasInitialized, setHasInitialized] = useState(false);
-  const [banMoveLayout, setBanMoveLayout] = useState<BanMoveLayout>(() => {
-    // Load from localStorage
-    const saved = localStorage.getItem('banMoveLayout');
-    return (saved as BanMoveLayout) || 'stacked';
-  });
 
-  // Save layout preference
-  const handleLayoutChange = (_: React.MouseEvent<HTMLElement>, newLayout: BanMoveLayout | null) => {
-    if (newLayout) {
-      setBanMoveLayout(newLayout);
-      localStorage.setItem('banMoveLayout', newLayout);
-    }
-  };
   const moveHistoryRef = useRef<HTMLDivElement>(null);
   const gameActions = useGameActions();
 
@@ -438,84 +423,19 @@ const GamePanel = () => {
     <Box
       sx={{
         width: "100%",
-        height: "100%",
-        bgcolor: "rgba(255,255,255,0.03)",
-        borderRadius: 0.5,
-        overflow: "hidden",
         display: "flex",
         flexDirection: "column",
       }}
     >
-      {/* Layout Switcher */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          p: 1,
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          bgcolor: "rgba(0,0,0,0.2)",
-        }}
-      >
-        <Typography variant="caption" sx={{ color: '#888', ml: 1 }}>
-          Layout:
-        </Typography>
-        <ToggleButtonGroup
-          value={banMoveLayout}
-          exclusive
-          onChange={handleLayoutChange}
-          size="small"
-          sx={{
-            '& .MuiToggleButton-root': {
-              py: 0.25,
-              px: 0.75,
-              color: 'rgba(255,255,255,0.5)',
-              borderColor: 'rgba(255,255,255,0.1)',
-              fontSize: '0.75rem',
-              '&.Mui-selected': {
-                bgcolor: 'rgba(255,255,255,0.1)',
-                color: 'white',
-                '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.15)',
-                },
-              },
-              '&:hover': {
-                bgcolor: 'rgba(255,255,255,0.05)',
-              },
-            },
-          }}
-        >
-          <ToggleButton value="stacked">
-            <Tooltip title="Stacked: Ban above move">
-              <ViewStreamIcon sx={{ fontSize: 16 }} />
-            </Tooltip>
-          </ToggleButton>
-          <ToggleButton value="inline">
-            <Tooltip title="Inline: Ban → Move">
-              <ViewCompactIcon sx={{ fontSize: 16 }} />
-            </Tooltip>
-          </ToggleButton>
-          <ToggleButton value="side-by-side">
-            <Tooltip title="Side by side: Ban | Move">
-              <ViewListIcon sx={{ fontSize: 16 }} />
-            </Tooltip>
-          </ToggleButton>
-          <ToggleButton value="compact">
-            <Tooltip title="Compact: Minimal">
-              <BlockIcon sx={{ fontSize: 16 }} />
-            </Tooltip>
-          </ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
-      
+
       {/* Navigation Bar */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          gap: 0.5,
-          p: 1,
+          gap: 0.25,
+          p: 0.5,
           borderTop: "1px solid rgba(255,255,255,0.08)",
           bgcolor: "rgba(0,0,0,0.2)",
         }}
@@ -611,7 +531,7 @@ const GamePanel = () => {
       <Box
         ref={moveHistoryRef}
         sx={{
-          height: "180px", // Fixed height to accommodate about 5 rows
+          height: "200px",
           overflowY: "auto",
           overflowX: "hidden",
           width: "100%",
@@ -643,13 +563,9 @@ const GamePanel = () => {
               selectedMove={selectedMove}
               navigationState={navigationState}
               onMoveClick={handleMoveClick}
-              layout={banMoveLayout}
             />
           ))}
-          {/* Empty rows to fill the table */}
-          {Array.from({ length: Math.max(0, 5 - moves.length) }).map((_, i) => (
-            <EmptyRow key={`empty-${i}`} rowNumber={moves.length + i + 1} />
-          ))}
+
         </Box>
       </Box>
       
@@ -660,8 +576,8 @@ const GamePanel = () => {
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            gap: 0.5,
-            p: 1,
+            gap: 0.25,
+            p: 0.5,
             borderTop: "1px solid rgba(255,255,255,0.08)",
             bgcolor: "rgba(0,0,0,0.2)",
           }}
@@ -688,17 +604,14 @@ function MovesRow({
   selectedMove,
   navigationState,
   onMoveClick,
-  layout,
 }: {
   move: Move;
   selectedMove: MoveData | null;
   navigationState: NavigationState;
   onMoveClick: (move: MoveData, phase: 'after-ban' | 'after-move') => void;
-  layout: BanMoveLayout;
 }) {
-  // Checkered pattern: odd rows start dark, even rows start light
-  // Row number cell counts as first cell
-  const rowStartsDark = move.number % 2 === 1;
+  // Checkered pattern: odd rows have light white cell, even rows have dark white cell
+  const whiteIsDark = move.number % 2 === 0;
   
   return (
     <Box
@@ -709,16 +622,16 @@ function MovesRow({
       <Box
         sx={{
           display: "table-cell",
-          pr: 1,
-          pl: 1.5,
+          pr: 0.5,
+          pl: 1,
           color: "#888",
-          fontSize: "0.875rem",
+          fontSize: "1.1rem",
           textAlign: "right",
           verticalAlign: "middle",
-          width: "15%",
+          width: "12%",
           fontWeight: 400,
-          bgcolor: rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
-          py: 0.75,
+          bgcolor: whiteIsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)", // Same as white cell
+          py: 0.5,
         }}
       >
         {move.number}.
@@ -727,18 +640,18 @@ function MovesRow({
         data-ply={move.white?.ply_number}
         sx={{
           display: "table-cell",
-          py: 0.75,
-          px: 1.5,
+          py: 0.5,
+          px: 1,
           color: "#bababa",
-          fontSize: "0.95rem",
+          fontSize: "1.2rem",
           textAlign: "left",
           verticalAlign: "middle",
-          bgcolor: !rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+          bgcolor: whiteIsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
           cursor: move.white ? "pointer" : "default",
-          width: "42.5%",
+          width: "44%",
           fontWeight:
             selectedMove?.ply_number === move.white?.ply_number ? 600 : 400,
-          "&:hover": move.white ? { bgcolor: !rowStartsDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)" } : {},
+          "&:hover": move.white ? { bgcolor: whiteIsDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)" } : {},
           // Use outline for selection instead of background
           outline: selectedMove?.ply_number === move.white?.ply_number
             ? "2px solid rgba(255,204,0,0.8)"
@@ -754,7 +667,6 @@ function MovesRow({
             isSelected={selectedMove?.ply_number === move.white.ply_number}
             isBanPhase={navigationState.moveIndex === move.white.ply_number && navigationState.phase === 'after-ban'}
             onBanClick={move.white.banned_from ? () => onMoveClick(move.white, 'after-ban') : undefined}
-            layout={layout}
           />
         )}
       </Box>
@@ -762,18 +674,18 @@ function MovesRow({
         data-ply={move.black?.ply_number}
         sx={{
           display: "table-cell",
-          py: 0.75,
-          px: 1.5,
+          py: 0.5,
+          px: 1,
           color: "#bababa",
-          fontSize: "0.95rem",
+          fontSize: "1.2rem",
           textAlign: "left",
           verticalAlign: "middle",
-          bgcolor: rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+          bgcolor: !whiteIsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)", // Opposite of white cell
           cursor: move.black ? "pointer" : "default",
-          width: "42.5%",
+          width: "44%",
           fontWeight:
             selectedMove?.ply_number === move.black?.ply_number ? 600 : 400,
-          "&:hover": move.black ? { bgcolor: rowStartsDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)" } : {},
+          "&:hover": move.black ? { bgcolor: !whiteIsDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.06)" } : {},
           // Use outline for selection instead of background
           outline: selectedMove?.ply_number === move.black?.ply_number
             ? "2px solid rgba(255,204,0,0.8)"
@@ -789,61 +701,9 @@ function MovesRow({
             isSelected={selectedMove?.ply_number === move.black.ply_number}
             isBanPhase={navigationState.moveIndex === move.black.ply_number && navigationState.phase === 'after-ban'}
             onBanClick={move.black.banned_from ? () => onMoveClick(move.black, 'after-ban') : undefined}
-            layout={layout}
           />
         )}
       </Box>
-    </Box>
-  );
-}
-
-function EmptyRow({ rowNumber }: { rowNumber: number }) {
-  // Checkered pattern: odd rows start dark, even rows start light
-  const rowStartsDark = rowNumber % 2 === 1;
-  
-  return (
-    <Box
-      sx={{
-        display: "table-row",
-      }}
-    >
-      <Box
-        sx={{
-          display: "table-cell",
-          pr: 1,
-          pl: 1.5,
-          color: "#555",
-          fontSize: "0.875rem",
-          textAlign: "right",
-          verticalAlign: "middle",
-          width: "15%",
-          fontWeight: 400,
-          bgcolor: rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
-          py: 0.75,
-        }}
-      >
-        {rowNumber}.
-      </Box>
-      <Box
-        sx={{
-          display: "table-cell",
-          py: 0.75,
-          px: 1.5,
-          bgcolor: !rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
-          width: "42.5%",
-          height: "36px",
-        }}
-      />
-      <Box
-        sx={{
-          display: "table-cell",
-          py: 0.75,
-          px: 1.5,
-          bgcolor: rowStartsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
-          width: "42.5%",
-          height: "36px",
-        }}
-      />
     </Box>
   );
 }
@@ -853,248 +713,15 @@ function MoveComponent({
   isSelected,
   isBanPhase,
   onBanClick,
-  layout 
 }: { 
   move: MoveData;
   isSelected: boolean;
   isBanPhase: boolean;
   onBanClick?: () => void;
-  layout: BanMoveLayout;
 }) {
   const hasBan = move.banned_from && move.banned_to;
   
-  // Render based on layout
-  if (layout === 'stacked') {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          height: "100%",
-          position: "relative",
-          padding: "2px 4px",
-          gap: 0.25,
-        }}
-      >
-        {/* Banned move on top */}
-        {hasBan && (
-          <Box 
-            onClick={(e) => {
-              e.stopPropagation();
-              onBanClick?.();
-            }}
-            sx={{ 
-              display: "flex", 
-              alignItems: "center", 
-              gap: 0.5,
-              cursor: onBanClick ? 'pointer' : 'default',
-              px: 0.5,
-              py: 0.25,
-              borderRadius: 0.5,
-              bgcolor: isBanPhase ? 'rgba(255,0,0,0.2)' : 'transparent',
-              border: isBanPhase ? '1px solid' : 'none',
-              borderColor: isBanPhase ? 'error.main' : 'transparent',
-              transition: 'all 0.2s',
-              '&:hover': onBanClick ? { 
-                bgcolor: 'rgba(255,0,0,0.15)',
-              } : {},
-            }}
-          >
-            <BlockIcon sx={{ fontSize: 11, color: isBanPhase ? 'error.light' : 'error.main' }} />
-            <Typography
-              component="span"
-              sx={{
-                fontWeight: isBanPhase ? 'bold' : 'normal',
-                color: isBanPhase ? 'error.light' : 'error.main',
-                fontSize: "0.75rem",
-                fontStyle: 'italic',
-              }}
-            >
-              {move.banned_from}{move.banned_to}
-            </Typography>
-          </Box>
-        )}
-        {/* Actual move below */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography
-            component="span"
-            sx={{
-              fontWeight: "normal",
-              fontSize: "0.95rem",
-            }}
-          >
-            {move.san}
-          </Typography>
-          {move.time_taken_ms && (
-            <Typography
-              component="span"
-              sx={{
-                fontSize: "0.65rem",
-                color: "text.secondary",
-                ml: 1,
-              }}
-            >
-              {(move.time_taken_ms / 1000).toFixed(1)}s
-            </Typography>
-          )}
-        </Box>
-      </Box>
-    );
-  }
-  
-  if (layout === 'inline') {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          width: "100%",
-          padding: "4px",
-          gap: 1,
-        }}
-      >
-        {/* Ban and move on same line */}
-        {hasBan && (
-          <>
-            <Box 
-              onClick={(e) => {
-                e.stopPropagation();
-                onBanClick?.();
-              }}
-              sx={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: 0.25,
-                cursor: onBanClick ? 'pointer' : 'default',
-                px: 0.5,
-                py: 0.25,
-                borderRadius: 0.5,
-                bgcolor: isBanPhase ? 'rgba(255,0,0,0.2)' : 'transparent',
-                border: isBanPhase ? '1px solid' : 'none',
-                borderColor: isBanPhase ? 'error.main' : 'transparent',
-                transition: 'all 0.2s',
-                '&:hover': onBanClick ? { bgcolor: 'rgba(255,0,0,0.1)' } : {},
-              }}
-            >
-              <BlockIcon sx={{ fontSize: 12, color: isBanPhase ? 'error.light' : 'error.dark' }} />
-              <Typography
-                component="span"
-                sx={{
-                  fontWeight: isBanPhase ? 'bold' : 'normal',
-                  color: isBanPhase ? 'error.light' : 'error.dark',
-                  fontSize: "0.8rem",
-                }}
-              >
-                {move.banned_from}{move.banned_to}
-              </Typography>
-            </Box>
-            <Typography sx={{ color: '#666', fontSize: '0.8rem' }}>→</Typography>
-          </>
-        )}
-        <Typography
-          component="span"
-          sx={{
-            fontWeight: "normal",
-            fontSize: "0.95rem",
-          }}
-        >
-          {move.san}
-        </Typography>
-        {move.time_taken_ms && (
-          <Typography
-            component="span"
-            sx={{
-              fontSize: "0.65rem",
-              color: "text.secondary",
-              ml: "auto",
-            }}
-          >
-            {(move.time_taken_ms / 1000).toFixed(1)}s
-          </Typography>
-        )}
-      </Box>
-    );
-  }
-  
-  if (layout === 'side-by-side') {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          width: "100%",
-          padding: "4px",
-          gap: 0.5,
-        }}
-      >
-        {/* Ban on left, move on right with separator */}
-        {hasBan ? (
-          <>
-            <Box 
-              onClick={(e) => {
-                e.stopPropagation();
-                onBanClick?.();
-              }}
-              sx={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: 0.25,
-                cursor: onBanClick ? 'pointer' : 'default',
-                flex: '0 0 auto',
-                px: 0.5,
-                py: 0.25,
-                borderRadius: 0.5,
-                bgcolor: isBanPhase ? 'rgba(255,0,0,0.2)' : 'transparent',
-                border: isBanPhase ? '1px solid' : 'none',
-                borderColor: isBanPhase ? 'error.main' : 'transparent',
-                transition: 'all 0.2s',
-                '&:hover': onBanClick ? { bgcolor: 'rgba(255,0,0,0.1)' } : {},
-              }}
-            >
-              <BlockIcon sx={{ fontSize: 11, color: isBanPhase ? 'error.light' : '#888' }} />
-              <Typography
-                component="span"
-                sx={{
-                  fontWeight: isBanPhase ? 'bold' : 'normal',
-                  color: isBanPhase ? 'error.light' : '#888',
-                  fontSize: "0.75rem",
-                }}
-              >
-                {move.banned_from}{move.banned_to}
-              </Typography>
-            </Box>
-            <Box sx={{ width: '1px', height: '16px', bgcolor: 'rgba(255,255,255,0.1)' }} />
-          </>
-        ) : (
-          <Box sx={{ width: '60px' }} /> // Spacer for alignment
-        )}
-        <Typography
-          component="span"
-          sx={{
-            fontWeight: "normal",
-            fontSize: "0.95rem",
-            flex: 1,
-          }}
-        >
-          {move.san}
-        </Typography>
-        {move.time_taken_ms && (
-          <Typography
-            component="span"
-            sx={{
-              fontSize: "0.65rem",
-              color: "text.secondary",
-            }}
-          >
-            {(move.time_taken_ms / 1000).toFixed(1)}s
-          </Typography>
-        )}
-      </Box>
-    );
-  }
-  
-  // Compact layout
+  // Always use inline layout with consistent font sizes
   return (
     <Box
       sx={{
@@ -1105,6 +732,7 @@ function MoveComponent({
         gap: 0.5,
       }}
     >
+      {/* Ban and move on same line */}
       {hasBan && (
         <Box 
           onClick={(e) => {
@@ -1116,25 +744,26 @@ function MoveComponent({
             alignItems: "center", 
             gap: 0.25,
             cursor: onBanClick ? 'pointer' : 'default',
+            px: 0.3,
+            py: 0.1,
+            borderRadius: 0.5,
+            bgcolor: isBanPhase ? 'rgba(255,0,0,0.2)' : 'transparent',
+            border: isBanPhase ? '1px solid' : 'none',
+            borderColor: isBanPhase ? 'error.main' : 'transparent',
             transition: 'all 0.2s',
-            '&:hover': onBanClick ? { opacity: 1 } : {},
-            opacity: isBanPhase ? 1 : 0.6,
+            '&:hover': onBanClick ? { bgcolor: 'rgba(255,0,0,0.1)' } : {},
           }}
         >
-          <BlockIcon sx={{ 
-            fontSize: 10, 
-            color: isBanPhase ? 'error.light' : 'error.dark',
-            filter: isBanPhase ? 'drop-shadow(0 0 4px rgba(255,0,0,0.5))' : 'none',
-          }} />
+          <BlockIcon sx={{ fontSize: 10, color: isBanPhase ? 'error.light' : 'error.dark' }} />
           <Typography
             component="span"
             sx={{
               fontWeight: isBanPhase ? 'bold' : 'normal',
               color: isBanPhase ? 'error.light' : 'error.dark',
-              fontSize: "0.7rem",
+              fontSize: "1rem",
             }}
           >
-            {move.banned_from[0]}{move.banned_to}
+            {move.banned_from}{move.banned_to}
           </Typography>
         </Box>
       )}
@@ -1142,7 +771,7 @@ function MoveComponent({
         component="span"
         sx={{
           fontWeight: "normal",
-          fontSize: "0.9rem",
+          fontSize: "1.2rem",
         }}
       >
         {move.san}
@@ -1151,7 +780,7 @@ function MoveComponent({
         <Typography
           component="span"
           sx={{
-            fontSize: "0.6rem",
+            fontSize: "1rem",
             color: "text.secondary",
             ml: "auto",
           }}

@@ -244,6 +244,35 @@ export async function createGameFromMatchedPlayers(
     // Send notifications to both players
     try {
       await notifyGameCreation(supabase, game.id, whiteId, blackId);
+      
+      // Also send a match found notification to the game chat
+      const gameChatChannel = supabase.channel(`game-chat:${game.id}`);
+      await gameChatChannel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          // Get player usernames
+          const { data: profiles } = await getTable(supabase, "profiles")
+            .select("id, username")
+            .in("id", [whiteId, blackId]);
+          
+          const whiteUsername = profiles?.find(p => p.id === whiteId)?.username || "Player 1";
+          const blackUsername = profiles?.find(p => p.id === blackId)?.username || "Player 2";
+          
+          await gameChatChannel.send({
+            type: "broadcast",
+            event: "game_event",
+            payload: {
+              message: `Match found! ${whiteUsername} (White) vs ${blackUsername} (Black)`,
+              metadata: { 
+                eventType: "match_found",
+                whitePlayer: whiteUsername,
+                blackPlayer: blackUsername
+              }
+            }
+          });
+          // Unsubscribe after sending
+          setTimeout(() => gameChatChannel.unsubscribe(), 1000);
+        }
+      });
     } catch (notifyError) {
       logger.error("Error sending game notifications:", notifyError);
       // Non-critical error, continue with the process

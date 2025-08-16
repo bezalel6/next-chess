@@ -32,7 +32,7 @@ interface GameChatProps {
   gameId: string;
 }
 
-const MAX_MESSAGE_LENGTH = 500;
+const MAX_MESSAGE_LENGTH = 200;
 const MIN_MESSAGE_INTERVAL = 500; // ms between messages
 const CHAT_ENABLED_KEY = 'chess-chat-enabled';
 
@@ -91,20 +91,10 @@ export default function GameChat({ gameId }: GameChatProps) {
     }
   }, [chatEnabled]);
   
-  // Initialize with system message
+  // Clear messages when game changes
   useEffect(() => {
-    if (game) {
-      const matchStartMessage: ChatMessage = {
-        id: `system-${Date.now()}`,
-        gameId,
-        type: 'system',
-        content: `Match started: ${game.whitePlayer} vs ${game.blackPlayer}`,
-        timestamp: new Date(game.startTime),
-        metadata: { eventType: 'match_start' }
-      };
-      setMessages([matchStartMessage]);
-    }
-  }, [game, gameId]);
+    setMessages([]);
+  }, [gameId]);
   
   // Set up real-time subscription
   useEffect(() => {
@@ -394,75 +384,155 @@ export default function GameChat({ gameId }: GameChatProps) {
             },
           }}
         >
-        {messages.map((message) => (
-          <Box
-            key={message.id}
-            sx={{
-              display: 'flex',
-              flexDirection: message.senderId === user?.id ? 'row-reverse' : 'row',
-              alignItems: 'flex-start',
-              gap: 1,
-            }}
-          >
-            <Avatar
-              sx={{
-                width: 28,
-                height: 28,
-                bgcolor: message.type === 'player' ? 
-                  (message.senderId === user?.id ? 'primary.main' : 'secondary.main') :
-                  message.type === 'server' ? 'info.main' : 'grey.500',
-              }}
-            >
-              {getMessageIcon(message.type)}
-            </Avatar>
-            
+        {messages.map((message) => 
+          message.type === 'server' ? (
+            // Server notifications styled as stickers
             <Box
+              key={message.id}
               sx={{
-                maxWidth: '70%',
-                bgcolor: message.type === 'player' && message.senderId === user?.id ? 
-                  'primary.dark' : 
-                  message.type === 'server' || message.type === 'system' ?
-                  'background.default' : 'grey.800',
-                borderRadius: 2,
-                p: 1.5,
-                boxShadow: 1,
+                display: 'flex',
+                justifyContent: 'center',
+                my: 2,
+                px: 2,
               }}
             >
-              {message.senderName && (
+              <Paper
+                elevation={4}
+                sx={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: 3,
+                  p: 2,
+                  position: 'relative',
+                  maxWidth: '80%',
+                  border: '2px solid rgba(255,255,255,0.2)',
+                  transform: 'rotate(-1deg)',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'rotate(0deg) scale(1.02)',
+                  },
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: -10,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 40,
+                    height: 20,
+                    backgroundColor: 'rgba(255,255,255,0.3)',
+                    borderRadius: '50% 50% 0 0',
+                    clipPath: 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)',
+                  }
+                }}
+              >
+                <Box sx={{ textAlign: 'center' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                    <BotIcon sx={{ fontSize: 20, color: 'white', mr: 1 }} />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'rgba(255,255,255,0.8)',
+                        fontWeight: 'bold',
+                        textTransform: 'uppercase',
+                        letterSpacing: 1,
+                      }}
+                    >
+                      Match System
+                    </Typography>
+                  </Box>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: 'white',
+                      fontWeight: 'medium',
+                      textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    }}
+                  >
+                    {message.content}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'rgba(255,255,255,0.7)',
+                      display: 'block',
+                      mt: 1,
+                    }}
+                  >
+                    {format(message.timestamp, 'HH:mm')}
+                  </Typography>
+                </Box>
+              </Paper>
+            </Box>
+          ) : (
+            // Regular player and system messages
+            <Box
+              key={message.id}
+              sx={{
+                display: 'flex',
+                flexDirection: message.senderId === user?.id ? 'row-reverse' : 'row',
+                alignItems: 'flex-start',
+                gap: 1,
+              }}
+            >
+              <Avatar
+                sx={{
+                  width: 28,
+                  height: 28,
+                  bgcolor: message.type === 'player' ? 
+                    (message.senderId === user?.id ? 'primary.main' : 'secondary.main') :
+                    'grey.500',
+                }}
+              >
+                {getMessageIcon(message.type)}
+              </Avatar>
+              
+              <Box
+                sx={{
+                  maxWidth: '70%',
+                  bgcolor: message.type === 'player' && message.senderId === user?.id ? 
+                    'primary.dark' : 
+                    message.type === 'system' ?
+                    'background.default' : 'grey.800',
+                  borderRadius: 2,
+                  p: 1.5,
+                  boxShadow: 1,
+                }}
+              >
+                {message.senderName && (
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      fontWeight: 'bold',
+                      color: getMessageColor(message),
+                      display: 'block',
+                      mb: 0.5,
+                    }}
+                  >
+                    {message.senderName}
+                  </Typography>
+                )}
+                <Typography 
+                  variant="body2"
+                  sx={{
+                    color: message.type === 'player' ? 'text.primary' : getMessageColor(message),
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {message.content}
+                </Typography>
                 <Typography 
                   variant="caption" 
                   sx={{ 
-                    fontWeight: 'bold',
-                    color: getMessageColor(message),
+                    color: 'text.secondary',
                     display: 'block',
-                    mb: 0.5,
+                    mt: 0.5,
                   }}
                 >
-                  {message.senderName}
+                  {format(message.timestamp, 'HH:mm')}
                 </Typography>
-              )}
-              <Typography 
-                variant="body2"
-                sx={{
-                  color: message.type === 'player' ? 'text.primary' : getMessageColor(message),
-                  wordBreak: 'break-word',
-                }}
-              >
-                {message.content}
-              </Typography>
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  color: 'text.secondary',
-                  display: 'block',
-                  mt: 0.5,
-                }}
-              >
-                {format(message.timestamp, 'HH:mm')}
-              </Typography>
+              </Box>
             </Box>
-          </Box>
-        ))}
+          )
+        )}
           <div ref={messagesEndRef} />
         </Box>
       </Collapse>
@@ -513,7 +583,7 @@ export default function GameChat({ gameId }: GameChatProps) {
           onBlur={() => handleTyping(false)}
           disabled={!playerInfo?.isPlayer || isSending}
           error={!!error}
-          helperText={error || `${inputValue.length}/${MAX_MESSAGE_LENGTH}`}
+          helperText={error || (inputValue.length > 100 ? `${inputValue.length}/${MAX_MESSAGE_LENGTH}${inputValue.length > 150 ? ' ⚠️' : ''}` : '')}
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -22,11 +22,13 @@ import {
   Close as CloseIcon,
   BugReport as BugIcon,
   Image as ImageIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  Screenshot as ScreenshotIcon
 } from '@mui/icons-material';
 import { BugReportService, type BugReport } from '@/services/bugReportService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/router';
+import html2canvas from 'html2canvas';
 // Uploadthing integration temporarily disabled for testing
 // import { generateUploadButton } from '@uploadthing/react';
 // import type { OurFileRouter } from '@/server/uploadthing';
@@ -48,6 +50,7 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [takingScreenshot, setTakingScreenshot] = useState(false);
   
   const [formData, setFormData] = useState<Partial<BugReport>>({
     category: 'other',
@@ -59,6 +62,16 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
     actual_behavior: '',
     user_email: user?.email || ''
   });
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up any data URLs to free memory
+      if (screenshotPreview && screenshotPreview.startsWith('data:')) {
+        setScreenshotPreview(null);
+      }
+    };
+  }, []);
 
   const handleInputChange = (field: keyof BugReport) => (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -113,6 +126,104 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
     setScreenshotPreview(null);
     setUploadProgress(0);
   };
+
+  // Take a screenshot of the current page
+  const handleTakeScreenshot = async () => {
+    setTakingScreenshot(true);
+    setError(null);
+    
+    try {
+      // Hide the dialog temporarily
+      const dialogElement = document.querySelector('[role="dialog"]');
+      if (dialogElement instanceof HTMLElement) {
+        dialogElement.style.visibility = 'hidden';
+      }
+      
+      // Wait a moment for the dialog to disappear
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
+      // Capture the screenshot with optimized settings
+      const canvas = await html2canvas(document.body, {
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        scale: Math.min(window.devicePixelRatio || 1, 2), // Limit scale for performance
+        width: Math.min(window.innerWidth, 1920), // Max width
+        height: Math.min(window.innerHeight, 1080), // Max height
+        backgroundColor: '#ffffff',
+        ignoreElements: (element) => {
+          // Ignore elements that might have unsupported CSS
+          if (element instanceof HTMLElement) {
+            const style = window.getComputedStyle(element);
+            // Check for unsupported color functions
+            const colorProps = [style.color, style.backgroundColor, style.borderColor];
+            for (const prop of colorProps) {
+              if (prop && (prop.includes('oklch') || prop.includes('oklab') || prop.includes('color('))) {
+                return true; // Skip this element
+              }
+            }
+          }
+          return false;
+        }
+      });
+      
+      // Show the dialog again
+      if (dialogElement instanceof HTMLElement) {
+        dialogElement.style.visibility = 'visible';
+      }
+      
+      // Convert canvas to blob
+      canvas.toBlob((blob) => {
+        if (blob) {
+          // Check file size
+          if (blob.size > 4 * 1024 * 1024) {
+            setError('Screenshot is too large (over 4MB). The image will be compressed.');
+            // Try with more compression
+            canvas.toBlob((compressedBlob) => {
+              if (compressedBlob && compressedBlob.size <= 4 * 1024 * 1024) {
+                const file = new File([compressedBlob], 'screenshot.jpg', { type: 'image/jpeg' });
+                setScreenshotFile(file);
+                
+                // Create preview
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  setScreenshotPreview(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+              } else {
+                setError('Screenshot is too large even after compression. Please upload a smaller image.');
+              }
+            }, 'image/jpeg', 0.5);
+          } else {
+            const file = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
+            setScreenshotFile(file);
+            
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setScreenshotPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+          }
+        } else {
+          setError('Failed to process screenshot. Please try again.');
+        }
+      }, 'image/jpeg', 0.8);
+      
+    } catch (err) {
+      console.error('Screenshot failed:', err);
+      // Check if error is related to color parsing
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes('oklch') || errorMessage.includes('color')) {
+        setError('Screenshot failed due to unsupported CSS colors. Please try uploading an image file instead.');
+      } else {
+        setError('Failed to capture screenshot. Please try uploading an image instead.');
+      }
+    } finally {
+      setTakingScreenshot(false);
+    }
+  };
+
 
   const handleSubmit = async () => {
     setError(null);
@@ -191,7 +302,8 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+    <>
+      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box display="flex" alignItems="center" gap={1}>
@@ -322,20 +434,31 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
                 Screenshot (optional)
               </Typography>
               
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<ImageIcon />}
-                disabled={loading || isUploading}
-              >
-                Select Screenshot
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={handleScreenshotSelect}
-                />
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  startIcon={<ImageIcon />}
+                  disabled={loading || isUploading || takingScreenshot}
+                >
+                  Upload Image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={handleScreenshotSelect}
+                  />
+                </Button>
+                
+                <Button
+                  variant="outlined"
+                  startIcon={takingScreenshot ? <CircularProgress size={16} /> : <ScreenshotIcon />}
+                  onClick={handleTakeScreenshot}
+                  disabled={loading || isUploading || takingScreenshot}
+                >
+                  {takingScreenshot ? 'Capturing...' : 'Take Screenshot'}
+                </Button>
+              </Box>
               
               {screenshotPreview && (
                 <Paper variant="outlined" sx={{ mt: 2, p: 1, position: 'relative' }}>
@@ -393,6 +516,7 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
           {loading ? 'Submitting...' : 'Submit Report'}
         </Button>
       </DialogActions>
-    </Dialog>
+      </Dialog>
+    </>
   );
 };

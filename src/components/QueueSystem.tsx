@@ -80,16 +80,16 @@ const QueueSystem = () => {
 
         if (games.length > 0) {
           const opponentIds = games.map((game) =>
-            game.whitePlayer === user.id ? game.blackPlayer : game.whitePlayer
+            game.whitePlayerId === user.id ? game.blackPlayerId : game.whitePlayerId
           );
 
           const usernames = await UserService.getUsernamesByIds(opponentIds);
 
           const gamesWithOpponents = games.map((game) => {
             const opponentId =
-              game.whitePlayer === user.id
-                ? game.blackPlayer
-                : game.whitePlayer;
+              game.whitePlayerId === user.id
+                ? game.blackPlayerId
+                : game.whitePlayerId;
             return {
               ...game,
               opponentName: usernames[opponentId] || "Unknown Player",

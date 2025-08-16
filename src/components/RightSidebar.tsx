@@ -1,4 +1,4 @@
-import { Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import GamePanel from './GamePanel';
 import { SingleClock } from './GameClock';
@@ -40,38 +40,55 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
 
   return (
     <Box sx={{ 
-      width: 250,
+      width: 320,
       display: 'flex',
       flexDirection: 'column',
-      gap: 0.5,
-      height: '100%',
-      ml: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+      height: 'fit-content',
+      alignSelf: 'center',
+      ml: 2,
+      bgcolor: '#262522',
+      borderRadius: '0 8px 8px 0',
     }}>
-      {/* Top Player Info */}
+      {/* Top Player - Opponent */}
       <Box sx={{
         width: '100%',
-        bgcolor: 'rgba(255,255,255,0.03)',
-        borderRadius: 0.5,
-        p: 0.75,
-        flexShrink: 0,
+        p: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0.5,
+        borderBottom: '1px solid rgba(255,255,255,0.1)',
       }}>
-        {/* Player Status */}
-        <PlayerStatus
-          username={topUsername || 'Player'}
-          color={topColor}
-          status={myColor === topColor ? 'online' : opponentStatus}
-          isCurrentTurn={game?.turn === topColor}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            bgcolor: opponentStatus === 'online' ? '#629924' : '#666',
+          }} />
+          <Typography sx={{ 
+            color: '#fff',
+            fontSize: '1rem',
+            fontWeight: 500,
+          }}>
+            {topUsername || 'Opponent'}
+          </Typography>
+          <Typography sx={{ 
+            color: '#999',
+            fontSize: '0.9rem',
+            ml: 'auto',
+          }}>
+            (69420)
+          </Typography>
+        </Box>
         
-        {/* Time display */}
+        {/* Clock */}
         {game?.timeControl && (
           <Box sx={{
-            bgcolor: 'rgba(0,0,0,0.3)',
-            borderRadius: 0.5,
+            bgcolor: game?.turn === topColor ? '#3e3b37' : 'transparent',
+            borderRadius: 1,
             p: 0.5,
-            mt: 0.25,
+            display: 'flex',
+            justifyContent: 'center',
           }}>
             <SingleClock
               color={topColor}
@@ -94,33 +111,33 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
         )}
       </Box>
 
-      {/* Game Panel - Contains move history, navigation, and game actions - centered */}
+      {/* Game Panel - Move History Table */}
       <Box sx={{ 
-        width: '100%',
         bgcolor: 'rgba(255,255,255,0.03)',
         borderRadius: 0.5,
         overflow: 'hidden',
         display: 'flex',
-        flexShrink: 0,
       }}>
         <GamePanel />
       </Box>
 
-      {/* Bottom Player Info */}
+      {/* Bottom Player - Current Player */}
       <Box sx={{
         width: '100%',
-        bgcolor: 'rgba(255,255,255,0.03)',
-        borderRadius: 0.5,
-        p: 0.75,
-        flexShrink: 0,
+        p: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0.5,
+        borderTop: '1px solid rgba(255,255,255,0.1)',
       }}>
-        {/* Time display */}
+        {/* Clock */}
         {game?.timeControl && (
           <Box sx={{
-            bgcolor: 'rgba(0,0,0,0.3)',
-            borderRadius: 0.5,
+            bgcolor: game?.turn === bottomColor ? '#3e3b37' : 'transparent',
+            borderRadius: 1,
             p: 0.5,
-            mb: 0.25,
+            display: 'flex',
+            justifyContent: 'center',
           }}>
             <SingleClock
               color={bottomColor}
@@ -142,13 +159,28 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
           </Box>
         )}
         
-        {/* Player Status */}
-        <PlayerStatus
-          username={bottomUsername || 'Player'}
-          color={bottomColor}
-          status={myColor === bottomColor ? 'online' : opponentStatus}
-          isCurrentTurn={game?.turn === bottomColor}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            bgcolor: '#629924',
+          }} />
+          <Typography sx={{ 
+            color: '#fff',
+            fontSize: '1rem',
+            fontWeight: 500,
+          }}>
+            {bottomUsername || 'You'}
+          </Typography>
+          <Typography sx={{ 
+            color: '#999',
+            fontSize: '0.9rem',
+            ml: 'auto',
+          }}>
+            (69420)
+          </Typography>
+        </Box>
       </Box>
     </Box>
   );

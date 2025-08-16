@@ -531,7 +531,7 @@ const GamePanel = () => {
       <Box
         ref={moveHistoryRef}
         sx={{
-          height: "200px",
+          height: "150px",
           overflowY: "auto",
           overflowX: "hidden",
           width: "100%",

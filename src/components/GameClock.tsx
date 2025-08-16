@@ -205,7 +205,7 @@ export function GameClock({
         sx={{
           fontFamily: "'Digital-7 Mono', monospace",
           fontWeight: "normal",
-          fontSize: "2.5rem",
+          fontSize: "2rem",
           color: getTimeColor(),
           textAlign: "center",
           letterSpacing: "0.15em",
@@ -213,7 +213,7 @@ export function GameClock({
             ? `0 0 5px ${getTimeColor()}` 
             : "none",
           lineHeight: 1,
-          padding: "4px 8px",
+          padding: "2px 6px",
           background: "#000",
           borderRadius: "4px",
           display: "inline-block",

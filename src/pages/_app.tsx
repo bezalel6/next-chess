@@ -46,8 +46,7 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
         <Head>
         <title>{pageProps.title || defaultPageProps.title}</title>
         <meta name="description" content={pageProps.description || defaultPageProps.description} />
-        {/* 7-Segment Digital Clock Font */}
-        <link href="https://fonts.cdnfonts.com/css/digital-7-mono" rel="stylesheet" />
+        {/* Font loading moved to _document.tsx for optimal performance */}
         {/* Open Graph meta tags for social sharing */}
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Ban Chess" />

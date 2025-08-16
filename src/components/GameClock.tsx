@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Box, Typography, LinearProgress, useTheme } from "@mui/material";
 import { Timer, TimerOff } from "@mui/icons-material";
+import { digitalClockStyles } from "../lib/fonts";
 import type { 
   PlayerClock, 
   ClockSyncMessage, 
@@ -203,16 +204,12 @@ export function GameClock({
     <Box>
       <Box
         sx={{
-          fontFamily: "'Digital-7 Mono', monospace",
-          fontWeight: "normal",
-          fontSize: "2rem",
+          ...digitalClockStyles,
           color: getTimeColor(),
           textAlign: "center",
-          letterSpacing: "0.15em",
           textShadow: isRunning 
             ? `0 0 5px ${getTimeColor()}` 
             : "none",
-          lineHeight: 1,
           padding: "2px 6px",
           background: "#000",
           borderRadius: "4px",

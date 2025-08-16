@@ -104,6 +104,52 @@ To test online game functionality:
 
 This approach gives the user full control over the game setup for testing.
 
+## Authentication System
+
+### Signup Flow (2025-08-16)
+
+The signup process is intentionally simple on the client and defers all heavy validation to the backend via the Supabase Auth webhook and the `user-management` Edge Function.
+
+- Client-side validation
+  - Only simple Zod format checks for username: 3-20 chars, [a-zA-Z0-9_-]
+  - No availability checks, no blacklist checks on the client
+- Client action
+  - `supabaseBrowser().auth.signUp({ email, password, options: { data: { username }, emailRedirectTo: `${origin}/auth/callback` } })`
+  - The `username` is passed in `user_metadata` for the webhook to use
+- Webhook + Edge Function
+  - Supabase Auth webhook posts `user.created` to `supabase/functions/user-management`
+  - Function validates username (filtering, blacklist) and enforces uniqueness (dedupe/fallback)
+  - Creates a `profiles` row for the new user
+- Callback
+  - `/auth/callback` polls `profiles` for the username briefly, then routes to `/`
+
+Key files
+- `src/components/auth-form.tsx`
+  - Uses simple Zod format validation only
+  - No client-side availability/uniqueness checks
+- `src/contexts/AuthContext.tsx`
+  - `signUp()` calls Supabase Auth directly; preflight username availability check removed
+  - Profile creation handled by webhook
+- `supabase/functions/user-management/index.ts`
+  - Handles `user.created` webhook, validates username, resolves conflicts, inserts profile
+- `src/pages/auth/callback.tsx`
+  - Waits briefly for profile creation, then redirects
+
+Configuration required
+- Supabase Auth webhook
+  - URL: `https://<project-ref>.functions.supabase.co/user-management`
+  - Headers: `Authorization: Bearer {{AUTH_WEBHOOK_SECRET}}`
+- Edge Function secrets
+  - `AUTH_WEBHOOK_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+  - See `supabase/functions/README.md` for serving and pushing secrets
+- Redirect URL whitelist
+  - Include `${origin}/auth/callback` in Supabase Auth URL configuration
+
+Rationale
+- Keeps the client thin and removes race conditions and noise from preflight availability checks
+- Centralizes username policy and uniqueness enforcement on the server with a single source of truth
+- Works for both email-confirmation-on and off; profile creation remains webhook-driven
+
 ## Important Notes
 - TypeScript strict mode disabled
 - Supabase is source of truth

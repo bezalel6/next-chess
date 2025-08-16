@@ -204,11 +204,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const normalizedUsername = username.toLowerCase().trim();
 
     try {
-      // UX check: see if username appears available (advisory only)
-      const usernameExists = await checkUsernameExists(normalizedUsername);
-      if (usernameExists) {
-        throw new UsernameExistsError("Username already exists");
-      }
+      // Perform only simple client-side normalization; all validation (including uniqueness)
+      // happens server-side via the Auth webhook + edge function.
 
       // Sign up with Supabase Auth (include username in user_metadata)
       const { data, error } = await supabaseBrowser().auth.signUp({

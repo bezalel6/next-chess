@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -10,15 +10,10 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { Google } from "@mui/icons-material";
-import {
-  useAuth,
-  UsernameExistsError,
-} from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { z } from "zod";
-import { debounce } from "lodash";
-import { validateUsername } from "@/utils/usernameFilter";
 
-// Enhanced Zod schema for username validation with filtering
+// Simple client-side format validation only; full validation runs on the server during signup/webhook
 const usernameSchema = z
   .string()
   .min(3, "Username must be at least 3 characters")
@@ -26,13 +21,7 @@ const usernameSchema = z
   .regex(
     /^[a-zA-Z0-9_-]+$/,
     "Username can only contain letters, numbers, underscores, and hyphens",
-  )
-  .refine((username) => {
-    const result = validateUsername(username);
-    return result.isValid;
-  }, {
-    message: "Username is not allowed"
-  });
+  );
 
 export type AuthFormProps = {
   redirectOnSuccess?: boolean;
@@ -47,7 +36,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
     signInAsGuest,
     signInWithGoogle,
     signInWithMagicLink,
-    checkUsernameExists,
   } = useAuth();
   
   const [isSignUp, setIsSignUp] = useState(mode === 'signup');
@@ -58,8 +46,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [usernameError, setUsernameError] = useState<string | null>(null);
-  const [checkingUsername, setCheckingUsername] = useState(false);
   const [showMagicLink, setShowMagicLink] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
 
@@ -70,55 +56,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
   useEffect(() => {
     setError(null);
     setSuccess(null);
-    setUsernameError(null);
   }, [isSignUp]);
-
-  // Debounced function to check if username exists
-  const debouncedUsernameCheck = useCallback(
-    debounce(async (username: string) => {
-      try {
-        const exists = await checkUsernameExists(username);
-        if (exists) {
-          setUsernameError("Username already taken");
-        }
-        setCheckingUsername(false);
-      } catch (err) {
-        console.error("Error checking username:", err);
-        setCheckingUsername(false);
-      }
-    }, 500),
-    [checkUsernameExists],
-  );
-
-  // Validate username with enhanced filtering when it changes
-  useEffect(() => {
-    if (username && isSignUp) {
-      // First check our custom validation for better error messages
-      const filterResult = validateUsername(username);
-      if (!filterResult.isValid) {
-        setUsernameError(filterResult.reason || "Username is not allowed");
-        return;
-      }
-      
-      // Then run Zod validation for format checks
-      try {
-        usernameSchema.parse(username);
-        setUsernameError(null);
-        setCheckingUsername(true);
-        debouncedUsernameCheck(username);
-      } catch (err) {
-        if (err instanceof z.ZodError) {
-          setUsernameError(err.errors[0].message);
-        }
-      }
-    } else {
-      setUsernameError(null);
-    }
-
-    return () => {
-      debouncedUsernameCheck.cancel();
-    };
-  }, [username, isSignUp, debouncedUsernameCheck]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,11 +90,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
         redirectOnSuccess && setTimeout(() => window.location.href = "/", 1500);
       }
     } catch (err) {
-      if (err instanceof UsernameExistsError) {
-        setError("Username already taken. Please choose another username.");
-      } else {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      }
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -215,7 +149,6 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
     setIsSignUp(newIsSignUp);
     setError(null);
     setSuccess(null);
-    setUsernameError(null);
     if (isSignUp) {
       setUsername("");
     }
@@ -227,9 +160,9 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
 
   const isFormValid = () => {
     if (isSignUp) {
-      return email && password && username && !usernameError && !checkingUsername;
+      return !!(email && password && username);
     }
-    return loginUsername && password;
+    return !!(loginUsername && password);
   };
 
   return (
@@ -322,18 +255,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
               required
               fullWidth
               disabled={isLoading}
-              error={!!usernameError}
-              helperText={
-                checkingUsername
-                  ? "Checking username availability..."
-                  : usernameError ||
-                    "3-20 characters, letters, numbers, _ and - only"
-              }
-              InputProps={{
-                endAdornment: checkingUsername && (
-                  <CircularProgress size={20} color="inherit" />
-                ),
-              }}
+              helperText={"3-20 characters, letters, numbers, _ and - only"}
             />
           )}
           {isSignUp ? (

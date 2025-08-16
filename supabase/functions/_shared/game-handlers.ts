@@ -17,6 +17,11 @@ import type { TypedSupabaseClient } from "./db-utils.ts";
 import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { EventType, recordEvent } from "./event-utils.ts";
 import type { Json } from "./database-types.ts";
+import { 
+  handleMoveClockUpdate, 
+  checkTimeViolations,
+  initializeGameClock 
+} from "./clock-handlers.ts";
 
 const logger = createLogger("GAME");
 
@@ -201,6 +206,27 @@ async function handleMakeMove(
         `Failed to update game: ${updateError.message}`,
         500,
       );
+    }
+
+    // Handle clock update for the move
+    let clockUpdate = null;
+    if (status === "active" && game.time_control) {
+      try {
+        clockUpdate = await handleMoveClockUpdate(supabase, gameId, playerColor);
+        logger.info(`Clock updated after move for game ${gameId}`, clockUpdate);
+      } catch (clockErr) {
+        logger.error(`Failed to update clock for game ${gameId}:`, clockErr);
+        // Continue even if clock update fails
+      }
+    }
+
+    // Check for time violations after the move
+    if (status === "active") {
+      const flaggedPlayer = await checkTimeViolations(supabase, gameId);
+      if (flaggedPlayer) {
+        logger.info(`Player ${flaggedPlayer} flagged in game ${gameId}`);
+        // Game status already updated by checkTimeViolations
+      }
     }
 
     // Calculate move details for the moves table

@@ -4,10 +4,12 @@
 Real-time multiplayer chess with Ban Chess variant - Black bans one of White's moves before every turn.
 
 ## Tech Stack
-- Next.js 14 (Pages Router) + TypeScript
+- Next.js 15.4 (Pages Router) + TypeScript
+- React 19.1 + React DOM 19.1
 - Supabase (database, auth, realtime)
-- Material-UI + Framer Motion
-- Chess.ts for game logic
+- Material-UI 5.15 + Framer Motion 12
+- Chess.ts 0.16 for game logic
+- Zustand 5.0 for state management
 
 ## Dependencies
 - bad-words: Profanity filtering for username validation
@@ -30,9 +32,10 @@ Real-time multiplayer chess with Ban Chess variant - Black bans one of White's m
 
 ## Development
 ```bash
-npm run dev     # Start dev server (use npm for consistency)
-bun run build   # Build for production
+npm run dev       # Start dev server (uses remote production Supabase instance)
+npm run dev:local # Start dev server with local Supabase (for local development)
 ```
+> **Note:** Use **npm** for all scripts—**bun** is no longer supported.
 
 ## Testing
 
@@ -164,6 +167,59 @@ This ensures every feature meets quality standards and follows project guideline
 - Applied only to client-side development builds
 
 This eliminates the serialization warnings and improves dev server performance.
+
+## Next.js 15.4 Upgrade Notes (2025-08-15)
+
+### Current Version
+The project has been upgraded from Next.js 14 to Next.js 15.4.6, maintaining full compatibility with the Pages Router architecture.
+
+### Recommended Optimizations (Not Yet Implemented)
+
+#### Bundle Optimization
+**To implement**: Add to `next.config.js` experimental section:
+```javascript
+experimental: {
+  bundlePagesRouterDependencies: true
+}
+```
+**Expected benefits**: 
+- Improved cold-start performance for Supabase edge functions
+- Better tree-shaking for Material-UI components
+- Reduced bundle size for faster page loads
+
+#### Optional Security Headers Enhancement
+**To consider**: Additional security headers beyond current CSP:
+```javascript
+// In next.config.js headers() - evaluate before adding
+{
+  key: 'X-Frame-Options',
+  value: 'SAMEORIGIN'
+},
+{
+  key: 'X-Content-Type-Options',
+  value: 'nosniff'
+},
+{
+  key: 'Referrer-Policy',
+  value: 'strict-origin-when-cross-origin'
+}
+```
+
+#### Development Debugging (Optional)
+**To test**: Enhanced debugging for development:
+```javascript
+experimental: {
+  clientRouterFilter: true // Better error messages in dev mode
+}
+```
+**Note**: Test with custom server setup before implementing.
+
+### Important: Features to Avoid with Next.js 15.4
+- **Turbopack**: Incompatible with custom server setup (`tsx src/server/server.ts`)
+- **Dynamic IO**: Unnecessary - Supabase handles all real-time features
+- **Server Actions**: Not available for Pages Router (App Router only)
+- **Static Generation Optimizations**: Not beneficial for real-time multiplayer games
+- **App Router Migration**: Keep Pages Router for stability with current architecture
 
 ## Current Status (2025-08-15)
 

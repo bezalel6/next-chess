@@ -12,6 +12,7 @@ import RightSidebar from "@/components/RightSidebar";
 import NotFoundScreen from "@/components/NotFoundScreen";
 import BoardMoveInput from "@/components/BoardMoveInput";
 import GameChat from "@/components/GameChat";
+import GameLayout from "@/components/GameLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import GameWithRecovery from "@/components/GameWithRecovery";
 import DisconnectHandler from "@/components/DisconnectHandler";

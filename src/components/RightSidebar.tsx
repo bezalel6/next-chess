@@ -1,9 +1,10 @@
 import { Box } from '@mui/material';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import GamePanel from './GamePanel';
-import TimeControl from './TimeControl';
+import { SingleClock } from './GameClock';
 import PlayerStatus from './PlayerStatus';
 import { useGamePresence } from '@/services/presenceService';
+import { useClockSync } from '@/hooks/useClockSync';
 
 interface RightSidebarProps {
   boardFlipped: boolean;
@@ -17,6 +18,14 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
   const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
   const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
   const { opponentStatus, presenceService } = useGamePresence(game?.id || null);
+  
+  // Use clock synchronization hook
+  const { clock, isConnected } = useClockSync({
+    gameId: game?.id || '',
+    timeControl: game?.timeControl || { initialTime: 600000, increment: 0 },
+    myColor,
+    enabled: !!game?.id && !!game?.timeControl,
+  });
   
   if (!game) return null;
 
@@ -52,14 +61,32 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
         />
         
         {/* Time display */}
-        <Box sx={{
-          bgcolor: 'rgba(0,0,0,0.3)',
-          borderRadius: 0.5,
-          p: 1,
-          mt: 0.5,
-        }}>
-          <TimeControl playerColor={topColor} />
-        </Box>
+        {game?.timeControl && (
+          <Box sx={{
+            bgcolor: 'rgba(0,0,0,0.3)',
+            borderRadius: 0.5,
+            p: 1,
+            mt: 0.5,
+          }}>
+            <SingleClock
+              color={topColor}
+              timeControl={game.timeControl}
+              isActive={clock.activeColor === topColor}
+              isMyTurn={myColor === topColor}
+              serverClock={{
+                timeRemaining: topColor === 'white' ? clock.white.timeRemaining : clock.black.timeRemaining,
+                turnStartTime: clock.activeColor === topColor ? Date.now() : null,
+                lastUpdateTime: Date.now(),
+                isRunning: clock.activeColor === topColor,
+              }}
+              preferences={{
+                showTenths: true,
+                showProgressBar: false,
+                soundEnabled: false,
+              }}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* Game Panel - Contains move history, navigation, and game actions */}
@@ -80,14 +107,32 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
         p: 1,
       }}>
         {/* Time display */}
-        <Box sx={{
-          bgcolor: 'rgba(0,0,0,0.3)',
-          borderRadius: 0.5,
-          p: 1,
-          mb: 0.5,
-        }}>
-          <TimeControl playerColor={bottomColor} />
-        </Box>
+        {game?.timeControl && (
+          <Box sx={{
+            bgcolor: 'rgba(0,0,0,0.3)',
+            borderRadius: 0.5,
+            p: 1,
+            mb: 0.5,
+          }}>
+            <SingleClock
+              color={bottomColor}
+              timeControl={game.timeControl}
+              isActive={clock.activeColor === bottomColor}
+              isMyTurn={myColor === bottomColor}
+              serverClock={{
+                timeRemaining: bottomColor === 'white' ? clock.white.timeRemaining : clock.black.timeRemaining,
+                turnStartTime: clock.activeColor === bottomColor ? Date.now() : null,
+                lastUpdateTime: Date.now(),
+                isRunning: clock.activeColor === bottomColor,
+              }}
+              preferences={{
+                showTenths: true,
+                showProgressBar: false,
+                soundEnabled: false,
+              }}
+            />
+          </Box>
+        )}
         
         {/* Player Status */}
         <PlayerStatus

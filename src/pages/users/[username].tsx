@@ -1,6 +1,7 @@
 import { GameService } from "@/services/gameService";
 import { UserService, type UserGameStats } from "@/services/userService";
 import { FollowService } from "@/services/followService";
+import { validateUsername } from "@/utils/usernameFilter";
 import { useRouter } from "next/router";
 import { useEffect, useState, Fragment } from "react";
 import {
@@ -48,7 +49,7 @@ const Chessground = dynamic(() => import('@react-chess/chessground'), {
 export default function UserProfile() {
     const router = useRouter();
     const { username } = router.query;
-    const { user: currentUser, profileUsername: currentUserProfile } = useAuth();
+    const { user: currentUser, profileUsername: currentUserProfile, refreshProfile } = useAuth();
     const [userData, setUserData] = useState<"loading" | { error: string } | UserGameStats>("loading");
     const [followStats, setFollowStats] = useState<{ followers_count: number; following_count: number } | null>(null);
     const [isEditingUsername, setIsEditingUsername] = useState(false);
@@ -91,22 +92,30 @@ export default function UserProfile() {
             return;
         }
 
+        // Client-side validation first
+        const validationResult = validateUsername(newUsername);
+        if (!validationResult.isValid) {
+            setUsernameError(validationResult.reason || "Username is not allowed");
+            return;
+        }
+
         setIsSavingUsername(true);
         setUsernameError(null);
 
         try {
-            // TODO: Implement username update functionality
-            // await updateUsername(newUsername);
-            setUsernameError("Username update functionality not yet implemented");
-            setIsSavingUsername(false);
-            return;
+            // Update username using the UserService (via edge function)
+            await UserService.updateUsername(newUsername);
             
-            // setUsernameSuccess("Username updated successfully!");
-            // setIsEditingUsername(false);
-            // // Redirect to new profile URL
-            // setTimeout(() => {
-            //     router.push(`/users/${newUsername}`);
-            // }, 1000);
+            // Refresh the profile in auth context to update the username
+            await refreshProfile();
+            
+            setUsernameSuccess("Username updated successfully!");
+            setIsEditingUsername(false);
+            
+            // Redirect to new profile URL after a short delay
+            setTimeout(() => {
+                router.push(`/users/${newUsername}`);
+            }, 1000);
         } catch (error) {
             setUsernameError(error instanceof Error ? error.message : "Failed to update username");
         } finally {

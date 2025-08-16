@@ -28,6 +28,58 @@ export interface UserGameStats {
 export class UserService {
   // In-memory cache to avoid redundant database requests
   private static usernameCache: Map<string, string> = new Map();
+  
+  /**
+   * Update the current user's username
+   */
+  static async updateUsername(newUsername: string): Promise<{ username: string }> {
+    try {
+      const response = await supabase.functions.invoke('user-management', {
+        body: {
+          operation: 'updateProfile',
+          username: newUsername
+        }
+      });
+
+      console.log('Edge function response:', response);
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to update username');
+      }
+
+      // The edge function returns the response wrapped by Supabase
+      // Response structure: { data: { success: true, data: { profile: {...} } } }
+      if (!response.data) {
+        console.error('Response data is missing:', response);
+        throw new Error('Invalid response from server');
+      }
+
+      // Check if the edge function returned an error
+      if (response.data.success === false) {
+        throw new Error(response.data.error || 'Failed to update username');
+      }
+
+      // Extract the profile from the nested data structure
+      const profile = response.data.data?.profile;
+      
+      if (!profile) {
+        console.error('Profile data is missing in response:', response.data);
+        throw new Error('Profile data not found in server response');
+      }
+
+      // Clear the cache for the updated user to ensure fresh data
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        this.usernameCache.delete(user.id);
+      }
+
+      return profile;
+    } catch (error) {
+      console.error('Error updating username:', error);
+      throw error;
+    }
+  }
+  
   static async getUserProfile(username: string): Promise<UserGameStats> {
     const {
       data: { id: userId },

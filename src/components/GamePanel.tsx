@@ -140,7 +140,7 @@ const GamePanel = () => {
   const gameActions = useGameActions();
 
   // For local games, parse PGN instead of fetching from database
-  const { data: movesData = [], isLoading } = useQuery({
+  const { data: movesData = [], isLoading, refetch } = useQuery({
     queryKey: ["moves", game?.id, game?.pgn],
     queryFn: async () => {
       console.log("[GamePanel] Fetching moves for game:", game?.id);
@@ -191,7 +191,8 @@ const GamePanel = () => {
         },
         (payload) => {
           console.log("[GamePanel] New move received:", payload);
-          // React Query will handle the refetch via invalidation in GameContext
+          // Manually refetch moves when new move is inserted
+          refetch();
         }
       )
       .subscribe();
@@ -199,7 +200,7 @@ const GamePanel = () => {
     return () => {
       channel.unsubscribe();
     };
-  }, [game?.id, isLocalGame]);
+  }, [game?.id, isLocalGame, refetch]);
 
   // Convert flat moves array to paired moves for display
   const moves = useMemo<Move[]>(() => {
@@ -249,6 +250,7 @@ const GamePanel = () => {
   // Initialize to show the last move as active when moves are loaded
   useEffect(() => {
     if (!hasInitialized && movesData.length > 0) {
+      // Only set to last move on initial load
       setNavigationState({
         moveIndex: movesData.length - 1,
         phase: "after-move",
@@ -256,14 +258,35 @@ const GamePanel = () => {
       setHasInitialized(true);
     }
   }, [movesData.length, hasInitialized]);
-
-  // Auto-scroll to the latest move when new moves are added
+  
+  // Track if user has manually navigated away from latest
+  const [userNavigatedAway, setUserNavigatedAway] = useState(false);
+  
+  // Auto-navigate to new moves when they arrive (unless user manually navigated)
   useEffect(() => {
-    if (moveHistoryRef.current && moves.length > 0) {
-      // Auto-scroll to bottom to show latest moves
-      moveHistoryRef.current.scrollTop = moveHistoryRef.current.scrollHeight;
+    if (movesData.length > 0 && hasInitialized && !userNavigatedAway) {
+      const newIndex = movesData.length - 1;
+      // Always jump to new moves unless user explicitly navigated away
+      setNavigationState({
+        moveIndex: newIndex,
+        phase: "after-move",
+      });
     }
-  }, [moves.length]);
+  }, [movesData.length]); // Intentionally not including all deps to prevent loops
+
+  // Auto-scroll to the latest move when new moves are added (unless user navigated away)
+  useEffect(() => {
+    if (moveHistoryRef.current && moves.length > 0 && !userNavigatedAway) {
+      // Scroll to bottom when new moves arrive
+      const container = moveHistoryRef.current;
+      setTimeout(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 50); // Small delay to ensure DOM is updated
+    }
+  }, [moves.length, userNavigatedAway]);
 
   // Scroll to the selected move when navigating
   useEffect(() => {
@@ -322,6 +345,10 @@ const GamePanel = () => {
         moveIndex: move.ply_number,
         phase: clickedPhase,
       });
+      
+      // User manually navigated - mark as navigated away if not at latest
+      const isAtLatest = move.ply_number === movesData.length - 1 && clickedPhase === "after-move";
+      setUserNavigatedAway(!isAtLatest);
     },
     [movesData]
   );
@@ -335,6 +362,7 @@ const GamePanel = () => {
       "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     navigateToPosition(-1, initialFen, null);
     setNavigationState({ moveIndex: -1, phase: "initial" });
+    setUserNavigatedAway(true); // User manually navigated
   }, []);
 
   const navigateToPrevious = useCallback(() => {
@@ -390,12 +418,25 @@ const GamePanel = () => {
 
   const navigateToLast = useCallback(() => {
     if (movesData.length > 0) {
-      handleMoveClick(movesData[movesData.length - 1], "after-move");
+      // Don't use handleMoveClick as it sets userNavigatedAway
+      const lastMove = movesData[movesData.length - 1];
+      const { navigateToPosition } = useGameStore.getState();
+      
+      const bannedMove = lastMove.banned_from && lastMove.banned_to
+        ? { from: lastMove.banned_from as Square, to: lastMove.banned_to as Square }
+        : null;
+      navigateToPosition(lastMove.ply_number, lastMove.fen_after, bannedMove);
+      
+      setNavigationState({
+        moveIndex: lastMove.ply_number,
+        phase: "after-move",
+      });
+      setUserNavigatedAway(false); // Back to latest, allow auto-follow
     } else {
       // If no moves, stay at initial position
       navigateToFirst();
     }
-  }, [handleMoveClick, movesData, navigateToFirst]);
+  }, [movesData, navigateToFirst]);
 
   // Add keyboard navigation
   useSingleKeys(
@@ -521,6 +562,33 @@ const GamePanel = () => {
         flexDirection: "column",
       }}
     >
+      {/* Show indicator when user navigated away from latest move */}
+      {userNavigatedAway && movesData.length > 0 && (
+        <Box
+          sx={{
+            p: 0.5,
+            bgcolor: "rgba(255, 165, 0, 0.1)",
+            borderTop: "1px solid rgba(255, 165, 0, 0.3)",
+            textAlign: "center",
+            cursor: "pointer",
+            "&:hover": {
+              bgcolor: "rgba(255, 165, 0, 0.2)",
+            },
+          }}
+          onClick={navigateToLast}
+        >
+          <Typography
+            sx={{
+              fontSize: "0.75rem",
+              color: "rgba(255, 165, 0, 0.9)",
+              fontWeight: 500,
+            }}
+          >
+            ← Go to latest move
+          </Typography>
+        </Box>
+      )}
+      
       {/* Navigation Bar */}
       <Box
         sx={{

@@ -118,11 +118,31 @@ export default function GamePage() {
     const [boardFlipped, setBoardFlipped] = useState(false);
     const { session } = useAuth();
 
-    // Handle board orientation based on player color
+    // Board Orientation Documentation:
+    // ================================
+    // The board orientation system works in two layers:
+    // 
+    // 1. AUTOMATIC ORIENTATION (handled by unifiedGameStore):
+    //    - White players see board with White at bottom (boardOrientation = 'white')
+    //    - Black players see board with Black at bottom (boardOrientation = 'black')
+    //    - Spectators see board with White at bottom (boardOrientation = 'white')
+    //    - This is set in the store's initGame() method based on myColor
+    //
+    // 2. MANUAL FLIP (handled by local state):
+    //    - boardFlipped state allows users to manually flip the board via UI button
+    //    - When true, it inverts the automatic orientation
+    //    - This is independent of the player's color
+    //
+    // IMPORTANT: We do NOT auto-set boardFlipped based on myColor anymore.
+    // Previous bug: Setting boardFlipped=true for Black players caused double-inversion
+    // with the store's boardOrientation, resulting in all players seeing White's perspective.
+    //
+    // Current flow:
+    // Store sets boardOrientation → GameLayout applies manual flip if needed → GameBoardV2 renders
     useEffect(() => {
-        if (myColor) {
-            setBoardFlipped(myColor === 'black');
-        }
+        // Reset manual flip state when player color changes
+        // Users can still manually flip after this via the flip button
+        setBoardFlipped(false);
     }, [myColor]);
 
     // Title based on game state

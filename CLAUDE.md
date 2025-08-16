@@ -340,6 +340,73 @@ These are hard‑won lessons from fixing type mismatches, broken migrations, and
 
 ---
 
+## Recent Issues & Ongoing Fixes (2025-08-16)
+
+**⚠️ ACTIVE DEBUGGING**: We are still discovering and fixing cascading issues from recent changes. The problems below are interconnected and fixes may reveal additional issues.
+
+### Board Orientation Double-Flip Bug
+**Issue**: Both White and Black players were seeing the board from White's perspective
+**Root Cause**: Double-inversion logic where:
+- Store was setting `boardOrientation = myColor` (correct)
+- Game page was also auto-flipping for Black players (`setBoardFlipped(myColor === 'black')`)
+- GameLayout was then inverting based on both, causing Black to see White's view
+**Fix**: Removed automatic flip for Black players, let store's boardOrientation be the single source of truth
+**Probable Motivation**: Developer likely tried to ensure Black players see from their perspective but didn't realize the store was already handling this
+
+### Performance Degradation
+**Issues**: 
+- Moves taking very long to sync
+- Everything laggy and unresponsive
+- Move list not tracking/highlighting the last move properly
+**Root Causes**:
+1. Excessive React Query invalidations causing cascading refetches
+2. Double updates from both broadcasts and query invalidations
+3. Timeout delays (1.2s) before confirming optimistic updates
+4. Short cache stale time (30s) causing frequent background refetches
+**Fix**: Optimized query invalidation strategy, increased cache times, removed unnecessary delays
+**Probable Motivation**: Overly cautious synchronization strategy trying to ensure data consistency but causing performance issues through redundant updates
+
+### Move List Auto-Navigation Conflict
+**Issue**: Move list kept jumping to latest move, preventing users from reviewing game history
+**Root Cause**: useEffect aggressively auto-navigating to last move on every data change
+**Fix**: Added `userNavigatedAway` flag to distinguish between:
+- User actively browsing history (don't auto-jump)
+- User viewing latest position (keep following new moves)
+**Probable Motivation**: Developer wanted to ensure new moves are always visible but didn't account for users wanting to analyze past positions during live games
+
+### Common Theme
+Most issues stem from **overlapping responsibility** - multiple systems trying to solve the same problem:
+- Board orientation handled in both store AND component state
+- Data synchronization through both React Query AND realtime broadcasts
+- Move tracking through both automatic navigation AND user interaction
+
+The fixes involved establishing **single sources of truth** and clear separation of concerns.
+
+## Current Status (2025-08-16)
+
+### ⚠️ STABILITY WARNING
+**The codebase is currently unstable** with ongoing fixes that may introduce new issues. Each fix reveals deeper architectural conflicts between different state management approaches.
+
+### Partially Working Features ⚠️
+- Board orientation: Fixed but may have edge cases
+- Performance: Improved but still monitoring for regressions
+- Move list navigation: Better but still fine-tuning the auto-follow logic
+- Ban Chess mechanics: Core works but UI sync issues remain
+
+### Known Unfixed Issues 🔴
+- Local game board clicks completely broken (missing function implementations)
+- Move list may still jump unexpectedly in certain scenarios
+- Potential race conditions between optimistic updates and server responses
+- Some webpack warnings about legacy Next.js features
+- State synchronization conflicts between Zustand store and React Query cache
+
+### Issues Likely Still Hidden
+Given the pattern of overlapping responsibilities, there are likely more conflicts in:
+- Clock synchronization systems
+- Game end detection
+- Draw/resign flows
+- Reconnection handling
+
 ## Current Status (2025-08-15)
 
 ### Core Ban Chess Logic - WORKING ✅

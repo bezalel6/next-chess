@@ -346,7 +346,13 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
                    game.banningPlayer ? 'waiting_for_ban' :
                    game.turn === myColor ? 'making_move' : 'waiting_for_move',
             
-            // Set board orientation
+            // Board Orientation Setup:
+            // Sets the default board perspective based on player color
+            // - White players: boardOrientation = 'white' (White pieces at bottom)
+            // - Black players: boardOrientation = 'black' (Black pieces at bottom)  
+            // - Spectators: boardOrientation = 'white' (default to White at bottom)
+            // This automatic orientation ensures players see the board from their perspective
+            // Users can still manually flip via the UI flip button (handled separately in components)
             boardOrientation: myColor || 'white',
           });
         },
@@ -537,21 +543,38 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         
         syncWithServer: (game) => {
           const state = get();
-          if (state.chess) {
-            state.chess.load(game.currentFen);
+          // Normalize server payload to camelCase regardless of source shape
+          const g: any = game as any;
+          const currentFen = g.currentFen ?? g.current_fen;
+          const turn = g.turn;
+          const status = g.status;
+          const banningPlayer = g.banningPlayer ?? g.banning_player ?? null;
+          const currentBannedMove = g.currentBannedMove ?? g.current_banned_move ?? null;
+
+          if (state.chess && currentFen) {
+            state.chess.load(currentFen);
           }
           
           // Determine phase based on server state
-          const phase = game.status === 'finished' ? 'game_over' :
-                       game.banningPlayer === state.myColor ? 'selecting_ban' :
-                       game.banningPlayer ? 'waiting_for_ban' :
-                       game.turn === state.myColor ? 'making_move' : 'waiting_for_move';
+          const phase = status === 'finished' ? 'game_over' :
+                       banningPlayer === state.myColor ? 'selecting_ban' :
+                       banningPlayer ? 'waiting_for_ban' :
+                       turn === state.myColor ? 'making_move' : 'waiting_for_move';
           
           set({
-            game,
-            currentFen: game.currentFen,
-            currentTurn: game.turn,
-            currentBannedMove: game.currentBannedMove,
+            game: {
+              ...state.game,
+              ...game,
+              // ensure camelCase fields exist for UI
+              currentFen,
+              turn,
+              currentBannedMove,
+              banningPlayer,
+              status,
+            } as any,
+            currentFen: currentFen ?? state.currentFen,
+            currentTurn: turn ?? state.currentTurn,
+            currentBannedMove: currentBannedMove,
             phase,
             lastSyncTime: Date.now(),
           });

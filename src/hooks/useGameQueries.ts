@@ -32,7 +32,8 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
     },
     enabled: !!gameId && gameId !== 'local',
     refetchInterval: false, // We'll use realtime updates instead
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 1000 * 60 * 5, // 5 minutes - data stays fresh longer
+    gcTime: 1000 * 60 * 10, // 10 minutes cache time
   });
   
   // Update loading state
@@ -43,20 +44,29 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
   // Initialize store when game data is loaded
   useEffect(() => {
     if (query.data && gameId) {
-      const game = query.data as any;
-      // Be robust to camelCase or snake_case from API
-      const whiteId = game.whitePlayerId ?? game.white_player_id;
-      const blackId = game.blackPlayerId ?? game.black_player_id;
-      const myColor = !userId ? null :
-        whiteId === userId ? 'white' :
-        blackId === userId ? 'black' : null;
-      
+      const game = query.data as Game; // GameService.getGame returns a mapped Game
+
+      // Derive color strictly from camelCase IDs normalized by GameService
+      const myColor = !userId
+        ? null
+        : game.whitePlayerId === userId
+          ? 'white'
+          : game.blackPlayerId === userId
+            ? 'black'
+            : null;
+
       // Only initialize if game data has actually changed
       const currentGameId = useUnifiedGameStore.getState().gameId;
       const currentGame = useUnifiedGameStore.getState().game;
-      
+
       if (currentGameId !== gameId || currentGame?.currentFen !== game.currentFen) {
         initGame(gameId, game, myColor);
+      }
+
+      // Ensure board orientation matches myColor even if game was already initialized
+      const state = useUnifiedGameStore.getState();
+      if (myColor && state.boardOrientation !== myColor) {
+        useUnifiedGameStore.setState({ myColor, boardOrientation: myColor });
       }
     }
   }, [query.data, gameId, userId, initGame]);
@@ -113,8 +123,11 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
           } as any);
         }
 
-        // Background refresh to fully sync details (SAN, histories, etc.)
-        queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+        // Only refetch if it's not our own move (avoid double-fetching)
+        if (!optimisticMove || optimisticMove.from !== b?.from || optimisticMove.to !== b?.to) {
+          // Invalidate the moves query to refresh move history
+          queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
+        }
       })
       .on('broadcast', { event: 'ban' }, (payload) => {
         console.log('[useGameQuery] Received ban:', payload);
@@ -126,16 +139,8 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
           updateGame({ pgn: payload.payload.pgn });
         }
         
-        // Refetch to get latest state and update store with PGN
-        queryClient.invalidateQueries({ queryKey: ['game', gameId] }).then(() => {
-          // After invalidation completes, the query will refetch
-          // Get the updated game data and update the store
-          const updatedGame = queryClient.getQueryData<Game>(['game', gameId]);
-          if (updatedGame) {
-            console.log('[useGameQuery] Updating game after refetch');
-            updateGame(updatedGame);
-          }
-        });
+        // Invalidate moves query to refresh move history (ban was already applied to store)
+        queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
         
         // Update store
         if (payload.payload) {
@@ -191,20 +196,17 @@ export function useMoveMutation(gameId: string | undefined) {
       // Log API response
       logApiResponse('makeMove', data);
       
-      // Do NOT confirm optimistic update here; wait for realtime broadcast to avoid flicker
-      // Update cache with server response (keeps UI consistent if broadcast is delayed)
+      // Update cache with server response
       queryClient.setQueryData(['game', gameId], data);
       
       // Update store's game object with the updated PGN
       store.updateGame(data);
       
-      // Optionally auto-confirm if no broadcast arrives shortly
-      setTimeout(() => {
-        const { pendingOperation } = useUnifiedGameStore.getState();
-        if (pendingOperation === 'move') {
-          useUnifiedGameStore.getState().confirmOptimisticUpdate();
-        }
-      }, 1200);
+      // Invalidate moves query to update move history
+      queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
+      
+      // Confirm optimistic update immediately (no need to wait)
+      store.confirmOptimisticUpdate();
       
       // Broadcast move to other clients
       const broadcastPayload = {
@@ -261,8 +263,9 @@ export function useMoveMutation(gameId: string | undefined) {
         );
       }
       
-      // Refetch to sync with server
+      // Refetch game and moves to sync with server
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+      queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
     },
   });
 }
@@ -307,6 +310,9 @@ export function useBanMutation(gameId: string | undefined) {
       
       // Update store's game object with the updated PGN
       store.updateGame(data);
+      
+      // Invalidate moves query to update move history
+      queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
       
       // Broadcast ban to other clients
       console.log('[useBanMutation] Broadcasting ban:', data.currentBannedMove);
@@ -363,8 +369,9 @@ export function useBanMutation(gameId: string | undefined) {
         );
       }
       
-      // Refetch to sync with server
+      // Refetch game and moves to sync with server
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+      queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
     },
   });
 }

@@ -125,12 +125,28 @@ export default function GameLayout({
           gap: 1,
         }}
       >
+        {/* 
+          Board Orientation Logic:
+          ========================
+          The orientation prop passed to GameBoardV2 is calculated as follows:
+          
+          1. BASE ORIENTATION (from store):
+             - boardOrientation comes from unifiedGameStore
+             - Set to player's color ('white' or 'black') or 'white' for spectators
+          
+          2. MANUAL FLIP OVERRIDE:
+             - If boardFlipped is true (user clicked flip button), invert the orientation
+             - White → Black, Black → White
+          
+          This two-layer system ensures:
+          - Players automatically see the board from their color's perspective
+          - Users can manually flip to see opponent's perspective
+          - No conflicts between automatic and manual orientation
+        */}
         <GameBoardV2
           orientation={
             boardFlipped
-              ? boardOrientation === "white"
-                ? "black"
-                : "white"
+              ? (boardOrientation === "white" ? "black" : "white")
               : boardOrientation
           }
         />

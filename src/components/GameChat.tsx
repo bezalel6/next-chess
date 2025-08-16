@@ -386,79 +386,51 @@ export default function GameChat({ gameId }: GameChatProps) {
         >
         {messages.map((message) => 
           message.type === 'server' ? (
-            // Server notifications styled as stickers
+            // Server notifications - professional style
             <Box
               key={message.id}
               sx={{
                 display: 'flex',
                 justifyContent: 'center',
-                my: 2,
+                my: 1.5,
                 px: 2,
               }}
             >
               <Paper
-                elevation={4}
+                elevation={1}
                 sx={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  borderRadius: 3,
-                  p: 2,
-                  position: 'relative',
-                  maxWidth: '80%',
-                  border: '2px solid rgba(255,255,255,0.2)',
-                  transform: 'rotate(-1deg)',
-                  transition: 'transform 0.2s',
-                  '&:hover': {
-                    transform: 'rotate(0deg) scale(1.02)',
-                  },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: -10,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 40,
-                    height: 20,
-                    backgroundColor: 'rgba(255,255,255,0.3)',
-                    borderRadius: '50% 50% 0 0',
-                    clipPath: 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)',
-                  }
+                  bgcolor: 'background.paper',
+                  borderRadius: 1,
+                  p: 1.5,
+                  maxWidth: '85%',
+                  borderLeft: '3px solid',
+                  borderColor: message.metadata?.eventType === 'game_end' ? 'success.main' : 
+                               message.metadata?.eventType === 'match_found' ? 'info.main' : 
+                               'warning.main',
                 }}
               >
-                <Box sx={{ textAlign: 'center' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-                    <BotIcon sx={{ fontSize: 20, color: 'white', mr: 1 }} />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <InfoIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: 'text.primary',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {message.content}
+                    </Typography>
                     <Typography
                       variant="caption"
                       sx={{
-                        color: 'rgba(255,255,255,0.8)',
-                        fontWeight: 'bold',
-                        textTransform: 'uppercase',
-                        letterSpacing: 1,
+                        color: 'text.secondary',
+                        fontSize: '0.7rem',
                       }}
                     >
-                      Match System
+                      {format(message.timestamp, 'HH:mm')}
                     </Typography>
                   </Box>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      color: 'white',
-                      fontWeight: 'medium',
-                      textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                    }}
-                  >
-                    {message.content}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'rgba(255,255,255,0.7)',
-                      display: 'block',
-                      mt: 1,
-                    }}
-                  >
-                    {format(message.timestamp, 'HH:mm')}
-                  </Typography>
                 </Box>
               </Paper>
             </Box>

@@ -116,7 +116,6 @@ export default function Home() {
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              flex: 1,
             }}
           >
             {/* Center - Auth or Queue System */}

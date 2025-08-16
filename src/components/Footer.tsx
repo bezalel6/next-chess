@@ -6,7 +6,7 @@ const Footer = () => {
     <Box
       component="footer"
       sx={{
-        mt: "auto",
+        flexShrink: 0,
         py: 2,
         px: 2,
         borderTop: 1,

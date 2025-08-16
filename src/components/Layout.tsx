@@ -22,10 +22,9 @@ const Layout = ({ children }: LayoutProps) => {
       sx={{
         display: "flex",
         flexDirection: "column",
-        height: "100vh", // Use fixed height for proper flexbox layout
+        minHeight: "100vh",
         width: "100%",
         position: "relative",
-        overflow: "hidden",
       }}
     >
       {/* Background pattern overlay */}
@@ -58,10 +57,8 @@ const Layout = ({ children }: LayoutProps) => {
         <Box
           component="main"
           sx={{
-            flex: 1,
-            minHeight: 0,
+            flex: "1 0 auto",
             width: "100%",
-            overflowY: "auto",
             position: "relative",
             // Enhanced scrollbar styling
             "&::-webkit-scrollbar": {

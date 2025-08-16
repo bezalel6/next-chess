@@ -16,6 +16,9 @@ import {
   Switch,
   FormControlLabel,
   Divider,
+  Chip,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import {
   People as PeopleIcon,
@@ -25,6 +28,9 @@ import {
   Refresh as RefreshIcon,
   Settings as SettingsIcon,
   Save as SaveIcon,
+  BugReport as BugIcon,
+  CheckCircle as CheckCircleIcon,
+  ErrorOutline as ErrorOutlineIcon,
 } from "@mui/icons-material";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
@@ -59,6 +65,12 @@ export default function AdminDashboard() {
   const [settingValues, setSettingValues] = useState<Record<string, any>>({});
   const [saveMessage, setSaveMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
+  // Bug reports state
+  const [bugReports, setBugReports] = useState<any[]>([]);
+  const [bugLoading, setBugLoading] = useState(false);
+  const [bugError, setBugError] = useState<string | null>(null);
+  const [updatingReportId, setUpdatingReportId] = useState<string | null>(null);
+
   useEffect(() => {
     if (user) {
       loadDashboardData();
@@ -70,7 +82,8 @@ export default function AdminDashboard() {
     try {
       await Promise.all([
         loadStats(),
-        loadSettings()
+        loadSettings(),
+        loadBugReports()
       ]);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
@@ -106,6 +119,46 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error("Error loading settings:", error);
+    }
+  };
+
+  const loadBugReports = async () => {
+    setBugLoading(true);
+    setBugError(null);
+    try {
+      const response = await fetch('/api/admin/bug-reports?limit=50');
+      if (!response.ok) {
+        throw new Error('Failed to load bug reports');
+      }
+      const data = await response.json();
+      setBugReports(data);
+    } catch (err: any) {
+      console.error('Error loading bug reports:', err);
+      setBugError(err.message || 'Failed to load bug reports');
+    } finally {
+      setBugLoading(false);
+    }
+  };
+
+  const updateBugReportStatus = async (id: string, status: string) => {
+    try {
+      setUpdatingReportId(id);
+      const res = await fetch('/api/admin/bug-reports', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status })
+      });
+      if (!res.ok) {
+        throw new Error('Failed to update status');
+      }
+      const updated = await res.json();
+      setBugReports(prev => prev.map(r => (r.id === id ? updated : r)));
+    } catch (e) {
+      console.error('Error updating bug status:', e);
+      setBugError('Failed to update bug status');
+      setTimeout(() => setBugError(null), 4000);
+    } finally {
+      setUpdatingReportId(null);
     }
   };
 
@@ -376,11 +429,12 @@ export default function AdminDashboard() {
         </Grid>
       </Grid>
 
-      {/* Tabs for Stats and Settings */}
+      {/* Tabs for Stats, Settings, Bug Reports */}
       <Paper sx={{ mb: 2 }}>
         <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
           <Tab label="Statistics" />
           <Tab label="Settings" />
+          <Tab label="Bug Reports" />
         </Tabs>
       </Paper>
 
@@ -449,6 +503,134 @@ export default function AdminDashboard() {
                     <Box ml={2}>
                       {renderSettingInput(setting)}
                     </Box>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Paper>
+      )}
+
+      {/* Bug Reports Tab */}
+      {tabValue === 2 && (
+        <Paper sx={{ p: 3 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Box display="flex" alignItems="center" gap={1}>
+              <BugIcon color="warning" />
+              <Typography variant="h6">Recent Bug Reports</Typography>
+            </Box>
+            <Button variant="outlined" size="small" onClick={loadBugReports} disabled={bugLoading}>
+              {bugLoading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </Box>
+
+          {bugError && (
+            <Alert severity="error" sx={{ mb: 2 }}>{bugError}</Alert>
+          )}
+
+          {bugLoading ? (
+            <Box display="flex" justifyContent="center" py={6}>
+              <CircularProgress />
+            </Box>
+          ) : bugReports.length === 0 ? (
+            <Alert severity="info">No bug reports found.</Alert>
+          ) : (
+            <Grid container spacing={2}>
+              {bugReports.map((report: any) => (
+                <Grid item xs={12} key={report.id}>
+                  <Box p={2} border={1} borderColor="grey.800" borderRadius={1}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <BugIcon fontSize="small" />
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          {report.title || 'Untitled report'}
+                        </Typography>
+                        {report.status && (
+                          <Chip
+                            size="small"
+                            label={report.status.replace(/_/g, ' ')}
+                            color={report.status === 'resolved' || report.status === 'closed' ? 'success' : report.status === 'in_progress' ? 'warning' : 'default'}
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(report.created_at).toLocaleString()}
+                      </Typography>
+                    </Box>
+                    <Grid container spacing={1}>
+                      <Grid item xs={12} md={8}>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                          {report.description}
+                        </Typography>
+                        {report.steps_to_reproduce && (
+                          <>
+                            <Divider sx={{ my: 1 }} />
+                            <Typography variant="subtitle2">Steps to reproduce</Typography>
+                            <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                              {report.steps_to_reproduce}
+                            </Typography>
+                          </>
+                        )}
+                        {/* Screenshots */}
+                        {(report?.additional_data?.screenshots?.length || 0) > 0 && (
+                          <Box mt={1}>
+                            <Typography variant="subtitle2" gutterBottom>
+                              Screenshots
+                            </Typography>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 1 }}>
+                              {(report.additional_data.screenshots as string[]).map((url: string, idx: number) => (
+                                <a key={idx} href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                                  <img
+                                    src={url}
+                                    alt={`Screenshot ${idx + 1}`}
+                                    style={{ width: '100%', height: 100, objectFit: 'cover', borderRadius: 4, border: '1px solid rgba(255,255,255,0.12)' }}
+                                  />
+                                </a>
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                        {report.screenshot_url && (
+                          <Box mt={1}>
+                            <Button size="small" href={report.screenshot_url} target="_blank" rel="noopener noreferrer">
+                              View Screenshot
+                            </Button>
+                          </Box>
+                        )}
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Box display="flex" flexDirection="column" gap={0.5}>
+                          <Typography variant="caption" color="text.secondary">Severity: {report.severity}</Typography>
+                          <Typography variant="caption" color="text.secondary">Category: {report.category}</Typography>
+                          {report.user_email && (
+                            <Typography variant="caption" color="text.secondary">Reporter: {report.user_email}</Typography>
+                          )}
+                          {report.page_url && (
+                            <Typography variant="caption" color="text.secondary">Page: {report.page_url}</Typography>
+                          )}
+                          {report.game_id && (
+                            <Typography variant="caption" color="text.secondary">Game: {report.game_id}</Typography>
+                          )}
+                          <Box display="flex" alignItems="center" gap={1} mt={1}>
+                            <Select
+                              size="small"
+                              value={report.status || 'open'}
+                              onChange={(e) => updateBugReportStatus(report.id, e.target.value as string)}
+                              disabled={updatingReportId === report.id}
+                              sx={{ minWidth: 160 }}
+                            >
+                              <MenuItem value="open">Open</MenuItem>
+                              <MenuItem value="in_progress">In Progress</MenuItem>
+                              <MenuItem value="resolved">Resolved</MenuItem>
+                              <MenuItem value="closed">Closed</MenuItem>
+                              <MenuItem value="duplicate">Duplicate</MenuItem>
+                            </Select>
+                            {updatingReportId === report.id && <CircularProgress size={20} />}
+                          </Box>
+                        </Box>
+                      </Grid>
+                    </Grid>
                   </Box>
                 </Grid>
               ))}

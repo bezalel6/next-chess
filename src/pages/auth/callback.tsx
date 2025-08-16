@@ -14,20 +14,48 @@ export default function AuthCallback() {
         
         if (error) {
           console.error("Auth callback error:", error);
-          router.push("/login?error=auth_failed");
+          router.push("/auth/login?error=auth_failed");
           return;
         }
 
         if (session) {
-          // Successfully authenticated, redirect to home
+          // Wait for profile to be created by the Auth webhook (edge function)
+          const userId = session.user.id;
+          let attempts = 0;
+          const maxAttempts = 10;
+          const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+          while (attempts < maxAttempts) {
+            const { data: profile, error: profileError } = await supabaseBrowser()
+              .from('profiles')
+              .select('username')
+              .eq('id', userId)
+              .maybeSingle();
+
+            if (profile && profile.username) {
+              router.push("/");
+              return;
+            }
+
+            // If there's a query error, break and fallback to home
+            if (profileError) {
+              console.warn('Profile check error in callback:', profileError);
+              break;
+            }
+
+            attempts += 1;
+            await delay(500);
+          }
+
+          // Fallback: proceed to home even if profile isn't found yet
           router.push("/");
         } else {
           // No session, redirect to login
-          router.push("/login");
+          router.push("/auth/login");
         }
       } catch (error) {
         console.error("Unexpected error in auth callback:", error);
-        router.push("/login?error=unexpected");
+        router.push("/auth/login?error=unexpected");
       }
     };
 

@@ -51,6 +51,9 @@ yarn-error.log*
 !.env.example
 *.env
 
+# Edge functions local env (do not commit real secrets)
+supabase/functions/.env
+
 # vercel
 .vercel
 

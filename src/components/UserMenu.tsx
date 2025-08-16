@@ -24,7 +24,7 @@ import { useRouter } from "next/router";
 import { FollowService } from "@/services/followService";
 
 const UserMenu = () => {
-  const { user, profileUsername, signOut } = useAuth();
+  const { user, profileUsername, signOut, isAdmin } = useAuth();
   const router = useRouter();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -98,15 +98,38 @@ const UserMenu = () => {
           px: 2,
           py: 1,
           borderRadius: 2,
-          bgcolor: "rgba(255, 255, 255, 0.05)",
           border: "1px solid rgba(255, 255, 255, 0.08)",
           backdropFilter: "blur(8px)",
           cursor: "pointer",
           transition: "all 0.3s ease",
+          position: "relative",
+          overflow: "hidden",
+          ...(isAdmin && !open
+            ? {
+                background:
+                  "linear-gradient(120deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06)) padding-box, " +
+                  "linear-gradient(135deg, rgba(168,85,247,0.28) 0%, rgba(236,72,153,0.28) 25%, rgba(34,211,238,0.28) 50%, rgba(236,72,153,0.28) 75%, rgba(168,85,247,0.28) 100%) border-box, " +
+                  "linear-gradient(120deg, #1a1a1a, #1b1b1b)",
+                bgcolor: "transparent",
+                backgroundClip: "padding-box, border-box, border-box",
+                backgroundOrigin: "border-box",
+                backgroundSize: "200% 200%, 200% 200%, auto",
+                animation: "gradientShift 8s ease infinite",
+                ['@keyframes gradientShift']: {
+                  '0%': { backgroundPosition: "0% 50%, 0% 50%, 0% 0%" },
+                  '50%': { backgroundPosition: "100% 50%, 100% 50%, 0% 0%" },
+                  '100%': { backgroundPosition: "0% 50%, 0% 50%, 0% 0%" },
+                },
+              }
+            : {
+                bgcolor: "rgba(255, 255, 255, 0.05)",
+              }),
           "&:hover": {
-            bgcolor: "rgba(255, 255, 255, 0.08)",
             borderColor: "rgba(255, 255, 255, 0.15)",
             transform: "translateY(-1px)",
+            ...(isAdmin && !open
+              ? { filter: "saturate(1.25) brightness(1.05)" }
+              : { bgcolor: "rgba(255, 255, 255, 0.08)" }),
           },
         }}
       >
@@ -200,6 +223,17 @@ const UserMenu = () => {
             )}
           </Box>
         </MenuItem>
+
+        <Divider sx={{ my: 1, borderColor: "rgba(255, 255, 255, 0.08)" }} />
+
+        {isAdmin && (
+          <MenuItem onClick={() => router.push("/admin")}>
+            <ListItemIcon>
+              <Settings fontSize="small" />
+            </ListItemIcon>
+            <Typography variant="body2">Admin Dashboard</Typography>
+          </MenuItem>
+        )}
 
         <Divider sx={{ my: 1, borderColor: "rgba(255, 255, 255, 0.08)" }} />
 

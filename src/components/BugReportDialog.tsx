@@ -16,41 +16,55 @@ import {
   Alert,
   CircularProgress,
   Chip,
-  Paper
+  Paper,
+  Collapse,
+  Divider
 } from '@mui/material';
 import {
   Close as CloseIcon,
   BugReport as BugIcon,
   Image as ImageIcon,
   Delete as DeleteIcon,
-  Screenshot as ScreenshotIcon
+  Screenshot as ScreenshotIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon
 } from '@mui/icons-material';
 import { BugReportService, type BugReport } from '@/services/bugReportService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/router';
 import html2canvas from 'html2canvas';
-// Uploadthing integration temporarily disabled for testing
-// import { generateUploadButton } from '@uploadthing/react';
-// import type { OurFileRouter } from '@/server/uploadthing';
+import { ScreenshotOverlay } from './ScreenshotOverlay';
+import { useUploadThing } from '@/utils/uploadthing';
 
 interface BugReportDialogProps {
   open: boolean;
   onClose: () => void;
   gameId?: string;
+  errorDetails?: {
+    message: string;
+    stack?: string;
+    componentStack?: string;
+    timestamp: string;
+  };
 }
 
-export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose, gameId }) => {
+export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose, gameId, errorDetails }) => {
   const { user } = useAuth();
   const router = useRouter();
   
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
+  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [takingScreenshot, setTakingScreenshot] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  // Track uploaded URLs aligned with screenshotPreviews/files by index
+  const [uploadedUrls, setUploadedUrls] = useState<(string | null)[]>([]);
+
+  const uploadthing = useUploadThing();
   
   const [formData, setFormData] = useState<Partial<BugReport>>({
     category: 'other',
@@ -63,14 +77,23 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
     user_email: user?.email || ''
   });
 
-  // Cleanup on unmount
+  // Populate form with error details if provided
   useEffect(() => {
-    return () => {
-      // Clean up any data URLs to free memory
-      if (screenshotPreview && screenshotPreview.startsWith('data:')) {
-        setScreenshotPreview(null);
-      }
-    };
+    if (errorDetails && open) {
+      setFormData(prev => ({
+        ...prev,
+        category: 'other',
+        severity: 'high',
+        title: `Error: ${errorDetails.message.substring(0, 100)}`,
+        description: `An error occurred at ${errorDetails.timestamp}:\n\n${errorDetails.message}`,
+        actual_behavior: `Error Stack:\n${errorDetails.stack || 'No stack trace available'}\n\n${errorDetails.componentStack ? `Component Stack:\n${errorDetails.componentStack}` : ''}`
+      }));
+    }
+  }, [errorDetails, open]);
+
+  // Cleanup on unmount (no-op, previews are simple data URLs)
+  useEffect(() => {
+    return () => {};
   }, []);
 
   const handleInputChange = (field: keyof BugReport) => (
@@ -92,38 +115,80 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
   };
 
   const handleScreenshotSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const currentCount = screenshotFiles.length;
+    const availableSlots = Math.max(0, 5 - currentCount);
+    const selected = files.slice(0, availableSlots);
+
+    const validFiles: File[] = [];
+
+    for (const file of selected) {
       if (!file.type.startsWith('image/')) {
-        setError('Please select an image file');
-        return;
+        setError('Please select image files only');
+        continue;
       }
-      
-      // Validate file size (4MB max for Uploadthing)
       if (file.size > 4 * 1024 * 1024) {
-        setError('Screenshot must be less than 4MB');
-        return;
+        setError('Each screenshot must be less than 4MB');
+        continue;
       }
-      
-      setScreenshotFile(file);
-      
-      // Create preview using FileReader (safe because we validated it's an image)
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) return;
+
+    const startIndex = screenshotPreviews.length;
+
+    // Reserve preview slots and uploaded URL slots
+    validFiles.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
-        // Validate that it's a data URL
         if (result && result.startsWith('data:image/')) {
-          setScreenshotPreview(result);
+          setScreenshotPreviews((prev) => [...prev, result]);
         }
       };
       reader.readAsDataURL(file);
-    }
+    });
+
+    setScreenshotFiles((prev) => [...prev, ...validFiles]);
+    setUploadedUrls((prev) => [...prev, ...Array(validFiles.length).fill(null)]);
+
+    // Immediately upload selected files
+    (async () => {
+      try {
+        setIsUploading(true);
+        setUploadProgress(10);
+        const res = await uploadthing.startUpload(validFiles);
+        if (res && res.length > 0) {
+          setUploadedUrls((prev) => {
+            const next = [...prev];
+            res.forEach((r, idx) => {
+              const i = startIndex + idx;
+              next[i] = r.url;
+            });
+            return next;
+          });
+          setUploadProgress(100);
+        } else {
+          setError('Failed to upload screenshots.');
+        }
+      } catch (e) {
+        console.error('Upload error', e);
+        setError('Failed to upload screenshots.');
+      } finally {
+        setIsUploading(false);
+        // reset progress shortly after completion
+        setTimeout(() => setUploadProgress(0), 400);
+      }
+    })();
   };
 
-  const handleRemoveScreenshot = () => {
-    setScreenshotFile(null);
-    setScreenshotPreview(null);
+  const handleRemoveScreenshot = (index: number) => {
+    setScreenshotFiles((prev) => prev.filter((_, i) => i !== index));
+    setScreenshotPreviews((prev) => prev.filter((_, i) => i !== index));
+    setUploadedUrls((prev) => prev.filter((_, i) => i !== index));
     setUploadProgress(0);
   };
 
@@ -133,13 +198,22 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
     setError(null);
     
     try {
-      // Hide the dialog temporarily
+      // Hide the dialog and all backdrops temporarily
       const dialogElement = document.querySelector('[role="dialog"]');
+      const backdropElements = document.querySelectorAll('.MuiBackdrop-root');
+      
       if (dialogElement instanceof HTMLElement) {
         dialogElement.style.visibility = 'hidden';
       }
       
-      // Wait a moment for the dialog to disappear
+      // Hide all backdrops (dialog backdrop and screenshot overlay)
+      backdropElements.forEach(backdrop => {
+        if (backdrop instanceof HTMLElement) {
+          backdrop.style.visibility = 'hidden';
+        }
+      });
+      
+      // Wait a moment for the dialog and backdrop to disappear
       await new Promise(resolve => setTimeout(resolve, 150));
       
       // Capture the screenshot with optimized settings
@@ -152,8 +226,12 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
         height: Math.min(window.innerHeight, 1080), // Max height
         backgroundColor: '#ffffff',
         ignoreElements: (element) => {
-          // Ignore elements that might have unsupported CSS
+          // Ignore the screenshot overlay
           if (element instanceof HTMLElement) {
+            if (element.hasAttribute('data-screenshot-overlay')) {
+              return true;
+            }
+            
             const style = window.getComputedStyle(element);
             // Check for unsupported color functions
             const colorProps = [style.color, style.backgroundColor, style.borderColor];
@@ -167,10 +245,17 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
         }
       });
       
-      // Show the dialog again
+      // Show the dialog and backdrops again
       if (dialogElement instanceof HTMLElement) {
         dialogElement.style.visibility = 'visible';
       }
+      
+      // Restore all backdrops
+      backdropElements.forEach(backdrop => {
+        if (backdrop instanceof HTMLElement) {
+          backdrop.style.visibility = 'visible';
+        }
+      });
       
       // Convert canvas to blob
       canvas.toBlob((blob) => {
@@ -181,29 +266,79 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
             // Try with more compression
             canvas.toBlob((compressedBlob) => {
               if (compressedBlob && compressedBlob.size <= 4 * 1024 * 1024) {
-                const file = new File([compressedBlob], 'screenshot.jpg', { type: 'image/jpeg' });
-                setScreenshotFile(file);
-                
-                // Create preview
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  setScreenshotPreview(reader.result as string);
-                };
-                reader.readAsDataURL(file);
+            const file = new File([compressedBlob], 'screenshot.jpg', { type: 'image/jpeg' });
+            setScreenshotFiles((prev) => [...prev, file]);
+            setUploadedUrls((prev) => [...prev, null]);
+            
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setScreenshotPreviews((prev) => [...prev, reader.result as string]);
+            };
+            reader.readAsDataURL(file);
+            // Upload this screenshot immediately
+            (async () => {
+              try {
+                setIsUploading(true);
+                setUploadProgress(10);
+                const res = await uploadthing.startUpload([file]);
+                if (res && res[0]?.url) {
+                  setUploadedUrls((prev) => {
+                    const next = [...prev];
+                    next[next.length - 1] = res[0].url;
+                    return next;
+                  });
+                  setUploadProgress(100);
+                } else {
+                  setError('Failed to upload screenshot.');
+                }
+              } catch (e) {
+                console.error('Upload error', e);
+                setError('Failed to upload screenshot.');
+              } finally {
+                setIsUploading(false);
+                setTimeout(() => setUploadProgress(0), 400);
+              }
+            })();
               } else {
                 setError('Screenshot is too large even after compression. Please upload a smaller image.');
               }
             }, 'image/jpeg', 0.5);
           } else {
             const file = new File([blob], 'screenshot.jpg', { type: 'image/jpeg' });
-            setScreenshotFile(file);
+            setScreenshotFiles((prev) => [...prev, file]);
+            setUploadedUrls((prev) => [...prev, null]);
             
             // Create preview
             const reader = new FileReader();
             reader.onloadend = () => {
-              setScreenshotPreview(reader.result as string);
+              setScreenshotPreviews((prev) => [...prev, reader.result as string]);
             };
             reader.readAsDataURL(file);
+            // Upload this screenshot immediately
+            (async () => {
+              try {
+                setIsUploading(true);
+                setUploadProgress(10);
+                const res = await uploadthing.startUpload([file]);
+                if (res && res[0]?.url) {
+                  setUploadedUrls((prev) => {
+                    const next = [...prev];
+                    next[next.length - 1] = res[0].url;
+                    return next;
+                  });
+                  setUploadProgress(100);
+                } else {
+                  setError('Failed to upload screenshot.');
+                }
+              } catch (e) {
+                console.error('Upload error', e);
+                setError('Failed to upload screenshot.');
+              } finally {
+                setIsUploading(false);
+                setTimeout(() => setUploadProgress(0), 400);
+              }
+            })();
           }
         } else {
           setError('Failed to process screenshot. Please try again.');
@@ -230,38 +365,34 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
     
     // Validate required fields
     if (!formData.title?.trim() || !formData.description?.trim()) {
-      setError('Please provide a title and description');
+      setError('Please provide a subject and message');
       return;
     }
 
     // Additional validation
-    if (formData.title.length > 200) {
-      setError('Title must be less than 200 characters');
+    if ((formData.title?.length || 0) > 200) {
+      setError('Subject must be less than 200 characters');
       return;
     }
 
-    if (formData.description.length > 5000) {
-      setError('Description must be less than 5000 characters');
+    if ((formData.description?.length || 0) > 5000) {
+      setError('Message must be less than 5000 characters');
       return;
     }
 
     setLoading(true);
     
     try {
-      let screenshotUrl: string | undefined;
-      
-      // For now, skip actual upload - just use a placeholder
-      // TODO: Implement Uploadthing properly
-      if (screenshotFile) {
-        screenshotUrl = "placeholder-for-testing";
-      }
+      const finalizedUrls = uploadedUrls.filter((u): u is string => Boolean(u));
+      const screenshotUrl = finalizedUrls[0];
       
       const report: BugReport = {
-        ...formData as BugReport,
+        ...(formData as BugReport),
         game_id: gameId,
         additional_data: {
           currentPath: router.pathname,
-          query: router.query
+          query: router.query,
+          screenshots: finalizedUrls
         }
       };
 
@@ -271,9 +402,9 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
         setSuccess(true);
         setTimeout(() => {
           handleClose();
-        }, 2000);
+        }, 1500);
       } else {
-        setError(result.error || 'Failed to submit bug report');
+        setError(result.error || 'Failed to submit');
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -293,8 +424,9 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
       actual_behavior: '',
       user_email: user?.email || ''
     });
-    setScreenshotFile(null);
-    setScreenshotPreview(null);
+    setScreenshotFiles([]);
+    setScreenshotPreviews([]);
+    setUploadedUrls([]);
     setError(null);
     setSuccess(false);
     setUploadProgress(0);
@@ -303,12 +435,13 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
 
   return (
     <>
+      <ScreenshotOverlay open={takingScreenshot} />
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box display="flex" alignItems="center" gap={1}>
             <BugIcon />
-            <Typography variant="h6">Report a Bug</Typography>
+            <Typography variant="h6">Send feedback or report a bug</Typography>
           </Box>
           <IconButton onClick={handleClose} size="small" aria-label="Close dialog">
             <CloseIcon />
@@ -319,7 +452,7 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
       <DialogContent dividers>
         {success ? (
           <Alert severity="success" sx={{ mb: 2 }}>
-            Bug report submitted successfully! Thank you for helping improve the game.
+            Thanks! Your message was sent. We’ll take a look soon.
           </Alert>
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -328,94 +461,35 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
                 {error}
               </Alert>
             )}
-            
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <FormControl fullWidth>
-                <InputLabel>Category</InputLabel>
-                <Select
-                  value={formData.category}
-                  label="Category"
-                  onChange={handleSelectChange('category')}
-                >
-                  <MenuItem value="logic">Game Logic</MenuItem>
-                  <MenuItem value="visual">Visual/UI</MenuItem>
-                  <MenuItem value="performance">Performance</MenuItem>
-                  <MenuItem value="other">Other</MenuItem>
-                </Select>
-              </FormControl>
-              
-              <FormControl fullWidth>
-                <InputLabel>Severity</InputLabel>
-                <Select
-                  value={formData.severity}
-                  label="Severity"
-                  onChange={handleSelectChange('severity')}
-                >
-                  <MenuItem value="low">Low</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
-                  <MenuItem value="high">High</MenuItem>
-                  <MenuItem value="critical">Critical</MenuItem>
-                </Select>
-              </FormControl>
-            </Box>
+
+            <Typography variant="body2" sx={{ opacity: 0.8 }}>
+              Tell us what you noticed. A screenshot helps but isn’t required.
+            </Typography>
             
             <TextField
-              label="Title"
+              label="Subject"
               required
               fullWidth
               value={formData.title}
               onChange={handleInputChange('title')}
-              placeholder="Brief description of the issue"
+              placeholder={'Quick summary (e.g., "Move validation looks wrong")'}
               inputProps={{ maxLength: 200 }}
               helperText={`${formData.title?.length || 0}/200`}
             />
             
             <TextField
-              label="Description"
+              label="Message"
               required
               fullWidth
               multiline
               rows={3}
               value={formData.description}
               onChange={handleInputChange('description')}
-              placeholder="Detailed description of what went wrong"
+              placeholder="What happened, and what did you expect instead?"
               inputProps={{ maxLength: 5000 }}
               helperText={`${formData.description?.length || 0}/5000`}
             />
-            
-            <TextField
-              label="Steps to Reproduce"
-              fullWidth
-              multiline
-              rows={2}
-              value={formData.steps_to_reproduce}
-              onChange={handleInputChange('steps_to_reproduce')}
-              placeholder="1. Go to...\n2. Click on...\n3. See error"
-              inputProps={{ maxLength: 2000 }}
-            />
-            
-            <TextField
-              label="Expected Behavior"
-              fullWidth
-              multiline
-              rows={2}
-              value={formData.expected_behavior}
-              onChange={handleInputChange('expected_behavior')}
-              placeholder="What should have happened?"
-              inputProps={{ maxLength: 1000 }}
-            />
-            
-            <TextField
-              label="Actual Behavior"
-              fullWidth
-              multiline
-              rows={2}
-              value={formData.actual_behavior}
-              onChange={handleInputChange('actual_behavior')}
-              placeholder="What actually happened?"
-              inputProps={{ maxLength: 1000 }}
-            />
-            
+
             {!user && (
               <TextField
                 label="Email (optional)"
@@ -423,12 +497,11 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
                 type="email"
                 value={formData.user_email}
                 onChange={handleInputChange('user_email')}
-                placeholder="your@email.com"
-                helperText="Provide email if you'd like updates on this issue"
+                placeholder="We’ll only use this to follow up about your message"
                 inputProps={{ maxLength: 100 }}
               />
             )}
-            
+
             <Box>
               <Typography variant="subtitle2" gutterBottom>
                 Screenshot (optional)
@@ -441,10 +514,11 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
                   startIcon={<ImageIcon />}
                   disabled={loading || isUploading || takingScreenshot}
                 >
-                  Upload Image
+                  Upload Images
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     hidden
                     onChange={handleScreenshotSelect}
                   />
@@ -460,39 +534,125 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
                 </Button>
               </Box>
               
-              {screenshotPreview && (
-                <Paper variant="outlined" sx={{ mt: 2, p: 1, position: 'relative' }}>
-                  <IconButton
-                    size="small"
-                    onClick={handleRemoveScreenshot}
-                    sx={{ position: 'absolute', top: 4, right: 4, bgcolor: 'background.paper' }}
-                    aria-label="Remove screenshot"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                  <img
-                    src={screenshotPreview}
-                    alt="Screenshot preview"
-                    style={{ 
-                      width: '100%', 
-                      maxHeight: 200, 
-                      objectFit: 'contain',
-                      display: 'block'
-                    }}
-                  />
-                  {uploadProgress > 0 && uploadProgress < 100 && (
-                    <Box sx={{ mt: 1 }}>
-                      <CircularProgress variant="determinate" value={uploadProgress} size={20} />
-                      <Typography variant="caption" sx={{ ml: 1 }}>
-                        Uploading... {uploadProgress}%
-                      </Typography>
-                    </Box>
-                  )}
-                </Paper>
+              {screenshotPreviews.length > 0 && (
+                <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1 }}>
+                  {screenshotPreviews.map((preview, idx) => (
+                    <Paper key={idx} variant="outlined" sx={{ p: 1, position: 'relative' }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleRemoveScreenshot(idx)}
+                        sx={{ position: 'absolute', top: 4, right: 4, bgcolor: 'background.paper' }}
+                        aria-label="Remove screenshot"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                      <img
+                        src={preview}
+                        alt={`Screenshot preview ${idx + 1}`}
+                        style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block', opacity: uploadedUrls[idx] ? 1 : 0.7 }}
+                      />
+                      <Box sx={{ position: 'absolute', left: 8, bottom: 8, px: 0.5, py: 0.25, borderRadius: 1, bgcolor: 'rgba(0,0,0,0.5)' }}>
+                        <Typography variant="caption" sx={{ color: '#fff' }}>
+                          {uploadedUrls[idx] ? 'Ready' : 'Pending upload'}
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  ))}
+                </Box>
+              )}
+              {(screenshotPreviews.length > 0) && (
+                <Typography variant="caption" sx={{ mt: 1, display: 'block', opacity: 0.8 }}>
+                  Uploaded {uploadedUrls.filter((u) => u).length}/{screenshotPreviews.length}
+                </Typography>
+              )}
+              {(isUploading || (uploadProgress > 0 && uploadProgress < 100)) && (
+                <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                  <CircularProgress variant={uploadProgress > 0 ? 'determinate' : 'indeterminate'} value={uploadProgress} size={20} />
+                  <Typography variant="caption" sx={{ ml: 1 }}>
+                    {isUploading ? 'Uploading…' : `Uploading... ${uploadProgress}%`}
+                  </Typography>
+                </Box>
               )}
             </Box>
+
+            <Divider />
+            <Button
+              size="small"
+              onClick={() => setShowAdvanced(v => !v)}
+              endIcon={showAdvanced ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              {showAdvanced ? 'Hide advanced details' : 'Add advanced details (optional)'}
+            </Button>
+            <Collapse in={showAdvanced}>
+              <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Category</InputLabel>
+                  <Select
+                    value={formData.category}
+                    label="Category"
+                    onChange={handleSelectChange('category')}
+                  >
+                    <MenuItem value="logic">Game Logic</MenuItem>
+                    <MenuItem value="visual">Visual/UI</MenuItem>
+                    <MenuItem value="performance">Performance</MenuItem>
+                    <MenuItem value="other">Other</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <FormControl fullWidth>
+                  <InputLabel>Severity</InputLabel>
+                  <Select
+                    value={formData.severity}
+                    label="Severity"
+                    onChange={handleSelectChange('severity')}
+                  >
+                    <MenuItem value="low">Low</MenuItem>
+                    <MenuItem value="medium">Medium</MenuItem>
+                    <MenuItem value="high">High</MenuItem>
+                    <MenuItem value="critical">Critical</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
+              <TextField
+                label="Steps to Reproduce"
+                fullWidth
+                multiline
+                rows={2}
+                value={formData.steps_to_reproduce}
+                onChange={handleInputChange('steps_to_reproduce')}
+                placeholder="1. Go to...\n2. Click on...\n3. See error"
+                inputProps={{ maxLength: 2000 }}
+                sx={{ mt: 2 }}
+              />
+              
+              <TextField
+                label="Expected Behavior"
+                fullWidth
+                multiline
+                rows={2}
+                value={formData.expected_behavior}
+                onChange={handleInputChange('expected_behavior')}
+                placeholder="What should have happened?"
+                inputProps={{ maxLength: 1000 }}
+                sx={{ mt: 2 }}
+              />
+              
+              <TextField
+                label="Actual Behavior"
+                fullWidth
+                multiline
+                rows={2}
+                value={formData.actual_behavior}
+                onChange={handleInputChange('actual_behavior')}
+                placeholder="What actually happened?"
+                inputProps={{ maxLength: 1000 }}
+                sx={{ mt: 2 }}
+              />
+            </Collapse>
             
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
               <Chip label={`Page: ${router.pathname}`} size="small" variant="outlined" />
               {gameId && <Chip label={`Game: ${gameId}`} size="small" variant="outlined" />}
               <Chip 
@@ -510,10 +670,17 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={loading || success || !formData.title?.trim() || !formData.description?.trim() || isUploading}
+          disabled={
+            loading ||
+            success ||
+            !formData.title?.trim() ||
+            !formData.description?.trim() ||
+            isUploading ||
+            (screenshotFiles.length > 0 && uploadedUrls.some((u) => u === null))
+          }
           startIcon={loading ? <CircularProgress size={20} /> : <BugIcon />}
         >
-          {loading ? 'Submitting...' : 'Submit Report'}
+          {loading ? 'Submitting...' : 'Send'}
         </Button>
       </DialogActions>
       </Dialog>

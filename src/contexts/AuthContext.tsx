@@ -204,31 +204,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const normalizedUsername = username.toLowerCase().trim();
 
     try {
-      // First, call our API to check if username exists and create user
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: normalizedEmail,
-          password,
-          username: normalizedUsername,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Check if the error is due to duplicate username
-        if (data.code === "USERNAME_EXISTS") {
-          throw new UsernameExistsError("Username already exists");
-        }
-        throw new Error(data.error || "Sign up failed");
+      // UX check: see if username appears available (advisory only)
+      const usernameExists = await checkUsernameExists(normalizedUsername);
+      if (usernameExists) {
+        throw new UsernameExistsError("Username already exists");
       }
 
-      // If email confirmation is required
-      if (data.confirmEmail) {
+      // Sign up with Supabase Auth (include username in user_metadata)
+      const { data, error } = await supabaseBrowser().auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          data: {
+            username: normalizedUsername,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        // Check for specific error types
+        if (error.message?.includes("already registered")) {
+          throw new Error("Email already registered");
+        }
+        throw new Error(error.message || "Sign up failed");
+      }
+
+      if (!data.user) {
+        throw new Error("Sign up failed - no user returned");
+      }
+
+      // Do NOT create profile here. The user-management edge function (via Auth webhook)
+      // will validate the username and create the profile on user.created.
+
+      const needsEmailConfirmation = !data.session;
+
+      if (needsEmailConfirmation) {
         return {
           success: true,
           confirmEmail: true,
@@ -236,22 +247,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      // Auto sign in after successful signup (when email confirmation is not required)
-      const { error: signInError } =
-        await supabaseBrowser().auth.signInWithPassword({
-          email: normalizedEmail,
-          password,
-        });
-
-      if (signInError) {
-        // User was created but couldn't sign in automatically
-        return {
-          success: true,
-          confirmEmail: false,
-          message: "Account created. Please sign in.",
-        };
-      }
-
+      // If email confirmation is disabled and session exists, profile creation should
+      // still be handled by the webhook shortly after user creation.
       return {
         success: true,
         confirmEmail: false,

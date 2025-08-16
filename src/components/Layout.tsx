@@ -3,9 +3,10 @@ import Header from "./Header";
 import Footer from "./Footer";
 import DevelopmentNotice from "./DevelopmentNotice";
 import ConnectionIndicator from "./ConnectionIndicator";
-import { BugReportButton } from "./BugReportButton";
+import { BugReportButton, type BugReportButtonRef } from "./BugReportButton";
+import { ErrorToast, useErrorToast } from "./ErrorToast";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,10 +14,17 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const [mounted, setMounted] = useState(false);
+  const bugReportRef = useRef<BugReportButtonRef>(null);
+  const { error, hideError } = useErrorToast();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleReportBug = (errorDetails: any) => {
+    bugReportRef.current?.openWithError(errorDetails);
+    hideError();
+  };
 
   return (
     <Box
@@ -88,7 +96,12 @@ const Layout = ({ children }: LayoutProps) => {
       </Fade>
       <DevelopmentNotice />
       <Footer />
-      <BugReportButton />
+      <BugReportButton ref={bugReportRef} />
+      <ErrorToast 
+        error={error}
+        onClose={hideError}
+        onReportBug={handleReportBug}
+      />
     </Box>
   );
 };

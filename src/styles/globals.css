@@ -235,3 +235,15 @@ piece.disabled {
     transform: scale(0.98);
   }
 }
+
+/* Hide Next.js error overlay in development */
+/* We'll show our own error toast instead */
+nextjs-portal {
+  display: none !important;
+}
+
+/* Prevent body overflow issues when error overlay is hidden */
+body {
+  padding-right: 0 !important;
+  overflow: auto !important;
+}

@@ -4,7 +4,7 @@ import { supabase } from "@/utils/supabase";
 const f = createUploadthing();
  
 export const ourFileRouter = {
-  bugReportScreenshot: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
+  bugReportScreenshot: f({ image: { maxFileSize: "4MB", maxFileCount: 5 } })
     .middleware(async ({ req }) => {
       // Get user session if available (optional for bug reports)
       const authHeader = req.headers.authorization;

@@ -1,16 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Fab, Tooltip, Badge } from '@mui/material';
 import { BugReport as BugIcon } from '@mui/icons-material';
 import { BugReportDialog } from './BugReportDialog';
 import { useRouter } from 'next/router';
 
-export const BugReportButton: React.FC = () => {
+interface ErrorDetails {
+  message: string;
+  stack?: string;
+  componentStack?: string;
+  timestamp: string;
+}
+
+export interface BugReportButtonRef {
+  openWithError: (error: ErrorDetails) => void;
+}
+
+export const BugReportButton = forwardRef<BugReportButtonRef>((props, ref) => {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<ErrorDetails | undefined>();
   const router = useRouter();
   
   const gameId = router.pathname.includes('/game/') 
     ? router.query.id as string 
     : undefined;
+
+  useImperativeHandle(ref, () => ({
+    openWithError: (error: ErrorDetails) => {
+      setErrorDetails(error);
+      setDialogOpen(true);
+    }
+  }));
+
+  const handleClose = () => {
+    setDialogOpen(false);
+    // Clear error details after a delay to allow animation
+    setTimeout(() => setErrorDetails(undefined), 300);
+  };
 
   return (
     <>
@@ -39,9 +64,12 @@ export const BugReportButton: React.FC = () => {
       
       <BugReportDialog 
         open={dialogOpen} 
-        onClose={() => setDialogOpen(false)}
+        onClose={handleClose}
         gameId={gameId}
+        errorDetails={errorDetails}
       />
     </>
   );
-};
+});
+
+BugReportButton.displayName = 'BugReportButton';

@@ -162,6 +162,28 @@ async function handleUpdateProfile(
 
     const { username } = params;
     
+    // Check if user is a guest (anonymous user or username starts with guest_)
+    // First, get the current user's profile to check their username
+    const { data: currentProfile } = await getTable(supabase, "profiles")
+      .select("username")
+      .eq("id", user.id)
+      .maybeSingle();
+      
+    if (currentProfile?.username?.startsWith("guest_")) {
+      return errorResponse(
+        "Guest users cannot change their username. Please sign up for a full account to choose your username.",
+        403
+      );
+    }
+    
+    // Check if the user is anonymous (using Supabase's anonymous auth)
+    if (user.email === null || user.is_anonymous === true) {
+      return errorResponse(
+        "Anonymous users cannot change their username. Please sign up for a full account.",
+        403
+      );
+    }
+    
     // Additional validation with detailed error messages
     const usernameValidation = validateUsername(username);
     if (!usernameValidation.isValid) {

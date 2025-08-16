@@ -71,6 +71,7 @@ export default function UserProfile() {
     };
 
     const isOwnProfile = currentUser && currentUserProfile === username;
+    const isGuestProfile = currentUserProfile?.startsWith('guest_');
 
     const handleEditUsername = () => {
         setIsEditingUsername(true);
@@ -295,10 +296,22 @@ export default function UserProfile() {
                                 <Typography variant="h4" gutterBottom>
                                     {username}&apos;s Profile
                                 </Typography>
-                                {isOwnProfile && (
-                                    <IconButton onClick={handleEditUsername} size="small">
-                                        <EditIcon fontSize="small" />
-                                    </IconButton>
+                                {isOwnProfile && !isGuestProfile && (
+                                    <Tooltip title="Edit username">
+                                        <IconButton onClick={handleEditUsername} size="small">
+                                            <EditIcon fontSize="small" />
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
+                                {isOwnProfile && isGuestProfile && (
+                                    <Tooltip title="Guest usernames cannot be changed. Sign up for a full account to choose your username.">
+                                        <Chip 
+                                            label="Guest" 
+                                            size="small" 
+                                            variant="outlined" 
+                                            sx={{ ml: 1 }}
+                                        />
+                                    </Tooltip>
                                 )}
                             </Box>
                         )}

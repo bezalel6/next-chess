@@ -110,7 +110,8 @@ class UsernameFilter {
     }
     
     // Check for usernames that start with reserved patterns
-    const reservedPrefixes = ['admin', 'mod', 'staff', 'support', 'bot', 'sys', 'guest', 'test', 'api'];
+    // Note: 'guest_' is explicitly blocked to prevent impersonation of guest users
+    const reservedPrefixes = ['admin', 'mod', 'staff', 'support', 'bot', 'sys', 'guest', 'guest_', 'test', 'api'];
     for (const prefix of reservedPrefixes) {
       if (normalizedUsername.startsWith(prefix)) {
         return {

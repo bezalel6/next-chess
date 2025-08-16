@@ -386,32 +386,33 @@ export default function GameChat({ gameId }: GameChatProps) {
         >
         {messages.map((message) => 
           message.type === 'server' ? (
-            // Server notifications - professional style
+            // Server notifications - centered with border
             <Box
               key={message.id}
               sx={{
                 display: 'flex',
                 justifyContent: 'center',
-                my: 1.5,
+                my: 2,
                 px: 2,
               }}
             >
               <Paper
-                elevation={1}
+                variant="outlined"
                 sx={{
                   bgcolor: 'background.paper',
                   borderRadius: 1,
                   p: 1.5,
-                  maxWidth: '85%',
-                  borderLeft: '3px solid',
+                  maxWidth: '75%',
+                  textAlign: 'center',
+                  border: '1px solid',
                   borderColor: message.metadata?.eventType === 'game_end' ? 'success.main' : 
                                message.metadata?.eventType === 'match_found' ? 'info.main' : 
                                'warning.main',
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <InfoIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-                  <Box sx={{ flex: 1 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                     <Typography
                       variant="body2"
                       sx={{
@@ -421,16 +422,16 @@ export default function GameChat({ gameId }: GameChatProps) {
                     >
                       {message.content}
                     </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: 'text.secondary',
-                        fontSize: '0.7rem',
-                      }}
-                    >
-                      {format(message.timestamp, 'HH:mm')}
-                    </Typography>
                   </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      fontSize: '0.7rem',
+                    }}
+                  >
+                    {format(message.timestamp, 'HH:mm')}
+                  </Typography>
                 </Box>
               </Paper>
             </Box>

@@ -1033,7 +1033,15 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           
           // Try to make the move
           const move = state.chess.move({ from, to, promotion: promotion as any });
-          if (!move) return false;
+          if (!move) {
+            console.log(`[executeMove] Move failed: ${from} to ${to}`);
+            return false;
+          }
+          
+          // Log castling moves
+          if (move.san === 'O-O' || move.san === 'O-O-O') {
+            console.log(`[executeMove] Castling detected: ${move.san}, from: ${from}, to: ${to}`);
+          }
           
           const newFen = state.chess.fen();
           const newMoveHistory = [...state.moveHistory, {

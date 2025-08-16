@@ -174,7 +174,7 @@ export default function LogicTestPage() {
         { type: 'move', data: { from: 'f1', to: 'e2' } },
         { type: 'move', data: { from: 'g8', to: 'f6' } },
         { type: 'move', data: { from: 'e1', to: 'g1' }, description: 'White castles kingside' },
-        { type: 'verify', data: { castled: true, fen: /Rf1/ } }
+        { type: 'verify', data: { castled: true } }
       ],
       expectedOutcome: 'Castling executes correctly'
     },
@@ -306,8 +306,10 @@ export default function LogicTestPage() {
             switch (key) {
               case 'fen':
                 actual = currentFen;
+                console.log(`[Test] Verifying FEN: expected=${expected}, actual="${actual}"`);
                 if (expected instanceof RegExp) {
                   results[key] = expected.test(actual);
+                  console.log(`[Test] FEN regex test result: ${expected.test(actual)}, pattern: ${expected}`);
                 } else {
                   results[key] = actual === expected;
                 }
@@ -361,6 +363,27 @@ export default function LogicTestPage() {
                 const currentMoveHistory = useUnifiedGameStore.getState().moveHistory;
                 actual = currentMoveHistory?.length || 0;
                 console.log(`[Test] Verifying moveCount: expected=${expected}, actual=${actual}`);
+                results[key] = actual === expected;
+                break;
+              case 'castled':
+                // Properly check if castling occurred using chess.ts history flags
+                const chess = useUnifiedGameStore.getState().chess;
+                if (!chess) {
+                  actual = false;
+                } else {
+                  // Get the detailed move history from chess.ts
+                  const history = chess.history({ verbose: true });
+                  const lastChessMove = history[history.length - 1];
+                  
+                  // Check if the last move has castling flags
+                  // 'k' = kingside castling, 'q' = queenside castling
+                  actual = lastChessMove && (
+                    lastChessMove.flags.includes('k') || 
+                    lastChessMove.flags.includes('q')
+                  );
+                  
+                  console.log(`[Test] Verifying castled: expected=${expected}, actual=${actual}, move=${lastChessMove?.san}, flags=${lastChessMove?.flags}`);
+                }
                 results[key] = actual === expected;
                 break;
               default:

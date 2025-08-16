@@ -6,6 +6,7 @@ import RightSidebar from "./RightSidebar";
 import DebugLog from "./DebugLog";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import GameChat from "./GameChat";
+import BanPhaseOverlay from "./BanPhaseOverlay";
 
 // Left sidebar component
 const LeftSidebar = () => {
@@ -110,6 +111,8 @@ export default function GameLayout({
   const boardOrientation = useUnifiedGameStore((s) => s.boardOrientation);
   const myColor = useUnifiedGameStore((s) => s.myColor);
   const isLocalGame = useUnifiedGameStore((s) => s.mode === "local");
+  const phase = useUnifiedGameStore((s) => s.phase);
+  const canBan = useUnifiedGameStore(s => s.phase === 'selecting_ban' && s.game?.status === 'active');
 
   return (
     <Box
@@ -144,6 +147,10 @@ export default function GameLayout({
               : boardOrientation
           }
         />
+        
+        {/* Ban notification banner - positioned under the board */}
+        <BanPhaseOverlay isMyTurnToBan={canBan} />
+        
         <BoardMoveInput />
       </Box>
 

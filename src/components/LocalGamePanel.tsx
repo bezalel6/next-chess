@@ -1,4 +1,4 @@
-import { Box, Typography, Tooltip, IconButton, Button } from "@mui/material";
+import { Box, Typography, Tooltip, IconButton, TextField } from "@mui/material";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
@@ -9,16 +9,11 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import FirstPageIcon from "@mui/icons-material/FirstPage";
 import LastPageIcon from "@mui/icons-material/LastPage";
 import CachedIcon from "@mui/icons-material/Cached";
-import FlagIcon from "@mui/icons-material/Flag";
-import HandshakeIcon from "@mui/icons-material/Handshake";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CancelIcon from "@mui/icons-material/Cancel";
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import UploadIcon from '@mui/icons-material/Upload';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 import { useSingleKeys, Keys } from "@/hooks/useKeys";
-import { supabase } from "@/utils/supabase";
-import { useQuery } from "@tanstack/react-query";
-import { useGameActions } from "@/hooks/useGameActions";
-import ConfirmActionButton from "./ConfirmActionButton";
 import { Chess } from "chess.ts";
 
 type MoveData = {
@@ -123,13 +118,15 @@ function parsePgnToMoveData(pgn: string): MoveData[] {
   }
 }
 
-const GamePanel = () => {
+const LocalGamePanel = () => {
   const game = useUnifiedGameStore((s) => s.game);
-  const setPgn = useUnifiedGameStore((s) => s.setPgn);
+  const resetLocalGame = useUnifiedGameStore((s) => s.resetLocalGame);
   const actions = useUnifiedGameStore((s) => s.actions);
-  const myColor = useUnifiedGameStore((s) => s.myColor);
-  const isLocalGame = useUnifiedGameStore((s) => s.mode === "local");
   const boardOrientation = useUnifiedGameStore((s) => s.boardOrientation);
+  
+  // PGN input state
+  const [pgnText, setPgnText] = useState('');
+  
   const [navigationState, setNavigationState] = useState<NavigationState>({
     moveIndex: -1,
     phase: "initial",
@@ -137,69 +134,21 @@ const GamePanel = () => {
   const [hasInitialized, setHasInitialized] = useState(false);
 
   const moveHistoryRef = useRef<HTMLDivElement>(null);
-  const gameActions = useGameActions();
 
-  // For local games, parse PGN instead of fetching from database
-  const { data: movesData = [], isLoading } = useQuery({
-    queryKey: ["moves", game?.id, game?.pgn],
-    queryFn: async () => {
-      console.log("[GamePanel] Fetching moves for game:", game?.id);
-      console.log("[GamePanel] Current game PGN:", game?.pgn);
-      console.log("[GamePanel] Is local game:", isLocalGame);
-
-      if (!game?.id) {
-        console.log("[GamePanel] No game ID, returning empty array");
-        return [];
-      }
-
-      // For local games, parse the PGN to create move data
-      if (isLocalGame) {
-        console.log("[GamePanel] Local game - parsing PGN");
-        return parsePgnToMoveData(game.pgn || "");
-      }
-
-      // For online games, fetch from database
-      const { data, error } = await supabase.rpc("get_game_moves", {
-        p_game_id: game.id,
-      });
-
-      if (error) {
-        console.error("[GamePanel] Error fetching moves:", error);
-        return [];
-      }
-
-      console.log("[GamePanel] Fetched moves data:", data);
-      return (data as MoveData[]) || [];
-    },
-    enabled: !!game?.id,
-    refetchInterval: false, // Rely on real-time updates
-  });
-
-  // Subscribe to real-time move updates (only for online games)
+  // Update local PGN text when game changes
   useEffect(() => {
-    if (!game?.id || isLocalGame) return;
+    if (game?.pgn) {
+      setPgnText(game.pgn);
+    } else {
+      setPgnText('');
+    }
+  }, [game?.pgn]);
 
-    const channel = supabase
-      .channel(`moves:${game.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "moves",
-          filter: `game_id=eq.${game.id}`,
-        },
-        (payload) => {
-          console.log("[GamePanel] New move received:", payload);
-          // React Query will handle the refetch via invalidation in GameContext
-        }
-      )
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [game?.id, isLocalGame]);
+  // For local games, parse PGN to create move data
+  const movesData = useMemo(() => {
+    console.log("[LocalGamePanel] Parsing PGN");
+    return parsePgnToMoveData(game?.pgn || "");
+  }, [game?.pgn]);
 
   // Convert flat moves array to paired moves for display
   const moves = useMemo<Move[]>(() => {
@@ -397,6 +346,80 @@ const GamePanel = () => {
     }
   }, [handleMoveClick, movesData, navigateToFirst]);
 
+  // PGN input handlers
+  const handlePgnChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPgnText(event.target.value);
+  };
+
+  const handleLoadPgn = () => {
+    try {
+      if (!pgnText.trim()) return;
+
+      // Validate PGN by trying to load it
+      const testChess = new Chess();
+      testChess.loadPgn(pgnText.trim());
+
+      // Get the state from the unified store
+      const state = useUnifiedGameStore.getState();
+      
+      // Reset and reinitialize with new PGN
+      state.initLocalGame();
+      
+      // Load the PGN into the chess instance
+      if (state.chess) {
+        state.chess.loadPgn(pgnText.trim());
+        
+        // Update the game object with new state
+        const newFen = state.chess.fen();
+        const newTurn = state.chess.turn() === 'w' ? 'white' : 'black';
+        
+        // Determine the next banning player based on game state
+        const history = state.chess.history();
+        let banningPlayer: 'white' | 'black' | null = null;
+        let phase: 'selecting_ban' | 'making_move' = 'selecting_ban';
+        
+        if (history.length === 0) {
+          // Game start - Black bans first
+          banningPlayer = 'black';
+          phase = 'selecting_ban';
+        } else {
+          // Determine phase based on move count and turn
+          const lastMoveColor = history.length % 2 === 1 ? 'white' : 'black';
+          banningPlayer = lastMoveColor; // The player who just moved bans next
+          phase = 'selecting_ban';
+        }
+        
+        if (state.game) {
+          state.game.pgn = pgnText.trim();
+          state.game.currentFen = newFen;
+          state.game.turn = newTurn;
+          state.game.banningPlayer = banningPlayer;
+        }
+        
+        // Update store state
+        state.setPhase(phase);
+        useUnifiedGameStore.setState({
+          currentFen: newFen,
+          currentTurn: newTurn,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load PGN:', err);
+    }
+  };
+
+  const handleCopyPgn = async () => {
+    try {
+      await navigator.clipboard.writeText(pgnText);
+    } catch (err) {
+      console.error('Failed to copy to clipboard');
+    }
+  };
+
+  const handleNewGame = () => {
+    resetLocalGame();
+  };
+
   // Add keyboard navigation
   useSingleKeys(
     {
@@ -435,84 +458,6 @@ const GamePanel = () => {
     }
   );
 
-  // Draw offer UI
-  const renderDrawControls = () => {
-    if (!myColor || game?.status !== "active") return null;
-
-    const opponentColor = myColor === "white" ? "black" : "white";
-
-    if (game.drawOfferedBy === myColor) {
-      return (
-        <Typography
-          sx={{ color: "#888", fontSize: "0.85rem", fontStyle: "italic" }}
-        >
-          Draw offer sent
-        </Typography>
-      );
-    }
-
-    if (game.drawOfferedBy === opponentColor) {
-      return (
-        <Box sx={{ display: "flex", gap: 0.5 }}>
-          <Tooltip title="Accept Draw">
-            <Button
-              size="small"
-              variant="outlined"
-              color="success"
-              onClick={() => gameActions.acceptDraw()}
-              startIcon={<CheckCircleIcon fontSize="small" />}
-              sx={{ fontSize: "0.75rem", py: 0.25 }}
-            >
-              Accept
-            </Button>
-          </Tooltip>
-          <Tooltip title="Decline Draw">
-            <Button
-              size="small"
-              variant="outlined"
-              color="error"
-              onClick={() => gameActions.declineDraw()}
-              startIcon={<CancelIcon fontSize="small" />}
-              sx={{ fontSize: "0.75rem", py: 0.25 }}
-            >
-              Decline
-            </Button>
-          </Tooltip>
-        </Box>
-      );
-    }
-
-    return (
-      <ConfirmActionButton
-        icon={<HandshakeIcon fontSize="small" />}
-        tooltip="Offer Draw"
-        confirmTooltip="Confirm draw offer"
-        onConfirm={gameActions.offerDraw}
-        color="info"
-      />
-    );
-  };
-
-  console.log("[GamePanel] Rendering - isLoading:", isLoading);
-  console.log("[GamePanel] Rendering - movesData:", movesData);
-  console.log("[GamePanel] Rendering - movesData length:", movesData.length);
-  console.log("[GamePanel] Rendering - game PGN:", game?.pgn);
-
-  if (isLoading) {
-    return (
-      <Box sx={{ p: 2, textAlign: "center" }}>
-        <Typography variant="body2" color="text.secondary">
-          Loading moves...
-        </Typography>
-      </Box>
-    );
-  }
-
-  // Return the normal GamePanel UI even when no moves exist yet
-  if (!movesData || movesData.length === 0) {
-    // Show empty move history but maintain the full panel structure
-  }
-
   return (
     <Box
       sx={{
@@ -521,6 +466,121 @@ const GamePanel = () => {
         flexDirection: "column",
       }}
     >
+      {/* PGN Input Section */}
+      <Box sx={{ 
+        p: 1.5,
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        bgcolor: "rgba(0,0,0,0.15)",
+      }}>
+        <Typography variant="subtitle2" sx={{ 
+          color: "#888", 
+          mb: 1,
+          fontSize: "0.8rem",
+          fontWeight: 500,
+        }}>
+          PGN Import/Export
+        </Typography>
+        <Box sx={{ 
+          display: 'flex',
+          gap: 0.5,
+          alignItems: 'center',
+          width: '100%',
+        }}>
+          <TextField
+            value={pgnText}
+            onChange={handlePgnChange}
+            placeholder="Paste PGN here..."
+            size="small"
+            fullWidth
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: 'rgba(255,255,255,0.7)',
+                backgroundColor: 'rgba(0,0,0,0.15)',
+                fontFamily: 'monospace',
+                fontSize: '0.75rem',
+                height: '32px',
+                '& fieldset': {
+                  borderColor: 'rgba(255,255,255,0.08)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(255,255,255,0.12)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'rgba(255,255,255,0.2)',
+                },
+                '& input': {
+                  padding: '6px 10px',
+                }
+              },
+            }}
+          />
+          
+          <Tooltip title="Load PGN">
+            <span>
+              <IconButton 
+                size="small" 
+                onClick={handleLoadPgn}
+                disabled={!pgnText.trim()}
+                sx={{ 
+                  color: 'rgba(255,255,255,0.3)',
+                  padding: '6px',
+                  '&:hover': {
+                    color: 'rgba(255,255,255,0.5)',
+                    bgcolor: 'rgba(255,255,255,0.05)',
+                  },
+                  '&.Mui-disabled': {
+                    color: 'rgba(255,255,255,0.1)',
+                  },
+                }}
+              >
+                <UploadIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+          
+          <Tooltip title="Copy PGN">
+            <span>
+              <IconButton 
+                size="small" 
+                onClick={handleCopyPgn}
+                disabled={!pgnText.trim()}
+                sx={{ 
+                  color: 'rgba(255,255,255,0.3)',
+                  padding: '6px',
+                  '&:hover': {
+                    color: 'rgba(255,255,255,0.5)',
+                    bgcolor: 'rgba(255,255,255,0.05)',
+                  },
+                  '&.Mui-disabled': {
+                    color: 'rgba(255,255,255,0.1)',
+                  },
+                }}
+              >
+                <ContentCopyIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+          
+          <Tooltip title="New Game">
+            <IconButton 
+              size="small" 
+              onClick={handleNewGame}
+              sx={{ 
+                color: 'rgba(255,255,255,0.3)',
+                padding: '6px',
+                '&:hover': {
+                  color: 'rgba(255,255,255,0.5)',
+                  bgcolor: 'rgba(255,255,255,0.05)',
+                },
+              }}
+            >
+              <RefreshIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+
       {/* Navigation Bar */}
       <Box
         sx={{
@@ -529,7 +589,7 @@ const GamePanel = () => {
           alignItems: "center",
           gap: 0.25,
           p: 0.5,
-          borderTop: "1px solid rgba(255,255,255,0.08)",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
           bgcolor: "rgba(0,0,0,0.2)",
         }}
       >
@@ -576,17 +636,11 @@ const GamePanel = () => {
             sx={{
               color: "white",
               mx: 1,
-              bgcolor: (
-                isLocalGame ? boardOrientation === "black" : myColor === "black"
-              )
+              bgcolor: boardOrientation === "black"
                 ? "rgba(255,255,255,0.15)"
                 : "transparent",
               "&:hover": {
-                bgcolor: (
-                  isLocalGame
-                    ? boardOrientation === "black"
-                    : myColor === "black"
-                )
+                bgcolor: boardOrientation === "black"
                   ? "rgba(255,255,255,0.2)"
                   : "rgba(255,255,255,0.08)",
               },
@@ -632,6 +686,7 @@ const GamePanel = () => {
           </span>
         </Tooltip>
       </Box>
+
       {/* Move table with scroll */}
       <Box
         ref={moveHistoryRef}
@@ -672,33 +727,6 @@ const GamePanel = () => {
           ))}
         </Box>
       </Box>
-
-      {/* Game Actions Bar - only show for active games */}
-      {game?.status === "active" && myColor && (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 0.25,
-            p: 0.5,
-            borderTop: "1px solid rgba(255,255,255,0.08)",
-            bgcolor: "rgba(0,0,0,0.2)",
-          }}
-        >
-          {/* Draw controls */}
-          {renderDrawControls()}
-
-          {/* Resign button */}
-          <ConfirmActionButton
-            icon={<FlagIcon fontSize="small" />}
-            tooltip="Resign"
-            confirmTooltip="Confirm resignation"
-            onConfirm={gameActions.resign}
-            color="error"
-          />
-        </Box>
-      )}
     </Box>
   );
 };
@@ -934,4 +962,4 @@ function MoveComponent({
   );
 }
 
-export default GamePanel;
+export default LocalGamePanel;

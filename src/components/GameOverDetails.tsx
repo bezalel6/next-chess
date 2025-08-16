@@ -1,11 +1,10 @@
-import { Box, Typography, Button, Stack, Paper, Fade } from "@mui/material";
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
-import HandshakeIcon from '@mui/icons-material/Handshake';
+import { Box, Typography, Button, Stack, Paper, Fade, Divider } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameActions } from "@/hooks/useGameActions";
 import { useMemo, useState, useEffect } from "react";
 import UserLink from '@/components/user-link';
+import HomeIcon from '@mui/icons-material/Home';
+import ReplayIcon from '@mui/icons-material/Replay';
 
 const GameOverDetails = () => {
     const game = useUnifiedGameStore(s => s.game);
@@ -96,10 +95,15 @@ const GameOverDetails = () => {
             return (
                 <Button
                     variant="contained"
-                    color="secondary"
-                    size="small"
+                    startIcon={<ReplayIcon />}
                     onClick={actions.offerRematch}
-                    sx={{ textTransform: 'none', minWidth: 0 }}
+                    sx={{ 
+                        bgcolor: 'rgba(76, 175, 80, 0.9)',
+                        color: 'white',
+                        '&:hover': {
+                            bgcolor: 'rgba(76, 175, 80, 1)',
+                        }
+                    }}
                 >
                     Rematch
                 </Button>
@@ -107,8 +111,8 @@ const GameOverDetails = () => {
         }
         if (game.rematchOfferedBy === myColor) {
             return (
-                <Typography variant="caption" sx={{ color: 'white', fontStyle: 'italic' }}>
-                    Rematch offer sent
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                    Rematch offered
                 </Typography>
             );
         }
@@ -117,19 +121,28 @@ const GameOverDetails = () => {
                 <Stack direction="row" spacing={1} justifyContent="center">
                     <Button
                         variant="contained"
-                        color="success"
-                        size="small"
                         onClick={actions.acceptRematch}
-                        sx={{ textTransform: 'none', minWidth: 0 }}
+                        sx={{ 
+                            bgcolor: 'rgba(76, 175, 80, 0.9)',
+                            color: 'white',
+                            '&:hover': {
+                                bgcolor: 'rgba(76, 175, 80, 1)',
+                            }
+                        }}
                     >
                         Accept
                     </Button>
                     <Button
                         variant="outlined"
-                        color="error"
-                        size="small"
                         onClick={actions.declineRematch}
-                        sx={{ textTransform: 'none', minWidth: 0 }}
+                        sx={{ 
+                            borderColor: 'rgba(244, 67, 54, 0.5)',
+                            color: 'rgba(244, 67, 54, 0.9)',
+                            '&:hover': {
+                                borderColor: 'rgba(244, 67, 54, 0.8)',
+                                bgcolor: 'rgba(244, 67, 54, 0.05)',
+                            }
+                        }}
                     >
                         Decline
                     </Button>
@@ -147,104 +160,243 @@ const GameOverDetails = () => {
         if (game.result === 'white') score = '1 - 0';
         else if (game.result === 'black') score = '0 - 1';
         else if (game.result === 'draw') score = '½ - ½';
+        
         return (
-            <Fade in={show} timeout={350}>
-                <Paper elevation={3}
+            <Fade in={show} timeout={500}>
+                <Paper elevation={8}
                     sx={{
                         width: '100%',
-                        maxWidth: 340,
+                        maxWidth: 420,
                         mx: 'auto',
-                        mt: 2,
-                        p: 2,
+                        overflow: 'hidden',
                         borderRadius: 2,
-                        textAlign: 'center',
-                        background: 'rgba(30, 34, 44, 0.85)',
-                        backdropFilter: 'blur(4px)',
-                        boxShadow: '0 4px 16px 0 rgba(0,0,0,0.18)',
-                        border: '1px solid rgba(255,255,255,0.10)',
+                        background: 'linear-gradient(145deg, rgba(18, 18, 18, 0.98) 0%, rgba(28, 28, 28, 0.95) 100%)',
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 80px rgba(0,0,0,0.2)',
                     }}
                 >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-                        <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 600, letterSpacing: 0.5 }}>
+                    {/* Result Header */}
+                    <Box sx={{ 
+                        p: 3,
+                        background: 'linear-gradient(135deg, rgba(255,255,255, 0.05) 0%, rgba(255,255,255, 0.02) 100%)',
+                        borderBottom: '1px solid rgba(255,255,255,0.08)',
+                    }}>
+                        <Typography 
+                            variant="h4" 
+                            sx={{ 
+                                color: 'rgba(255,255,255,0.9)',
+                                fontWeight: 700,
+                                textAlign: 'center',
+                                letterSpacing: 3,
+                                mb: 0.5,
+                            }}
+                        >
                             {score}
                         </Typography>
                         {gameResultInfo.resultDetail && (
-                            <Typography variant="subtitle1" sx={{ color: '#ffd700', fontWeight: 400, ml: 1 }}>
+                            <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                    color: 'rgba(255,255,255,0.6)',
+                                    textAlign: 'center',
+                                    textTransform: 'capitalize',
+                                    letterSpacing: 0.5,
+                                }}
+                            >
                                 {gameResultInfo.resultDetail}
                             </Typography>
                         )}
                     </Box>
-                    <Box sx={{ color: 'white', mb: 1, opacity: 0.92, display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center', flexWrap: 'wrap' }}>
-                        <Typography variant="body2" component="span">Game between</Typography>
-                        <UserLink username={playerUsernames.white} />
-                        <Typography variant="body2" component="span">and</Typography>
-                        <UserLink username={playerUsernames.black} />
-                        <Typography variant="body2" component="span">has ended.</Typography>
+
+                    {/* Players Info */}
+                    <Box sx={{ p: 3 }}>
+                        <Box sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            mb: 2,
+                        }}>
+                            <Box sx={{ textAlign: 'center', flex: 1 }}>
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 0.5 }}>
+                                    {game.result === 'white' ? 'WINNER' : game.result === 'black' ? 'LOSER' : 'PLAYER'}
+                                </Typography>
+                                <UserLink username={playerUsernames.white} />
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mt: 0.5 }}>
+                                    White
+                                </Typography>
+                            </Box>
+                            
+                            <Typography 
+                                variant="h6" 
+                                sx={{ 
+                                    color: 'rgba(255,255,255,0.3)',
+                                    mx: 2,
+                                    fontWeight: 300,
+                                }}
+                            >
+                                vs
+                            </Typography>
+                            
+                            <Box sx={{ textAlign: 'center', flex: 1 }}>
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 0.5 }}>
+                                    {game.result === 'black' ? 'WINNER' : game.result === 'white' ? 'LOSER' : 'PLAYER'}
+                                </Typography>
+                                <UserLink username={playerUsernames.black} />
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mt: 0.5 }}>
+                                    Black
+                                </Typography>
+                            </Box>
+                        </Box>
+
+                        <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', my: 2 }} />
+
+                        {/* Action Button */}
+                        <Stack direction="row" spacing={2} justifyContent="center">
+                            <Button
+                                variant="outlined"
+                                startIcon={<HomeIcon />}
+                                onClick={actions.resetGame}
+                                sx={{ 
+                                    borderColor: 'rgba(255,255,255,0.2)',
+                                    color: 'rgba(255,255,255,0.8)',
+                                    '&:hover': {
+                                        borderColor: 'rgba(255,255,255,0.4)',
+                                        bgcolor: 'rgba(255,255,255,0.05)',
+                                    }
+                                }}
+                            >
+                                Home
+                            </Button>
+                        </Stack>
                     </Box>
-                    <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            onClick={actions.resetGame}
-                            sx={{ textTransform: 'none', minWidth: 0 }}
-                        >
-                            Home
-                        </Button>
-                    </Stack>
                 </Paper>
             </Fade>
         );
     }
 
-    // Choose icon
-    let icon = <HandshakeIcon sx={{ fontSize: 32, color: '#ffd700', mr: 1 }} />;
-    if (gameResultInfo.resultType === 'win') icon = <EmojiEventsIcon sx={{ fontSize: 36, color: '#ffd700', mr: 1 }} />;
-    else if (gameResultInfo.resultType === 'lose') icon = <SentimentDissatisfiedIcon sx={{ fontSize: 34, color: '#90caf9', mr: 1 }} />;
+    // Determine result colors and styling
+    const resultColor = gameResultInfo.resultType === 'win' ? '#4caf50' : 
+                       gameResultInfo.resultType === 'lose' ? '#f44336' : '#ffc107';
+    
+    const resultBgGradient = gameResultInfo.resultType === 'win' 
+        ? 'linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%)'
+        : gameResultInfo.resultType === 'lose'
+        ? 'linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.05) 100%)'
+        : 'linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 193, 7, 0.05) 100%)';
 
     return (
-        <Fade in={show} timeout={350}>
-            <Paper elevation={3}
+        <Fade in={show} timeout={500}>
+            <Paper elevation={8}
                 sx={{
                     width: '100%',
-                    maxWidth: 340,
+                    maxWidth: 420,
                     mx: 'auto',
-                    mt: 2,
-                    p: 2,
+                    overflow: 'hidden',
                     borderRadius: 2,
-                    textAlign: 'center',
-                    background: 'rgba(30, 34, 44, 0.85)',
-                    backdropFilter: 'blur(4px)',
-                    boxShadow: '0 4px 16px 0 rgba(0,0,0,0.18)',
-                    border: '1px solid rgba(255,255,255,0.10)',
+                    background: 'linear-gradient(145deg, rgba(18, 18, 18, 0.98) 0%, rgba(28, 28, 28, 0.95) 100%)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 80px rgba(0,0,0,0.2)',
                 }}
             >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-                    {icon}
-                    <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 600, letterSpacing: 0.5 }}>
-                        {gameResultInfo.resultHeader}
+                {/* Result Header */}
+                <Box sx={{ 
+                    p: 3,
+                    background: resultBgGradient,
+                    borderBottom: '1px solid rgba(255,255,255,0.08)',
+                }}>
+                    <Typography 
+                        variant="h5" 
+                        sx={{ 
+                            color: resultColor,
+                            fontWeight: 700,
+                            textAlign: 'center',
+                            textTransform: 'uppercase',
+                            letterSpacing: 2,
+                            mb: 0.5,
+                        }}
+                    >
+                        {gameResultInfo.resultType === 'win' ? 'Victory' : 
+                         gameResultInfo.resultType === 'lose' ? 'Defeat' : 'Draw'}
                     </Typography>
                     {gameResultInfo.resultDetail && (
-                        <Typography variant="subtitle1" sx={{ color: '#ffd700', fontWeight: 400, ml: 1 }}>
+                        <Typography 
+                            variant="body2" 
+                            sx={{ 
+                                color: 'rgba(255,255,255,0.7)',
+                                textAlign: 'center',
+                                textTransform: 'capitalize',
+                                letterSpacing: 0.5,
+                            }}
+                        >
                             {gameResultInfo.resultDetail}
                         </Typography>
                     )}
                 </Box>
-                <Typography variant="body2" sx={{ color: 'white', mb: 1, opacity: 0.92 }}>
-                    {gameResultInfo.personalMessage}
-                </Typography>
-                <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                    {myColor && <RematchButtons />}
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        size="small"
-                        onClick={actions.resetGame}
-                        sx={{ textTransform: 'none', minWidth: 0 }}
-                    >
-                        Home
-                    </Button>
-                </Stack>
+
+                {/* Players Info */}
+                <Box sx={{ p: 3 }}>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        mb: 2,
+                    }}>
+                        <Box sx={{ textAlign: 'center', flex: 1 }}>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 0.5 }}>
+                                {game.result === 'white' ? 'WINNER' : game.result === 'black' ? 'LOSER' : 'PLAYER'}
+                            </Typography>
+                            <UserLink username={playerUsernames.white} />
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mt: 0.5 }}>
+                                White
+                            </Typography>
+                        </Box>
+                        
+                        <Typography 
+                            variant="h6" 
+                            sx={{ 
+                                color: 'rgba(255,255,255,0.3)',
+                                mx: 2,
+                                fontWeight: 300,
+                            }}
+                        >
+                            vs
+                        </Typography>
+                        
+                        <Box sx={{ textAlign: 'center', flex: 1 }}>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mb: 0.5 }}>
+                                {game.result === 'black' ? 'WINNER' : game.result === 'white' ? 'LOSER' : 'PLAYER'}
+                            </Typography>
+                            <UserLink username={playerUsernames.black} />
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mt: 0.5 }}>
+                                Black
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', my: 2 }} />
+
+                    {/* Action Buttons */}
+                    <Stack direction="row" spacing={2} justifyContent="center">
+                        {myColor && <RematchButtons />}
+                        <Button
+                            variant="outlined"
+                            startIcon={<HomeIcon />}
+                            onClick={actions.resetGame}
+                            sx={{ 
+                                borderColor: 'rgba(255,255,255,0.2)',
+                                color: 'rgba(255,255,255,0.8)',
+                                '&:hover': {
+                                    borderColor: 'rgba(255,255,255,0.4)',
+                                    bgcolor: 'rgba(255,255,255,0.05)',
+                                }
+                            }}
+                        >
+                            Home
+                        </Button>
+                    </Stack>
+                </Box>
             </Paper>
         </Fade>
     );

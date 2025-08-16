@@ -12,6 +12,7 @@ import {
   InputAdornment,
   Tooltip,
   Collapse,
+  Stack,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -20,6 +21,8 @@ import {
   Info as InfoIcon,
   ChatBubbleOutline as ChatOnIcon,
   SpeakerNotesOff as ChatOffIcon,
+  Timer as TimerIcon,
+  CalendarToday as CalendarIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import type { ChatMessage, ChatMessageType } from '@/types/chat';
@@ -323,43 +326,78 @@ export default function GameChat({ gameId }: GameChatProps) {
       <Box
         sx={{
           p: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
           borderBottom: 1,
           borderColor: 'divider',
           bgcolor: 'background.default',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="subtitle2" fontWeight="bold">
-            Game Chat
-          </Typography>
-          {chatEnabled && (
-            <Chip 
-              label={messages.length} 
-              size="small" 
-              color="primary"
-              variant="outlined"
-            />
-          )}
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {chatEnabled && otherPlayerTyping && (
-            <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-              Opponent is typing...
+        {/* Title and Chat Toggle Row */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 1,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              Game Chat
             </Typography>
-          )}
-          <Tooltip title={chatEnabled ? 'Disable chat' : 'Enable chat'}>
-            <IconButton
-              size="small"
-              onClick={toggleChat}
-              color={chatEnabled ? 'primary' : 'default'}
-            >
-              {chatEnabled ? <ChatOnIcon fontSize="small" /> : <ChatOffIcon fontSize="small" />}
-            </IconButton>
-          </Tooltip>
+            {chatEnabled && (
+              <Chip 
+                label={messages.length} 
+                size="small" 
+                color="primary"
+                variant="outlined"
+              />
+            )}
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {chatEnabled && otherPlayerTyping && (
+              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                Opponent is typing...
+              </Typography>
+            )}
+            <Tooltip title={chatEnabled ? 'Disable chat' : 'Enable chat'}>
+              <IconButton
+                size="small"
+                onClick={toggleChat}
+                color={chatEnabled ? 'primary' : 'default'}
+              >
+                {chatEnabled ? <ChatOnIcon fontSize="small" /> : <ChatOffIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
+        
+        {/* Game Info Row */}
+        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+          {/* Time Control */}
+          {game?.timeControl && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <TimerIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <Typography variant="caption" color="text.secondary">
+                {Math.floor(game.timeControl.initialTime / 60000)}+{game.timeControl.increment / 1000}
+              </Typography>
+            </Box>
+          )}
+          
+          {/* Creation Time */}
+          {game?.createdAt && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <CalendarIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <Typography variant="caption" color="text.secondary">
+                {format(new Date(game.createdAt), 'MMM d, HH:mm')}
+              </Typography>
+            </Box>
+          )}
+          
+          {/* Game ID */}
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+            #{gameId.slice(0, 8)}
+          </Typography>
+        </Stack>
       </Box>
       
       {/* Messages */}

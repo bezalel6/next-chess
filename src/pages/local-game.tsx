@@ -1,22 +1,35 @@
 import { Box, Container, Typography, Button, Paper } from "@mui/material";
 import { useRouter } from "next/router";
-import { useGameInit } from "@/hooks/useGameInit";
+import { useEffect } from "react";
 import GameBoardV2 from "@/components/GameBoardV2";
-import LocalMoveHistory from "@/components/LocalMoveHistory";
-import LocalGameStatus from "@/components/LocalGameStatus";
+import LocalGamePanel from "@/components/LocalGamePanel";
+import BanPhaseOverlay from "@/components/BanPhaseOverlay";
 import HomeIcon from '@mui/icons-material/Home';
 import InfoIcon from '@mui/icons-material/Info';
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
+import { useChessSounds } from "@/hooks/useChessSounds";
+
+// Initialize local game immediately when component is created
+if (typeof window !== 'undefined') {
+  const state = useUnifiedGameStore.getState();
+  if (state.mode !== 'local') {
+    state.initLocalGame();
+  }
+}
 
 export default function LocalGamePage() {
   const router = useRouter();
+  const { playGameStart } = useChessSounds();
   
-  // Initialize local game
-  useGameInit();
+  // Play sound effect on mount
+  useEffect(() => {
+    playGameStart();
+  }, [playGameStart]);
   
   // Get game state to determine board orientation
   const game = useUnifiedGameStore(s => s.game);
   const phase = useUnifiedGameStore(s => s.phase);
+  const canBan = useUnifiedGameStore(s => s.phase === 'selecting_ban' && s.game?.status === 'active');
   
   // Determine board orientation based on who is acting
   // In Ban Chess: Black bans first, then White moves, then White bans, then Black moves
@@ -143,8 +156,9 @@ export default function LocalGamePage() {
               {/* Center - Game board */}
               <Box sx={{ 
                 display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'flex-start',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 1,
                 // Make coordinate labels larger
                 '& div[style*="grid-template"]': {
                   '& > div': {
@@ -165,17 +179,26 @@ export default function LocalGamePage() {
                 }
               }}>
                 <GameBoardV2 orientation={boardOrientation} />
+                
+                {/* Ban notification banner - positioned under the board */}
+                <BanPhaseOverlay isMyTurnToBan={canBan} />
               </Box>
               
-              {/* Right sidebar - Game status and Move history */}
+              {/* Right sidebar - Integrated move history and PGN */}
               <Box sx={{ 
                 width: { xs: '100%', lg: 280 },
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 2,
+                justifyContent: 'center',
               }}>
-                <LocalGameStatus />
-                <LocalMoveHistory />
+                <Paper sx={{ 
+                  bgcolor: '#2e2a24',
+                  border: 'none',
+                  color: '#bababa',
+                  overflow: 'hidden',
+                }}>
+                  <LocalGamePanel />
+                </Paper>
               </Box>
             </Box>
           </Container>

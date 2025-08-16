@@ -107,6 +107,7 @@ interface GameActions {
   // Initialization
   initGame: (gameId: string, game: Game, myColor: PlayerColor | null) => void;
   initLocalGame: () => void;
+  resetLocalGame: () => void;
   resetGame: () => void;
   
   // Game operations
@@ -399,6 +400,12 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             loading: false,
             gameId: 'local',
           });
+        },
+        
+        resetLocalGame: () => {
+          // Simply call initLocalGame to reset to starting position
+          const { initLocalGame } = get();
+          initLocalGame();
         },
         
         resetGame: () => {
@@ -1294,7 +1301,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             const state = get();
             if (state.game && state.gameId && state.myColor) {
               try {
-                const GameService = (await import('@/services/gameService')).default;
+                const { GameService } = await import('@/services/gameService');
                 const updatedGame = await GameService.resign(state.gameId, state.myColor);
                 set({ game: updatedGame });
               } catch (error) {
@@ -1307,7 +1314,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             const state = get();
             if (state.game && state.gameId && state.myColor) {
               try {
-                const GameService = (await import('@/services/gameService')).default;
+                const { GameService } = await import('@/services/gameService');
                 const updatedGame = await GameService.offerDraw(state.gameId, state.myColor);
                 set({ game: updatedGame });
               } catch (error) {
@@ -1320,7 +1327,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             const state = get();
             if (state.game && state.gameId) {
               try {
-                const GameService = (await import('@/services/gameService')).default;
+                const { GameService } = await import('@/services/gameService');
                 const updatedGame = await GameService.acceptDraw(state.gameId);
                 set({ game: updatedGame });
               } catch (error) {
@@ -1333,7 +1340,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             const state = get();
             if (state.game && state.gameId) {
               try {
-                const GameService = (await import('@/services/gameService')).default;
+                const { GameService } = await import('@/services/gameService');
                 const updatedGame = await GameService.declineDraw(state.gameId);
                 set({ game: updatedGame });
               } catch (error) {
@@ -1346,7 +1353,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             const state = get();
             if (state.game && state.gameId && state.myColor) {
               try {
-                const GameService = (await import('@/services/gameService')).default;
+                const { GameService } = await import('@/services/gameService');
                 const updatedGame = await GameService.offerRematch(state.gameId, state.myColor);
                 set({ game: updatedGame });
               } catch (error) {
@@ -1359,7 +1366,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             const state = get();
             if (state.game && state.gameId) {
               try {
-                const GameService = (await import('@/services/gameService')).default;
+                const { GameService } = await import('@/services/gameService');
                 const newGame = await GameService.acceptRematch(state.gameId);
                 // Redirect to the new game
                 window.location.href = `/game/${newGame.id}`;
@@ -1373,7 +1380,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             const state = get();
             if (state.game && state.gameId) {
               try {
-                const GameService = (await import('@/services/gameService')).default;
+                const { GameService } = await import('@/services/gameService');
                 const updatedGame = await GameService.declineRematch(state.gameId);
                 set({ game: updatedGame });
               } catch (error) {

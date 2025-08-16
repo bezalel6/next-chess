@@ -2,7 +2,6 @@ import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useGameStore } from "@/stores/gameStore";
 import LichessBoardV2 from "./LichessBoardV2";
-import BanPhaseOverlay from "./BanPhaseOverlay";
 import GameOverDetails from "./GameOverDetails";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { useState, useEffect, useRef } from "react";
@@ -53,11 +52,12 @@ export default function GameBoardV2({
       const delta = Math.max(deltaX, deltaY);
       const newSize = Math.min(800, Math.max(400, startSize + delta));
       setBoardSize(newSize);
+      // Save to localStorage immediately as the size changes
+      localStorage.setItem("boardSize", newSize.toString());
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
-      localStorage.setItem("boardSize", boardSize.toString());
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
@@ -66,8 +66,26 @@ export default function GameBoardV2({
     document.addEventListener("mouseup", handleMouseUp);
   };
 
+  // Show loading state for a brief moment if game is not initialized
   if (!game) {
-    return null;
+    return (
+      <Box sx={{ 
+        width: 560,
+        height: 560,
+        bgcolor: "#2a2a2a",
+        borderRadius: 0.5,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        <Box sx={{ 
+          color: 'rgba(255,255,255,0.3)',
+          textAlign: 'center',
+        }}>
+          Initializing board...
+        </Box>
+      </Box>
+    );
   }
 
   const boardOrientation = orientation || myColor || "white";
@@ -78,8 +96,29 @@ export default function GameBoardV2({
       flexDirection: "column", 
       alignItems: "center", 
       gap: 2,
-      mt: 15, // Add margin-top to ensure ban notification banner has space
+      position: "relative",
     }}>
+      {/* Game Over overlay - positioned absolutely to overlay the board from outside */}
+      {game.status === "finished" && (
+        <Box sx={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none", // Allow interaction with elements below except the overlay content
+          "& > *": {
+            pointerEvents: "auto", // Re-enable pointer events for the overlay content itself
+          }
+        }}>
+          <GameOverDetails />
+        </Box>
+      )}
+      
       <Box
         sx={{
           position: "relative",
@@ -98,7 +137,6 @@ export default function GameBoardV2({
         data-my-color={myColor}
         data-current-turn={game?.turn}
       >
-        <BanPhaseOverlay isMyTurnToBan={canBan} />
         <Box
           sx={{
             position: "absolute",
@@ -111,8 +149,6 @@ export default function GameBoardV2({
         >
           <LichessBoardV2 orientation={boardOrientation} />
         </Box>
-
-        {game.status === "finished" && <GameOverDetails />}
 
         {/* Resize handle */}
         <Box

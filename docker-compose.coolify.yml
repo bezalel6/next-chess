@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # Next.js Chess Application (using external Supabase)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Required build arguments for Next.js
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      cache_from:
+        - node:20-alpine
+    image: next-chess:latest
+    container_name: next-chess
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      HOSTNAME: "0.0.0.0"
+      # Required environment variables
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # Optional: Direct database connection
+      DATABASE_URL: ${DATABASE_URL}
+      SKIP_ENV_VALIDATION: ${SKIP_ENV_VALIDATION:-true}
+      # Performance optimizations
+      NEXT_TELEMETRY_DISABLED: 1
+      NODE_OPTIONS: "--max-old-space-size=2048"
+    restart: unless-stopped
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - coolify
+    labels:
+      # Coolify-specific labels
+      - coolify.managed=true
+      - coolify.type=application
+      - coolify.name=next-chess
+      - coolify.applicationId=${COOLIFY_APP_ID:-next-chess}
+      
+      # Traefik routing labels
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.next-chess.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.next-chess.entrypoints=http,https
+      - traefik.http.routers.next-chess.service=next-chess
+      - traefik.http.services.next-chess.loadbalancer.server.port=3000
+      
+      # SSL/TLS configuration
+      - traefik.http.routers.next-chess.tls=true
+      - traefik.http.routers.next-chess.tls.certresolver=letsencrypt
+      
+      # Health check for Traefik
+      - traefik.http.services.next-chess.loadbalancer.healthcheck.path=/api/health
+      - traefik.http.services.next-chess.loadbalancer.healthcheck.interval=30s
+      - traefik.http.services.next-chess.loadbalancer.healthcheck.timeout=3s
+      
+      # Optional: Rate limiting
+      - traefik.http.middlewares.next-chess-ratelimit.ratelimit.average=100
+      - traefik.http.middlewares.next-chess-ratelimit.ratelimit.burst=50
+      - traefik.http.routers.next-chess.middlewares=next-chess-ratelimit
+
+networks:
+  coolify:
+    external: true

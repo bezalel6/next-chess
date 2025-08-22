@@ -67,6 +67,7 @@ supabase/functions/.env
 docker-compose*.yml
 !docker-compose.example.yml
 !docker-compose.coolify-full.yml
+!docker-compose.coolify.yml
 Dockerfile*
 !Dockerfile
 !Dockerfile.example
@@ -77,6 +78,7 @@ docker/
 deployment-docs/
 *coolify*
 *COOLIFY*
+!.env.coolify.example
 *deployment*
 *DEPLOYMENT*
 *DEPLOY*

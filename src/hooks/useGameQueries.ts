@@ -1,4 +1,3 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useCallback } from 'react';
 import { GameService } from '@/services/gameService';
 import { supabase } from '@/utils/supabase';
@@ -63,10 +62,15 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
         initGame(gameId, game, myColor);
       }
 
-      // Ensure board orientation matches myColor even if game was already initialized
-      const state = useUnifiedGameStore.getState();
-      if (myColor && state.boardOrientation !== myColor) {
-        useUnifiedGameStore.setState({ myColor, boardOrientation: myColor });
+      // Ensure myColor is always set once known (even if boardOrientation already matches)
+      if (myColor) {
+        const state = useUnifiedGameStore.getState();
+        const updates: Partial<ReturnType<typeof useUnifiedGameStore.getState>> = {} as any;
+        if (state.myColor !== myColor) (updates as any).myColor = myColor;
+        if (state.boardOrientation !== myColor) (updates as any).boardOrientation = myColor;
+        if (Object.keys(updates).length > 0) {
+          useUnifiedGameStore.setState(updates as any);
+        }
       }
     }
   }, [query.data, gameId, userId, initGame]);
@@ -93,8 +97,7 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
           syncWithServer(payload.payload);
         }
         
-        // Ensure move list caches refresh
-        queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
+        // No moves cache invalidation; UI derives moves from PGN to avoid flicker.
       })
       .subscribe((status) => {
         setConnected(status === 'SUBSCRIBED');
@@ -151,8 +154,7 @@ export function useMoveMutation(gameId: string | undefined) {
       // Update store's game object with the updated PGN
       store.updateGame(data);
       
-      // Invalidate moves query to update move history
-      queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
+      // No moves cache invalidation; UI derives moves from PGN.
       
       // Confirm optimistic update immediately (no need to wait)
       store.confirmOptimisticUpdate();
@@ -246,8 +248,7 @@ export function useBanMutation(gameId: string | undefined) {
       // Update store's game object with the updated PGN
       store.updateGame(data);
       
-      // Invalidate moves query to update move history
-      queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
+      // No moves cache invalidation; UI derives moves from PGN.
       
       // Rely on server-authoritative broadcasts; no client send.
     },
@@ -290,9 +291,8 @@ export function useBanMutation(gameId: string | undefined) {
         );
       }
       
-      // Refetch game and moves to sync with server
+      // Refetch game to sync with server (moves derived from PGN)
       queryClient.invalidateQueries({ queryKey: ['game', gameId] });
-      queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
     },
   });
 }

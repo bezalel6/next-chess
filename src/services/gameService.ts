@@ -279,6 +279,7 @@ export class GameService {
             increment: (timeControl as any)?.increment ?? 0,
           }
         : { initialTime: 600000, increment: 0 },
+      version: dbGame.version ?? undefined,
     };
   }
 

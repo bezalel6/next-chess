@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
-import { useGameQuery } from './useGameQueries';
+// Legacy useGameQuery removed; use useGameSync in pages instead
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import { useChessSounds } from './useChessSounds';
 
@@ -34,12 +34,9 @@ export function useGameInit() {
     }
   }, [isLocalGame, mode, initLocalGame, playGameStart]);
   
-  // Initialize online game - Always call the hook, but enable/disable based on gameId
-  const gameQuery = useGameQuery(gameId, user?.id);
-  
+  // Online game initialization is handled by useGameSync at the page level.
   return {
     gameId,
     isLocalGame,
-    gameQuery,
   };
 }

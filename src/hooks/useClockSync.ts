@@ -1,8 +1,3 @@
-/**
- * Clock Synchronization Hook
- * Manages real-time clock updates via WebSocket
- * Implements lag compensation and server synchronization
- */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/utils/supabase";

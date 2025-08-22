@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, Button, Paper, TextField, Alert } from '@mui/material';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
-import { useGameQuery, useBanMutation } from '@/hooks/useGameQueries';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/utils/supabase';
 import type { Square } from 'chess.ts/dist/types';
+import { GameService } from '@/services/gameService';
 
 export default function BanSyncTest() {
   const [gameId, setGameId] = useState<string>('');
@@ -28,9 +28,10 @@ export default function BanSyncTest() {
     console.log(`[BanSyncTest] ${message}`);
   };
   
-  // Use the game query hook when we have a gameId
-  const gameQuery = useGameQuery(testGameId || undefined, user?.id);
-  const banMutation = useBanMutation(testGameId || undefined);
+  // For tests, call GameService directly; game sync is covered elsewhere
+  const banMove = async (gid: string, from: string, to: string) => {
+    return GameService.banMove(gid, { from: from as Square, to: to as Square });
+  };
   
   useEffect(() => {
     if (user?.id) {
@@ -128,18 +129,9 @@ export default function BanSyncTest() {
     addLog(`Attempting to ban move: ${from}-${to}`);
     
     try {
-      banMutation.mutate(
-        { from, to },
-        {
-          onSuccess: (data) => {
-            addLog(`Ban mutation success!`);
-            addLog(`Response: ${JSON.stringify(data)}`);
-          },
-          onError: (error) => {
-            addLog(`Ban mutation error: ${error}`);
-          }
-        }
-      );
+      const data = await banMove(testGameId, from, to);
+      addLog(`Ban success!`);
+      addLog(`Response: ${JSON.stringify(data)}`);
     } catch (error) {
       addLog(`Error banning move: ${error}`);
     }
@@ -266,18 +258,6 @@ export default function BanSyncTest() {
           <Typography>Ban History Count: {banHistory.length}</Typography>
         </Box>
       </Paper>
-      
-      {gameQuery.isLoading && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Loading game...
-        </Alert>
-      )}
-      
-      {gameQuery.error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Error loading game: {String(gameQuery.error)}
-        </Alert>
-      )}
       
       {game && (
         <Paper sx={{ p: 2, mb: 2 }}>

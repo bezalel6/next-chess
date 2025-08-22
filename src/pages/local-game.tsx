@@ -2,7 +2,7 @@ import { Box, Container, Typography, Button, Paper } from "@mui/material";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import GameBoardV2 from "@/components/GameBoardV2";
-import LocalGamePanel from "@/components/LocalGamePanel";
+import GamePanel from "@/components/GamePanel";
 import BanPhaseOverlay from "@/components/BanPhaseOverlay";
 import HomeIcon from '@mui/icons-material/Home';
 import InfoIcon from '@mui/icons-material/Info';
@@ -197,7 +197,7 @@ export default function LocalGamePage() {
                   color: '#bababa',
                   overflow: 'hidden',
                 }}>
-                  <LocalGamePanel />
+                  <GamePanel />
                 </Paper>
               </Box>
             </Box>

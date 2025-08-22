@@ -139,42 +139,18 @@ const GamePanel = () => {
   const gameActions = useGameActions();
 
   // For local games, parse PGN instead of fetching from database
-  const { data: movesData = [], isLoading, refetch } = useQuery({
-    queryKey: ["moves", game?.id, game?.pgn],
+  const { data: movesData = [], isLoading } = useQuery({
+    queryKey: ["moves-from-pgn", game?.id, game?.pgn],
     queryFn: async () => {
-      console.log("[GamePanel] Fetching moves for game:", game?.id);
-      console.log("[GamePanel] Current game PGN:", game?.pgn);
-      console.log("[GamePanel] Is local game:", isLocalGame);
-
-      if (!game?.id) {
-        console.log("[GamePanel] No game ID, returning empty array");
-        return [];
-      }
-
-      // For local games, parse the PGN to create move data
-      if (isLocalGame) {
-        console.log("[GamePanel] Local game - parsing PGN");
-        return parsePgnToMoveData(game.pgn || "");
-      }
-
-      // For online games, fetch from database
-      const { data, error } = await supabase.rpc("get_game_moves", {
-        p_game_id: game.id,
-      });
-
-      if (error) {
-        console.error("[GamePanel] Error fetching moves:", error);
-        return [];
-      }
-
-      console.log("[GamePanel] Fetched moves data:", data);
-      return (data as MoveData[]) || [];
+      if (!game?.id) return [];
+      // Derive moves uniformly from PGN for both local and online games
+      return parsePgnToMoveData(game.pgn || "");
     },
     enabled: !!game?.id,
-    refetchInterval: false, // Rely on real-time updates
+    refetchInterval: false,
   });
 
-  // Server broadcasts are now authoritative; no separate moves subscription.
+  // Server broadcasts are authoritative; moves are derived from PGN only.
 
   // Convert flat moves array to paired moves for display
   const moves = useMemo<Move[]>(() => {
@@ -508,10 +484,6 @@ const GamePanel = () => {
     );
   };
 
-  console.log("[GamePanel] Rendering - isLoading:", isLoading);
-  console.log("[GamePanel] Rendering - movesData:", movesData);
-  console.log("[GamePanel] Rendering - movesData length:", movesData.length);
-  console.log("[GamePanel] Rendering - game PGN:", game?.pgn);
 
   if (isLoading) {
     return (

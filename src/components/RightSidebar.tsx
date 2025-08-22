@@ -2,9 +2,6 @@ import { Box, Typography } from '@mui/material';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import GamePanel from './GamePanel';
 import { SingleClock } from './GameClock';
-import PlayerStatus from './PlayerStatus';
-import { useGamePresence } from '@/services/presenceService';
-import { useClockSync } from '@/hooks/useClockSync';
 
 interface RightSidebarProps {
   boardFlipped: boolean;
@@ -17,15 +14,14 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
   const myColor = useUnifiedGameStore(s => s.myColor);
   const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
   const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
-  const { opponentStatus, presenceService } = useGamePresence(game?.id || null);
+  const opponentStatus = 'online' as const;
   
-  // Use clock synchronization hook
-  const { clock, isConnected } = useClockSync({
-    gameId: game?.id || '',
-    timeControl: game?.timeControl || { initialTime: 600000, increment: 0 },
-    myColor,
-    enabled: !!game?.id && !!game?.timeControl,
-  });
+  // Simplified: rely on server times embedded in game (if present); no client clock sync
+  const clock = {
+    activeColor: game?.turn || 'white',
+    white: { timeRemaining: game?.whiteTimeRemaining ?? game?.timeControl?.initialTime ?? 600000 },
+    black: { timeRemaining: game?.blackTimeRemaining ?? game?.timeControl?.initialTime ?? 600000 },
+  } as const;
   
   if (!game) return null;
 
@@ -97,7 +93,7 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
               isMyTurn={myColor === topColor}
               serverClock={{
                 timeRemaining: topColor === 'white' ? clock.white.timeRemaining : clock.black.timeRemaining,
-                turnStartTime: clock.activeColor === topColor ? Date.now() : null,
+                turnStartTime: null,
                 lastUpdateTime: Date.now(),
                 isRunning: clock.activeColor === topColor,
               }}
@@ -146,7 +142,7 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
               isMyTurn={myColor === bottomColor}
               serverClock={{
                 timeRemaining: bottomColor === 'white' ? clock.white.timeRemaining : clock.black.timeRemaining,
-                turnStartTime: clock.activeColor === bottomColor ? Date.now() : null,
+                turnStartTime: null,
                 lastUpdateTime: Date.now(),
                 isRunning: clock.activeColor === bottomColor,
               }}

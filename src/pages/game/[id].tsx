@@ -1,16 +1,16 @@
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
-import { useGameInit } from "@/hooks/useGameInit";
+import { useGameSync } from "@/hooks/useGameSync";
 import { Box, Typography } from "@mui/material";
-import { useRouter } from 'next/compat/router';
+import { useRouter } from 'next/router';
 import Head from "next/head";
 import { useState, useEffect } from "react";
 
 import GameBoardV2 from "@/components/GameBoardV2";
 import GameLoading from "@/components/GameLoading";
 import LoadingScreen from "@/components/LoadingScreen";
-import RightSidebar from "@/components/RightSidebar";
+// import RightSidebar from "@/components/RightSidebar";
 import NotFoundScreen from "@/components/NotFoundScreen";
-import BoardMoveInput from "@/components/BoardMoveInput";
+// import BoardMoveInput from "@/components/BoardMoveInput";
 import GameChat from "@/components/GameChat";
 import GameLayout from "@/components/GameLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -100,8 +100,11 @@ const LeftSidebar = () => {
 };
 
 export default function GamePage() {
-    // Initialize game
-    useGameInit();
+    // Initialize game sync
+    const router = useRouter();
+    const { id } = router.query;
+    const { session } = useAuth();
+    useGameSync(typeof id === 'string' ? id : undefined, session?.user?.id);
     
     // Get state from store
     const game = useUnifiedGameStore(s => s.game);
@@ -111,11 +114,9 @@ export default function GamePage() {
     const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
     const boardOrientation = useUnifiedGameStore(s => s.boardOrientation);
     
-    const router = useRouter();
-    const { id, as: asParam } = router.query;
+    const { id: idAgain, as: asParam } = router.query;
     const [accessError, setAccessError] = useState<string | null>(null);
     const [boardFlipped, setBoardFlipped] = useState(false);
-    const { session } = useAuth();
 
     // Board Orientation Documentation:
     // ================================

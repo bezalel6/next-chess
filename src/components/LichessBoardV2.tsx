@@ -9,10 +9,12 @@ import {
 } from "react";
 import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
-import { useGame } from "@/hooks/useGameQueries";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotification } from "@/contexts/NotificationContext";
+import { useChessSounds } from "@/hooks/useChessSounds";
+import { GameService } from "@/services/gameService";
 import { Chess } from "chess.ts";
-import type { Square } from "chess.ts/dist/types";
+import type { Square, PieceSymbol } from "chess.ts/dist/types";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Config } from "chessground/config";
 import type { Key } from "chessground/types";
@@ -61,8 +63,67 @@ export default function LichessBoardV2({ orientation }: LichessBoardV2Props) {
   const selectedSquare = useUnifiedGameStore((s) => s.selectedSquare);
   const possibleMoves = useUnifiedGameStore((s) => s.possibleMoves);
 
-  // Use the unified game hook which includes sound-enabled mutations
-  const { makeMove, banMove } = useGame(game?.id, user?.id);
+  // Inline move/ban handlers using unified store and GameService (no legacy hooks)
+  const { playMoveSound, playBan } = useChessSounds();
+  const { notify, notifyError } = useNotification();
+
+  const makeMove = useCallback(
+    async (from: string, to: string, promotion?: PieceSymbol) => {
+      const state = useUnifiedGameStore.getState();
+      try {
+        if (state.mode === 'local') {
+          // Play sound based on predicted move
+          if (state.chess && state.game) {
+            const chess = new Chess(state.chess.fen());
+            const move = chess.move({ from: from as Square, to: to as Square, promotion });
+            if (move) playMoveSound(move, chess);
+          }
+          state.executeMove(from as Square, to as Square, promotion);
+          return;
+        }
+        // Online: optimistic update + server call
+        // Play sound optimistically
+        if (state.chess && state.game) {
+          const chess = new Chess(state.chess.fen());
+          const move = chess.move({ from: from as Square, to: to as Square, promotion });
+          if (move) playMoveSound(move, chess);
+        }
+        state.makeMove(from as Square, to as Square, promotion);
+        const data = await GameService.makeMove(state.gameId!, { from: from as Square, to: to as Square, promotion: promotion as any });
+        useUnifiedGameStore.getState().updateGame(data);
+        useUnifiedGameStore.getState().confirmOptimisticUpdate();
+      } catch (error: any) {
+        console.error('[LichessBoardV2] makeMove error:', error);
+        useUnifiedGameStore.getState().rollbackOptimisticUpdate();
+        notifyError?.(`Move failed: ${error?.message || 'unknown error'}`);
+      }
+    },
+    [playMoveSound, notifyError]
+  );
+
+  const banMove = useCallback(
+    async (from: string, to: string) => {
+      const state = useUnifiedGameStore.getState();
+      try {
+        if (state.mode === 'local') {
+          playBan();
+          state.executeBan(from as Square, to as Square);
+          return;
+        }
+        // Online: optimistic update + server call
+        playBan();
+        state.banMove(from as Square, to as Square);
+        const data = await GameService.banMove(state.gameId!, { from: from as Square, to: to as Square });
+        useUnifiedGameStore.getState().updateGame(data);
+        useUnifiedGameStore.getState().confirmOptimisticUpdate();
+      } catch (error: any) {
+        console.error('[LichessBoardV2] banMove error:', error);
+        useUnifiedGameStore.getState().rollbackOptimisticUpdate();
+        notifyError?.(`Ban failed: ${error?.message || 'unknown error'}`);
+      }
+    },
+    [playBan, notifyError]
+  );
 
   // Use unified selectors - computed values to avoid infinite loops
   const canBan = useUnifiedGameStore(

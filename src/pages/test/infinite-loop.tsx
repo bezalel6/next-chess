@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, Button, Paper } from '@mui/material';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
-import { useGameQuery } from '@/hooks/useGameQueries';
+// Legacy game queries removed; this page tests rendering patterns only.
 
 // Test component to isolate the infinite loop issue
 export default function InfiniteLoopTest() {
@@ -127,17 +127,13 @@ function TestStoreFunctions() {
   );
 }
 
-// Test 3: useGameQuery hook
+// Test 3: useGameQuery hook (deprecated/disabled)
 function TestGameQuery() {
-  // Test with a fake game ID
-  const query = useGameQuery('test-game-id', 'test-user-id');
-  
+  // The useGameQuery hook was removed/refactored; this test is kept as a placeholder.
   return (
     <Paper sx={{ p: 2 }}>
-      <Typography variant="h6">Test 3: useGameQuery Hook</Typography>
-      <Typography>Loading: {query.isLoading ? 'Yes' : 'No'}</Typography>
-      <Typography>Data: {query.data ? 'Loaded' : 'Not loaded'}</Typography>
-      <Typography>Error: {query.error ? 'Yes' : 'No'}</Typography>
+      <Typography variant="h6">Test 3: useGameQuery Hook (Disabled)</Typography>
+      <Typography>This test is disabled because useGameQuery is deprecated.</Typography>
     </Paper>
   );
 }

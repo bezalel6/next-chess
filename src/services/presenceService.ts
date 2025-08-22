@@ -1,4 +1,3 @@
-import { SupabaseClient, RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/utils/supabase";
 
 export type PlayerPresenceStatus = 'online' | 'rage_quit' | 'disconnect' | 'offline';

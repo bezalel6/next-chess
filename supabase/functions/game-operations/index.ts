@@ -174,18 +174,6 @@ const gameRouter = createRouter([
     return result;
   }),
 
-  defineRoute("mushroomGrowth", async (user, params, supabase) => {
-    const result = await handleGameOperation(
-      user,
-      params,
-      supabase,
-      "mushroomGrowth",
-    );
-    if (result.status === 200 && params.gameId) {
-      await notifyGameChange(supabase, params.gameId);
-    }
-    return result;
-  }),
 ]);
 
 

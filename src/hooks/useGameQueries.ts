@@ -71,81 +71,30 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
     }
   }, [query.data, gameId, userId, initGame]);
   
-  // Set up realtime subscription
+  // Set up realtime subscription (server-authoritative updates only)
   useEffect(() => {
     if (!gameId || gameId === 'local') return;
     
-    const { logBroadcastReceived, logStateChange } = useDebugLogStore.getState();
+    const { logBroadcastReceived } = useDebugLogStore.getState();
     
     const channel = supabase
       .channel(`game:${gameId}:unified`)
       .on('broadcast', { event: 'game_update' }, (payload) => {
-        console.log('[useGameQuery] Received game update:', payload);
         logBroadcastReceived('game_update', payload.payload);
         
         // Update React Query cache
         queryClient.setQueryData(['game', gameId], (old: Game | null) => {
-          if (!old) return old;
-          return { ...old, ...payload.payload };
+          if (!old) return payload.payload as Game;
+          return { ...old, ...payload.payload } as Game;
         });
         
         // Sync store with server
         if (payload.payload) {
           syncWithServer(payload.payload);
         }
-      })
-      .on('broadcast', { event: 'move' }, (payload) => {
-        console.log('[useGameQuery] Received move:', payload);
-        logBroadcastReceived('move', payload.payload);
-
-        const { optimisticMove, confirmOptimisticUpdate } = useUnifiedGameStore.getState();
-        const b = payload.payload as { from?: string; to?: string; fen?: string; pgn?: string } | undefined;
-
-        // If this confirms our own optimistic move, avoid a refetch to prevent flicker
-        if (b?.from && b?.to && optimisticMove && optimisticMove.from === b.from && optimisticMove.to === b.to) {
-          // Merge server-authoritative fields into cache and store
-          if (b.pgn || b.fen) {
-            updateGame({
-              ...(b.pgn ? { pgn: b.pgn } : {}),
-              ...(b.fen ? { currentFen: b.fen } : {}),
-              lastMove: b.from && b.to ? { from: b.from as any, to: b.to as any } : undefined,
-            } as any);
-          }
-          confirmOptimisticUpdate();
-          return;
-        }
-
-        // For opponent moves: apply a fast UI update, then refresh in background
-        if (b?.pgn || b?.fen) {
-          updateGame({
-            ...(b.pgn ? { pgn: b.pgn } : {}),
-            ...(b.fen ? { currentFen: b.fen } : {}),
-          } as any);
-        }
-
-        // Only refetch if it's not our own move (avoid double-fetching)
-        if (!optimisticMove || optimisticMove.from !== b?.from || optimisticMove.to !== b?.to) {
-          // Invalidate the moves query to refresh move history
-          queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
-        }
-      })
-      .on('broadcast', { event: 'ban' }, (payload) => {
-        console.log('[useGameQuery] Received ban:', payload);
-        logBroadcastReceived('ban', payload.payload);
         
-        // If PGN is included in the broadcast, update immediately
-        if (payload.payload?.pgn) {
-          console.log('[useGameQuery] Updating game with broadcasted PGN');
-          updateGame({ pgn: payload.payload.pgn });
-        }
-        
-        // Invalidate moves query to refresh move history (ban was already applied to store)
+        // Ensure move list caches refresh
         queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
-        
-        // Update store
-        if (payload.payload) {
-          receiveBan(payload.payload);
-        }
       })
       .subscribe((status) => {
         setConnected(status === 'SUBSCRIBED');
@@ -154,7 +103,7 @@ export function useGameQuery(gameId: string | undefined, userId: string | undefi
     return () => {
       channel.unsubscribe();
     };
-  }, [gameId, queryClient, syncWithServer, receiveMove, receiveBan, updateGame, setConnected]);
+  }, [gameId, queryClient, syncWithServer, setConnected]);
   
   return query;
 }
@@ -208,21 +157,7 @@ export function useMoveMutation(gameId: string | undefined) {
       // Confirm optimistic update immediately (no need to wait)
       store.confirmOptimisticUpdate();
       
-      // Broadcast move to other clients
-      const broadcastPayload = {
-        from: data.lastMove?.from,
-        to: data.lastMove?.to,
-        fen: data.currentFen,
-        pgn: data.pgn,
-      };
-      
-      logBroadcastSent('move', broadcastPayload);
-      
-      supabase.channel(`game:${gameId}:unified`).send({
-        type: 'broadcast',
-        event: 'move',
-        payload: broadcastPayload,
-      });
+      // Rely on server-authoritative broadcasts; no client send.
     },
     
     onError: (error: any) => {
@@ -314,21 +249,7 @@ export function useBanMutation(gameId: string | undefined) {
       // Invalidate moves query to update move history
       queryClient.invalidateQueries({ queryKey: ['moves', gameId] });
       
-      // Broadcast ban to other clients
-      console.log('[useBanMutation] Broadcasting ban:', data.currentBannedMove);
-      const broadcastPayload = {
-        from: data.currentBannedMove?.from,
-        to: data.currentBannedMove?.to,
-        pgn: data.pgn, // Include PGN in broadcast
-      };
-      
-      logBroadcastSent('ban', broadcastPayload);
-      
-      supabase.channel(`game:${gameId}:unified`).send({
-        type: 'broadcast',
-        event: 'ban',
-        payload: broadcastPayload,
-      });
+      // Rely on server-authoritative broadcasts; no client send.
     },
     
     onError: (error: any) => {

@@ -71,6 +71,14 @@ const config = {
       connectSrc.push("ws://localhost:3000", "ws://127.0.0.1:3000");
     }
 
+    // Scripts: in production, remove unsafe-inline/eval; allow required third-parties
+    const scriptSrc = isDev
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://cdn.jsdelivr.net"
+      : "script-src 'self' https://challenges.cloudflare.com https://cdn.jsdelivr.net";
+
+    // Styles: keep 'unsafe-inline' for MUI in both envs (can be tightened later with nonces)
+    const styleSrc = "style-src 'self' 'unsafe-inline' https://fonts.cdnfonts.com";
+
     return [
       {
         source: '/:path*',
@@ -79,12 +87,12 @@ const config = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://cdn.jsdelivr.net",
-              "style-src 'self' 'unsafe-inline' https://fonts.cdnfonts.com",
+              scriptSrc,
+              styleSrc,
               "img-src 'self' data: blob: https:",
               "font-src 'self' data: https://fonts.cdnfonts.com https://fonts.gstatic.com",
               `connect-src ${connectSrc.join(' ')}`,
-              // Allow Google OAuth iframing/popups in dev
+              // Allow Google OAuth iframing/popups
               "frame-src 'self' https://challenges.cloudflare.com https://accounts.google.com https://*.googleusercontent.com",
               "frame-ancestors 'self'",
               "base-uri 'self'",

@@ -174,32 +174,7 @@ const GamePanel = () => {
     refetchInterval: false, // Rely on real-time updates
   });
 
-  // Subscribe to real-time move updates (only for online games)
-  useEffect(() => {
-    if (!game?.id || isLocalGame) return;
-
-    const channel = supabase
-      .channel(`moves:${game.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "moves",
-          filter: `game_id=eq.${game.id}`,
-        },
-        (payload) => {
-          console.log("[GamePanel] New move received:", payload);
-          // Manually refetch moves when new move is inserted
-          refetch();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [game?.id, isLocalGame, refetch]);
+  // Server broadcasts are now authoritative; no separate moves subscription.
 
   // Convert flat moves array to paired moves for display
   const moves = useMemo<Move[]>(() => {

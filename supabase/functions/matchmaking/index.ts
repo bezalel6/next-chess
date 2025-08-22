@@ -359,11 +359,11 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       .select("player_id, joined_at")
       .eq("status", "waiting")
       .order("joined_at", { ascending: true })
-      .limit(10);  // Get more than 2 to have options
+      .limit(20);
     
     // Deduplicate players (in case of DB issues)
     const seenPlayers = new Set<string>();
-    const waitingPlayers = waitingPlayersRaw?.filter(p => {
+    const waitingPlayersDeduped = waitingPlayersRaw?.filter(p => {
       if (seenPlayers.has(p.player_id)) {
         logger.warn(`Duplicate player in queue: ${p.player_id}`);
         return false;
@@ -371,6 +371,17 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       seenPlayers.add(p.player_id);
       return true;
     }) || [];
+
+    // Filter by recent activity: last_online within the last 10 seconds
+    const recentThreshold = new Date(Date.now() - 10 * 1000).toISOString();
+    const { data: recentProfiles } = await getTable(supabase, "profiles")
+      .select("id, last_online")
+      .in("id", waitingPlayersDeduped.map(p => p.player_id));
+    const recentSet = new Set((recentProfiles || [])
+      .filter(p => p.last_online && p.last_online >= recentThreshold)
+      .map(p => p.id));
+
+    const waitingPlayers = waitingPlayersDeduped.filter(p => recentSet.has(p.player_id));
 
     logOperation("find online waiting players", waitingPlayersError);
 
@@ -404,8 +415,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
 
     // If we have at least 2 waiting players, create a game
     if (waitingPlayers && waitingPlayers.length >= 2) {
-      // For now, skip the online check since it's causing issues
-      // Just match the first two players in the queue
+      // Choose the first two with recent activity
       const player1 = waitingPlayers[0].player_id;
       const player2 = waitingPlayers[1].player_id;
       

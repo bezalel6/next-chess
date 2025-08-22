@@ -7,12 +7,50 @@ import "./src/env.mjs";
 /** @type {import("next").NextConfig} */
 const config = {
   reactStrictMode: true,
-  output: "standalone",
+  // output: "standalone", // Commented out to use custom server
   eslint: {
     // Disable ESLint during builds
     ignoreDuringBuilds: true,
   },
   webpack: (config, { dev, isServer }) => {
+    // Enable infrastructure logging with stack traces
+    config.infrastructureLogging = {
+      level: 'verbose',
+      debug: [
+        /PackFileCacheStrategy/,  // Debug cache strategy warnings
+        /webpack\.cache/,          // Debug webpack cache issues
+        /Serializing/,             // Debug serialization warnings
+      ],
+      appendOnly: false,
+      colors: false,
+      stream: process.stderr,
+    };
+    
+    // Enable detailed stats with stack traces
+    config.stats = {
+      ...config.stats,
+      logging: 'verbose',
+      loggingTrace: true,     // Enable stack traces for warnings
+      loggingDebug: [
+        /PackFileCacheStrategy/,
+        /Serializing/,
+      ],
+      errorStack: true,       // Show error stack traces
+      errorDetails: true,     // Show error details
+      warnings: true,         // Show warnings
+      warningsFilter: [],     // Don't filter any warnings
+      moduleTrace: true,      // Show module trace
+      performance: true,      // Show performance warnings
+    };
+    
+    // Add performance hints for large assets
+    config.performance = {
+      ...config.performance,
+      hints: 'warning',
+      maxAssetSize: 512000,
+      maxEntrypointSize: 512000,
+    };
+    
     // Optimize webpack cache for development & prefer fastest devtool
     if (dev && !isServer) {
       config.cache = {

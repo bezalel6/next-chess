@@ -64,8 +64,7 @@ COPY --from=builder /app/package*.json ./
 
 # Copy built application
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/.next ./.next
 
 # Copy custom server and source files needed
 COPY --from=builder /app/src ./src

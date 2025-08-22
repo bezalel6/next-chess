@@ -4,10 +4,15 @@ import next from "next";
 import { createClient, RealtimeChannel } from "@supabase/supabase-js";
 import WebSocket from "ws";
 import { env } from "../env";
+import { spawn } from "child_process";
 
 const dev = env.NODE_ENV !== "production";
 const hostname = (process.env.HOST as string) || "0.0.0.0"; // listen on all interfaces by default
 const port = Number(process.env.PORT || env.PORT) || 3000;
+
+// Track if we're already shutting down to prevent multiple shutdown attempts
+let isShuttingDown = false;
+let shutdownPromise: Promise<void> | null = null;
 
 // Polyfill WebSocket for Node.js runtime (required by supabase-js realtime)
 // If ws isn't installed, this import will fail at build/runtime.
@@ -95,41 +100,94 @@ async function start() {
 }
 
 async function shutdown(signal: string) {
-  console.log(`${signal} received, shutting down...`);
+  // Prevent multiple simultaneous shutdowns
+  if (isShuttingDown) {
+    console.log(`Already shutting down, ignoring ${signal}`);
+    return shutdownPromise;
+  }
+  
+  isShuttingDown = true;
+  console.log(`${signal} received, shutting down gracefully...`);
 
-  try {
-    if (queueChannel) {
-      await queueChannel.untrack();
-      await supabase.removeChannel(queueChannel);
+  shutdownPromise = (async () => {
+    // Step 1: Stop accepting new connections immediately
+    if (server) {
+      try {
+        server.close();
+        server.closeAllConnections();
+      } catch (e) {
+        console.warn("Error closing server:", e);
+      }
     }
-  } catch (e) {
-    console.warn("Error cleaning up realtime channel:", e);
-  }
 
-  try {
-    await supabase.removeAllChannels();
-  } catch (e) {
-    console.warn("Error closing supabase client:", e);
-  }
+    // Step 2: Clean up Supabase channels
+    try {
+      if (queueChannel) {
+        await queueChannel.untrack();
+        await supabase.removeChannel(queueChannel);
+      }
+      await supabase.removeAllChannels();
+    } catch (e) {
+      console.warn("Error cleaning up realtime channels:", e);
+    }
 
-  if (server) {
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        console.warn("Force exiting after 5s timeout");
-        resolve();
-      }, 5000);
-      server!.close(() => {
-        clearTimeout(timeout);
-        resolve();
-      });
-    });
-  }
+    // Step 3: Close Next.js app
+    try {
+      await app.close();
+    } catch (e) {
+      console.warn("Error closing Next.js app:", e);
+    }
 
-  process.exit(0);
+    // Step 4: Wait a moment for cleanup
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Step 5: Force kill any remaining child processes on Windows
+    if (process.platform === 'win32') {
+      try {
+        // Kill all child processes spawned by this process
+        const { execSync } = require('child_process');
+        execSync(`wmic process where "ParentProcessId=${process.pid}" delete`, { stdio: 'ignore' });
+      } catch (e) {
+        // Ignore errors, this is best effort
+      }
+    }
+
+    // Step 6: Exit with appropriate code
+    process.exit(0);
+  })();
+
+  // Set a hard timeout for shutdown
+  setTimeout(() => {
+    console.error("Shutdown timeout exceeded, forcing exit");
+    process.exit(1);
+  }, 3000);
+
+  return shutdownPromise;
 }
 
+// Handle all termination signals
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGHUP", () => shutdown("SIGHUP"));
+
+// Handle Windows-specific signals
+if (process.platform === "win32") {
+  // Windows doesn't have SIGTERM/SIGINT in the same way
+  // But we can catch the console close event
+  process.on("SIGBREAK", () => shutdown("SIGBREAK"));
+  
+  // Also handle uncaught exceptions more aggressively
+  process.on("uncaughtException", (err) => {
+    console.error("Uncaught exception:", err);
+    shutdown("UNCAUGHT_EXCEPTION");
+  });
+}
+
+// Prevent orphaned processes when parent dies
+process.on("disconnect", () => {
+  console.log("Parent process disconnected, shutting down...");
+  shutdown("DISCONNECT");
+});
 
 start().catch((err) => {
   console.error("Fatal startup error:", err);

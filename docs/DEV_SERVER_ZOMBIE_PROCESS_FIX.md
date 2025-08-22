@@ -32,8 +32,9 @@ The original `kill-running` script used `portio --mine 3000` which only kills th
 - Processes started at 1:40 PM still running at 4:56 PM
 - Over 25 node.exe processes accumulated over time
 
-## Solution Implemented
+## Solutions Implemented
 
+### Solution 1: Comprehensive Cleanup Script (Backup)
 Created a comprehensive process cleanup script (`scripts/kill-dev-processes.js`) that:
 
 1. **Kills processes on port 3000** - The immediate blocker
@@ -52,6 +53,35 @@ It searches for processes by:
 - Port binding (3000)
 - Command line patterns (nodemon, tsx, cross-env)
 - Specific file references (server.ts)
+
+### Solution 2: Improved Server Shutdown (Primary Fix)
+Updated `src/server/server.ts` with robust shutdown handling:
+
+1. **Graceful shutdown sequence**:
+   - Stop accepting new connections
+   - Clean up Supabase realtime channels
+   - Close Next.js app properly
+   - Kill child processes on Windows
+   - Force exit after timeout
+
+2. **Signal handling improvements**:
+   - Handle all termination signals (SIGTERM, SIGINT, SIGHUP, SIGBREAK)
+   - Prevent multiple simultaneous shutdowns
+   - Handle parent process disconnection
+   - Windows-specific signal handling
+
+3. **Child process cleanup**:
+   - Uses `wmic` to delete child processes on Windows
+   - Closes all server connections immediately
+   - Hard timeout of 3 seconds to prevent hanging
+
+### Solution 3: Process Wrapper Script (Optional Enhanced Safety)
+Created `scripts/dev-server-wrapper.js` for extra process management:
+
+- Wraps the tsx server execution
+- Ensures proper signal forwarding
+- Kills entire process tree on Windows
+- Available via `npm run dev:safe` commands
 
 ## Prevention Strategies
 

@@ -659,7 +659,7 @@ export const BugReportDialog: React.FC<BugReportDialogProps> = ({ open, onClose,
               <Chip label={`Page: ${router.pathname}`} size="small" variant="outlined" />
               {gameId && <Chip label={`Game: ${gameId}`} size="small" variant="outlined" />}
               <Chip 
-                label={`Browser: ${navigator.userAgent.split(' ').slice(-2).join(' ')}`} 
+                label={`Browser: ${typeof navigator !== 'undefined' ? navigator.userAgent.split(' ').slice(-2).join(' ') : 'SSR'}`} 
                 size="small" 
                 variant="outlined" 
               />

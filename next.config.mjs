@@ -17,17 +17,34 @@ const config = {
     if (dev && !isServer) {
       config.cache = {
         type: 'filesystem',
-        buildDependencies: { config: ['./next.config.js'] },
-        compression: 'gzip',
+        buildDependencies: { config: ['./next.config.mjs'] },
+        compression: false, // Disable compression to avoid serialization warnings
         maxMemoryGenerations: 1,
         memoryCacheUnaffected: true,
         name: 'next-chess-client-dev',
         store: 'pack',
-        version: '1.0.0'
+        version: '1.0.0',
+        // Increase the size limit for serialization warnings
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+        profile: false,
+        allowCollectingMemory: true
       };
       // Use eval-based source maps for fastest incremental builds
       config.devtool = 'eval';
     }
+    
+    // For production builds, optimize serialization
+    if (!dev) {
+      config.cache = {
+        type: 'filesystem',
+        compression: false, // Avoid serialization warnings
+        store: 'pack',
+        buildDependencies: {
+          config: ['./next.config.mjs'],
+        },
+      };
+    }
+    
     return config;
   },
 

@@ -48,6 +48,17 @@ function sanitizeText(text: string, maxLength: number = 5000): string {
 
 export class BugReportService {
   static getBrowserInfo(): BrowserInfo {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return {
+        userAgent: 'SSR',
+        platform: 'SSR',
+        language: 'en',
+        screenResolution: '0x0',
+        viewport: '0x0'
+      };
+    }
+    
     return {
       userAgent: navigator.userAgent,
       platform: navigator.platform,

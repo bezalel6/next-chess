@@ -82,10 +82,12 @@ export default function PgnInput() {
   };
 
   const handleCopyPgn = async () => {
-    try {
-      await navigator.clipboard.writeText(pgnText);
-    } catch (err) {
-      console.error('Failed to copy to clipboard');
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(pgnText);
+      } catch (err) {
+        console.error('Failed to copy to clipboard');
+      }
     }
   };
 

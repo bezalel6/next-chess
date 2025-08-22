@@ -69,7 +69,7 @@ COPY --from=builder /app/.next/static ./.next/static
 
 # Copy custom server and source files needed
 COPY --from=builder /app/src ./src
-COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/next.config.mjs ./
 COPY --from=builder /app/tsconfig.json ./
 
 # Set correct permissions

@@ -1,42 +1,27 @@
-# Multi-stage build for Next.js application (standalone)
-
-# 1) Dependencies
-FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-COPY package*.json ./
-# Copy .npmrc if present (comment out if you don't use private registries)
-COPY .npmrc ./
-
-# Install deps and dotenv-cli for build-time env support if needed
-RUN npm ci --legacy-peer-deps --no-audit --no-fund && \
-    npm i -g dotenv-cli@7
-
-# 2) Builder
+# Next.js (standalone) - simple, production-ready Dockerfile
+# Build stage
 FROM node:20-alpine AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package*.json ./
-COPY .npmrc ./
 RUN npm ci --legacy-peer-deps --no-audit --no-fund
 
 # Copy source
 COPY . .
 
-# Build-time Supabase env (required because client is instantiated at import time)
+# Build-time public env (required by Next for public client code)
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
-# Build next in standalone mode (env validation skipped at build-time)
+# Build Next in standalone mode
 ENV SKIP_ENV_VALIDATION=1
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# 3) Runner
+# Run stage
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -46,18 +31,23 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs
 
-# Copy necessary files from builder
+# Only copy standalone output + public assets
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Ensure permissions
+# Fix ownership and drop privileges
 RUN chown -R nextjs:nodejs /app
 USER nextjs
 
-EXPOSE 3000
+# Ensure correct network binding for Coolify/Traefik
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+ENV HOSTNAME=0.0.0.0
+EXPOSE 3000
+
+# Basic healthcheck on root path
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||3000)+'/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"
 
 # Start the Next.js standalone server
 CMD ["node", "server.js"]

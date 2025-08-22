@@ -37,6 +37,7 @@ import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
 import dynamic from "next/dynamic";
 import NewsManager from "@/components/admin/NewsManager";
+import Image from "next/image";
 
 // Heavy charts should load only on the client and only when this page is visited
 const GameChart = dynamic(() => import("@/components/admin/GameChart"), { ssr: false, loading: () => null });
@@ -677,10 +678,14 @@ export default function AdminDashboard() {
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 1 }}>
                               {(report.additional_data.screenshots as string[]).map((url: string, idx: number) => (
                                 <a key={idx} href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                                  <img
+                                  <Image
                                     src={url}
                                     alt={`Screenshot ${idx + 1}`}
+                                    width={160}
+                                    height={100}
                                     style={{ width: '100%', height: 100, objectFit: 'cover', borderRadius: 4, border: '1px solid rgba(255,255,255,0.12)' }}
+                                    sizes="(max-width: 600px) 50vw, (max-width: 900px) 33vw, 160px"
+                                    unoptimized
                                   />
                                 </a>
                               ))}

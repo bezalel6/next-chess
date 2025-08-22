@@ -19,6 +19,7 @@ import { HeartbeatProvider } from "@/components/HeartbeatProvider";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import dynamic from "next/dynamic";
 import { env } from "@/env.mjs";
+import { digital7Mono } from "@/lib/fonts";
 
 export type PageProps = {
   title?: string;
@@ -62,39 +63,40 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <Head>
-            <title>{pageProps.title || defaultPageProps.title}</title>
-            <meta
-              name="description"
-              content={pageProps.description || defaultPageProps.description}
-            />
-            {/* Font loading moved to _document.tsx for optimal performance */}
-            {/* Open Graph meta tags for social sharing */}
-            <meta property="og:type" content="website" />
-            <meta property="og:site_name" content="Ban Chess" />
-            <meta property="og:image" content="/logo.png" />
-            <meta property="og:image:alt" content="Ban Chess Logo" />
+        <div className={digital7Mono.variable}>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <Head>
+              <title>{pageProps.title || defaultPageProps.title}</title>
+              <meta
+                name="description"
+                content={pageProps.description || defaultPageProps.description}
+              />
+              {/* Open Graph meta tags for social sharing */}
+              <meta property="og:type" content="website" />
+              <meta property="og:site_name" content="Ban Chess" />
+              <meta property="og:image" content="/logo.png" />
+              <meta property="og:image:alt" content="Ban Chess Logo" />
 
-            {/* Twitter Card meta tags */}
-            <meta name="twitter:card" content="summary_large_image" />
-            <meta name="twitter:image" content="/logo.png" />
-            <link rel="icon" href="/logo.png" />
-          </Head>
-          <AuthProvider>
-            <NotificationProvider>
-              <HeartbeatProvider>
-                <ConnectionProvider>
-                  <Layout>
-                    <Component {...pageProps} />
-                  </Layout>
-                </ConnectionProvider>
-              </HeartbeatProvider>
-            </NotificationProvider>
-          </AuthProvider>
-          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
-        </ThemeProvider>
+              {/* Twitter Card meta tags */}
+              <meta name="twitter:card" content="summary_large_image" />
+              <meta name="twitter:image" content="/logo.png" />
+              <link rel="icon" href="/logo.png" />
+            </Head>
+            <AuthProvider>
+              <NotificationProvider>
+                <HeartbeatProvider>
+                  <ConnectionProvider>
+                    <Layout>
+                      <Component {...pageProps} />
+                    </Layout>
+                  </ConnectionProvider>
+                </HeartbeatProvider>
+              </NotificationProvider>
+            </AuthProvider>
+            <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+          </ThemeProvider>
+        </div>
       </QueryClientProvider>
     </ErrorBoundary>
   );

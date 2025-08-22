@@ -9,7 +9,9 @@ COPY package*.json ./
 # Copy .npmrc if present (comment out if you don't use private registries)
 COPY .npmrc ./
 
-RUN npm ci --legacy-peer-deps --no-audit --no-fund
+# Install deps and dotenv-cli for build-time env support if needed
+RUN npm ci --legacy-peer-deps --no-audit --no-fund && \
+    npm i -g dotenv-cli@7
 
 # 2) Builder
 FROM node:20-alpine AS builder
@@ -22,6 +24,12 @@ RUN npm ci --legacy-peer-deps --no-audit --no-fund
 
 # Copy source
 COPY . .
+
+# Build-time Supabase env (required because client is instantiated at import time)
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
 # Build next in standalone mode (env validation skipped at build-time)
 ENV SKIP_ENV_VALIDATION=1

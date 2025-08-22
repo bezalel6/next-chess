@@ -7,7 +7,17 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Box, Typography, LinearProgress, useTheme } from "@mui/material";
 import { Timer, TimerOff } from "@mui/icons-material";
-import { digitalClockStyles } from "../lib/fonts";
+// Using CSS variable provided by next/font/local (digital7Mono.variable)
+const digitalClockStyles = {
+  fontFamily: "var(--font-digital-7-mono, 'Courier New', monospace)",
+  fontWeight: "normal",
+  fontSize: "2rem",
+  letterSpacing: "0.15em",
+  lineHeight: 1,
+  WebkitFontSmoothing: 'antialiased' as const,
+  MozOsxFontSmoothing: 'grayscale' as const,
+  textRendering: 'optimizeLegibility' as const,
+} as const;
 import type { 
   PlayerClock, 
   ClockSyncMessage, 

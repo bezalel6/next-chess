@@ -1,4 +1,4 @@
-import { Box, Typography, Chip, Fade } from "@mui/material";
+import { Box, Chip, Fade } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useMemo } from "react";
 import CircleIcon from '@mui/icons-material/Circle';
@@ -7,13 +7,16 @@ import CheckIcon from '@mui/icons-material/Check';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 
+type ChipColor = "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning";
+
 const GameStateIndicator = () => {
     const game = useUnifiedGameStore(s => s.game);
     const phase = useUnifiedGameStore(s => s.phase);
     const myColor = useUnifiedGameStore(s => s.myColor);
     const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
-    const turnColor = useUnifiedGameStore(s => s.turnColor);
-    const canBan = useUnifiedGameStore(s => s.canBan);
+    const currentTurn = useUnifiedGameStore(s => s.currentTurn);
+    const canBan = useUnifiedGameStore(s => s.canBan());
+    const chess = useUnifiedGameStore(s => s.chess);
     
     const stateInfo = useMemo(() => {
         if (!game) return null;
@@ -22,7 +25,7 @@ const GameStateIndicator = () => {
         if (game.status === 'finished') {
             let icon = <EmojiEventsIcon sx={{ fontSize: 14 }} />;
             let text = '';
-            let color = 'default' as const;
+            let color: ChipColor = 'default';
             
             if (game.result === 'draw') {
                 icon = <HandshakeIcon sx={{ fontSize: 14 }} />;
@@ -40,56 +43,56 @@ const GameStateIndicator = () => {
         
         // Active game states
         if (game.status === 'active') {
-            // Check state
-            if (game.isCheck) {
+            // Check state - use chess.ts to check for check
+            if (chess && chess.inCheck()) {
                 return {
                     icon: <CheckIcon sx={{ fontSize: 14, color: '#ff9800' }} />,
                     text: 'Check!',
-                    color: 'warning' as const,
+                    color: 'warning' as ChipColor,
                     pulse: true
                 };
             }
             
             // Ban phase
-            if (phase === 'ban') {
+            if (phase === 'selecting_ban' || phase === 'waiting_for_ban') {
                 const isBanning = canBan;
                 return {
                     icon: <BlockIcon sx={{ fontSize: 14, color: isBanning ? '#2196f3' : 'inherit' }} />,
-                    text: isBanning ? 'Your ban' : `${playerUsernames[turnColor]} banning`,
-                    color: isBanning ? 'primary' : 'default' as const,
+                    text: isBanning ? 'Your ban' : `${playerUsernames[currentTurn]} banning`,
+                    color: (isBanning ? 'primary' : 'default') as ChipColor,
                     pulse: isBanning
                 };
             }
             
             // Move phase
-            const isMyTurn = myColor === turnColor;
-            const turnPlayer = playerUsernames[turnColor];
+            const isMyTurn = myColor === currentTurn;
+            const turnPlayer = playerUsernames[currentTurn];
             
             return {
                 icon: <CircleIcon sx={{ 
                     fontSize: 10, 
-                    color: turnColor === 'white' ? '#fff' : '#000',
+                    color: currentTurn === 'white' ? '#fff' : '#000',
                     border: '1px solid rgba(255,255,255,0.2)',
                     borderRadius: '50%'
                 }} />,
                 text: isMyTurn ? 'Your move' : `${turnPlayer}'s move`,
-                color: isMyTurn ? 'primary' : 'default' as const,
+                color: (isMyTurn ? 'primary' : 'default') as ChipColor,
                 pulse: isMyTurn
             };
         }
         
-        // Waiting state
-        if (game.status === 'waiting') {
+        // Waiting state - game can be abandoned too
+        if (game.status === 'abandoned') {
             return {
                 icon: <CircleIcon sx={{ fontSize: 10, color: '#666' }} />,
-                text: 'Waiting for opponent',
-                color: 'default' as const,
-                pulse: true
+                text: 'Game abandoned',
+                color: 'default' as ChipColor,
+                pulse: false
             };
         }
         
         return null;
-    }, [game, phase, myColor, playerUsernames, turnColor, canBan]);
+    }, [game, phase, myColor, playerUsernames, currentTurn, canBan, chess]);
     
     if (!stateInfo) return null;
     

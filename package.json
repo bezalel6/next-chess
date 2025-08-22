@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "diagnose:game": "node scripts/diagnose_game.mjs",
-    "kill-running": "portio --mine 3000",
+    "kill-running": "node scripts/kill-dev-processes.js",
+    "kill-running-old": "portio --mine 3000",
     "build": "next build",
 "check": "npm run lint && tsc --noEmit",
     "dev:local": "npm run kill-running && cross-env DOTENV_CONFIG_PATH=.env.local tsx -r dotenv/config src/server/server.ts",

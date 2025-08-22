@@ -697,7 +697,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         rollbackOptimisticUpdate: () => {
           const state = get();
           
-          let updates: any = {
+          const updates: any = {
             pendingOperation: null,
             optimisticMove: null,
             optimisticBan: null,
@@ -843,7 +843,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
                 !(m.from === from && m.to === to)
               );
               
-              let gameUpdates: any = {};
+              const gameUpdates: any = {};
               
               if (isInCheck && availableMoves.length === 0) {
                 // Ban Chess checkmate! The opponent is in check and their only legal move was banned
@@ -903,7 +903,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             }];
             
             // Check for game over (Ban Chess variant rules)
-            let gameUpdates: any = {
+            const gameUpdates: any = {
               pgn: state.chess.pgn(),
               currentFen: newFen,
               lastMove: { from, to },
@@ -999,7 +999,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
               !(m.from === from && m.to === to)
             );
             
-            let gameUpdates: any = {};
+            const gameUpdates: any = {};
             
             if (isInCheck && availableMoves.length === 0) {
               // Ban Chess checkmate! The opponent is in check and their only legal move was banned
@@ -1081,7 +1081,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           // Update game object
           if (state.game) {
             const updatedPgn = state.chess.pgn();
-            let gameUpdates: any = {
+            const gameUpdates: any = {
               pgn: updatedPgn,
               currentFen: newFen,
               turn: newTurn,

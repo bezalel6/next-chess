@@ -161,7 +161,7 @@ async function handleMakeMove(
     const status = gameOverState.isOver ? "finished" : "active";
 
     // Update the game with the new state (attempt version bump if column exists)
-    let updatedGameRes = await getTable(
+    const updatedGameRes = await getTable(
       supabase,
       "games",
     )
@@ -363,7 +363,7 @@ async function handleBanMove(
 
   // Update the game
   // Attempt to bump version if column exists
-  let updatedGameRes = await getTable(
+  const updatedGameRes = await getTable(
     supabase,
     "games",
   )
@@ -504,7 +504,7 @@ async function handleGameOffer(
     return successResponse(updatedGame);
   } else if (action === "decline") {
     // Handle declining
-    let updatedGameRes = await getTable(
+    const updatedGameRes = await getTable(
       supabase,
       "games",
     )
@@ -549,7 +549,7 @@ async function handleGameOffer(
   } else if (action === "accept") {
     // Handle accepting
     if (offerType === "draw") {
-      let updatedGameRes = await getTable(
+      const updatedGameRes = await getTable(
         supabase,
         "games",
       )
@@ -705,7 +705,7 @@ async function handleResignation(
   // When a player resigns, the opponent wins
   const result = playerColor === "white" ? "black" : "white";
 
-  let updatedGameRes = await getTable(
+  const updatedGameRes = await getTable(
     supabase,
     "games",
   )

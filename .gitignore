@@ -134,3 +134,4 @@ test-*.mjs
 test-*.js
 !test-*.spec.js
 supabase/schema.sql
+build-output.txt

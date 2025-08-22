@@ -381,7 +381,7 @@ export default function NewsManager() {
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete "{currentItem?.title}"?
+            Are you sure you want to delete &quot;{currentItem?.title}&quot;?
           </Typography>
         </DialogContent>
         <DialogActions>

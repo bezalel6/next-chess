@@ -2,7 +2,7 @@ import { Box, Container, Typography, Button, Paper } from "@mui/material";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import GameBoardV2 from "@/components/GameBoardV2";
-import LocalGamePanel from "@/components/LocalGamePanel";
+import GamePanel from "@/components/GamePanel";
 import BanPhaseOverlay from "@/components/BanPhaseOverlay";
 import HomeIcon from '@mui/icons-material/Home';
 import InfoIcon from '@mui/icons-material/Info';
@@ -125,11 +125,11 @@ export default function LocalGamePage() {
                     <strong>Ban Chess Rules:</strong>
                   </Typography>
                   <Typography variant="body2" component="ol" sx={{ pl: 2, '& li': { mb: 0.5 } }}>
-                    <li>Black bans one of White's possible first moves</li>
+                    <li>Black bans one of White&apos;s possible first moves</li>
                     <li>White makes their first move (avoiding the ban)</li>
-                    <li>White then bans one of Black's possible moves</li>
+                    <li>White then bans one of Black&apos;s possible moves</li>
                     <li>Black makes their move (avoiding the ban)</li>
-                    <li>Continue alternating: move, then ban opponent's next move</li>
+                    <li>Continue alternating: move, then ban opponent&apos;s next move</li>
                   </Typography>
                   <Typography variant="caption" sx={{ display: 'block', mt: 1.5, opacity: 0.8 }}>
                     The banned move is highlighted in red. Click on pieces to select moves to ban or make.
@@ -197,7 +197,7 @@ export default function LocalGamePage() {
                   color: '#bababa',
                   overflow: 'hidden',
                 }}>
-                  <LocalGamePanel />
+                  <GamePanel />
                 </Paper>
               </Box>
             </Box>

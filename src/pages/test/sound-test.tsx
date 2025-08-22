@@ -217,7 +217,7 @@ export default function SoundTestPage() {
                 <Typography variant="body2" sx={{ color: "#888", pl: 2 }}>
                   • Regular Move - Standard piece movement
                   <br />
-                  • Capture - When taking an opponent's piece
+                  • Capture - When taking an opponent&apos;s piece
                   <br />
                   • Castle - King and rook castling move
                   <br />

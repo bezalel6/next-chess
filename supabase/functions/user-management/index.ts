@@ -190,7 +190,7 @@ const userRouter = createRouter([
       } else {
         // Check for duplicates and modify if needed
         let attempts = 0;
-        let baseUsername = username.toLowerCase().trim();
+        const baseUsername = username.toLowerCase().trim();
         let finalUsername = baseUsername;
         while(attempts < 5){
           const { data: existingProfile } = await getTable(supabase, "profiles").select("id").ilike("username", finalUsername).maybeSingle();

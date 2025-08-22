@@ -54,6 +54,8 @@ export interface Game {
     initialTime: number; // in milliseconds
     increment: number; // in milliseconds
   };
+  // Server version for realtime ordering
+  version?: number;
 }
 
 export interface GameContextType {

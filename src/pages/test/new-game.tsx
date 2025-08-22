@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
 import { CircularProgress, Box, Typography } from '@mui/material';
+import Link from 'next/link';
 
 export default function NewGameTest() {
   const router = useRouter();
@@ -66,7 +67,7 @@ export default function NewGameTest() {
           {error}
         </Typography>
         <Typography variant="body2" sx={{ mt: 2 }}>
-          <a href="/test/new-game">Try again</a>
+          <Link href="/test/new-game">Try again</Link>
         </Typography>
       </Box>
     );

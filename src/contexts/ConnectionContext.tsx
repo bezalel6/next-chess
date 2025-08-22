@@ -104,7 +104,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         return () => {
             channel.unsubscribe();
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [session]);
 
     // Handle player authentication and channel setup
@@ -184,7 +184,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
             }
         };
         // needs to stay without the queue deps
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [session, router]);
 
     const handleQueueToggle = async () => {

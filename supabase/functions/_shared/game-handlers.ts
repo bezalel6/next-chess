@@ -100,8 +100,6 @@ export async function handleGameOperation(
           "decline",
         );
 
-      case "mushroomGrowth":
-        return await handleMushroomGrowth(user, params, supabase);
 
       default:
         return errorResponse(`Unknown operation: ${operation}`, 400);
@@ -162,8 +160,8 @@ async function handleMakeMove(
     const gameOverState = isGameOver(moveResult.newFen, moveResult.newPgn);
     const status = gameOverState.isOver ? "finished" : "active";
 
-    // Update the game with the new state
-    const { data: updatedGame, error: updateError } = await getTable(
+    // Update the game with the new state (attempt version bump if column exists)
+    const updatedGameRes = await getTable(
       supabase,
       "games",
     )
@@ -178,12 +176,41 @@ async function handleMakeMove(
         result: gameOverState.result,
         end_reason: gameOverState.reason,
         draw_offered_by: null, // Clear any pending draw offers
-      })
+        version: ((game as any).version ?? 0) + 1,
+      } as any)
       .eq("id", gameId)
       .select("*")
       .maybeSingle();
 
-    logOperation("update game state", updateError);
+    let updatedGame = updatedGameRes.data;
+    let updateError = updatedGameRes.error as any;
+    logOperation("update game state (with version)", updateError);
+
+    // If version column doesn't exist, retry without setting it
+    if (updateError && (updateError.message?.includes("column \"version\" does not exist") || updateError.details?.includes("version"))) {
+      const fallbackRes = await getTable(
+        supabase,
+        "games",
+      )
+        .update({
+          current_fen: moveResult.newFen,
+          pgn: moveResult.newPgn,
+          last_move: move as unknown as Json,
+          turn: playerColor === "white" ? "black" : "white",
+          banning_player: status === "finished" ? null : playerColor,
+          current_banned_move: null,
+          status,
+          result: gameOverState.result,
+          end_reason: gameOverState.reason,
+          draw_offered_by: null,
+        })
+        .eq("id", gameId)
+        .select("*")
+        .maybeSingle();
+      updatedGame = fallbackRes.data;
+      updateError = fallbackRes.error as any;
+      logOperation("update game state (fallback no version)", updateError);
+    }
 
     if (updateError) {
       return errorResponse(
@@ -335,16 +362,36 @@ async function handleBanMove(
   }
 
   // Update the game
-  const { data: updatedGame, error: updateError } = await getTable(
+  // Attempt to bump version if column exists
+  const updatedGameRes = await getTable(
     supabase,
     "games",
   )
-    .update(updateData)
+    .update({
+      ...updateData,
+      version: ((game as any).version ?? 0) + 1,
+    } as any)
     .eq("id", gameId)
     .select("*")
     .maybeSingle();
 
-  logOperation("update game ban move", updateError);
+  let updatedGame = updatedGameRes.data;
+  let updateError = updatedGameRes.error as any;
+  logOperation("update game ban move (with version)", updateError);
+
+  if (updateError && (updateError.message?.includes("column \"version\" does not exist") || updateError.details?.includes("version"))) {
+    const fallbackRes = await getTable(
+      supabase,
+      "games",
+    )
+      .update(updateData)
+      .eq("id", gameId)
+      .select("*")
+      .maybeSingle();
+    updatedGame = fallbackRes.data;
+    updateError = fallbackRes.error as any;
+    logOperation("update game ban move (fallback no version)", updateError);
+  }
 
   if (updateError) {
     return errorResponse(`Failed to update game: ${updateError.message}`, 500);
@@ -355,25 +402,6 @@ async function handleBanMove(
   const moveHistory = chess.history({ verbose: true });
   const plyNumber = moveHistory.length; // This will be 0 for first ban, 1 after white's first move, etc.
   const moveNumber = Math.floor(plyNumber / 2) + 1;
-  
-  // Insert ban record into moves table for real-time updates
-  // This is a "placeholder" move record that shows the ban but no actual move
-  const { error: moveError } = await (supabase as any).from("moves").insert({
-    game_id: gameId,
-    move_number: moveNumber,
-    ply_number: plyNumber,
-    player_color: game.turn, // The player whose move is being banned
-    from_square: '', // No actual move made yet
-    to_square: '',
-    san: '', // No SAN for ban-only record
-    fen_after: game.current_fen, // FEN doesn't change with just a ban
-    banned_from: move.from,
-    banned_to: move.to,
-    banned_by: userColor,
-    created_by: user.id,
-  });
-  
-  logOperation("record ban in moves table", moveError);
   
   // Store ban in history table for analysis
   const { error: historyError } = await (supabase as any).from("ban_history").insert({
@@ -476,14 +504,30 @@ async function handleGameOffer(
     return successResponse(updatedGame);
   } else if (action === "decline") {
     // Handle declining
-    const { data: updatedGame, error: updateError } = await getTable(
+    const updatedGameRes = await getTable(
       supabase,
       "games",
     )
-      .update({ [field]: null })
+      .update({ [field]: null, version: ((game as any).version ?? 0) + 1 } as any)
       .eq("id", gameId)
       .select("*")
       .maybeSingle();
+
+    let updatedGame = updatedGameRes.data;
+    let updateError = updatedGameRes.error as any;
+
+    if (updateError && (updateError.message?.includes("column \"version\" does not exist") || updateError.details?.includes("version"))) {
+      const fallbackRes = await getTable(
+        supabase,
+        "games",
+      )
+        .update({ [field]: null })
+        .eq("id", gameId)
+        .select("*")
+        .maybeSingle();
+      updatedGame = fallbackRes.data;
+      updateError = fallbackRes.error as any;
+    }
 
     logOperation(`decline ${offerType}`, updateError);
 
@@ -505,7 +549,7 @@ async function handleGameOffer(
   } else if (action === "accept") {
     // Handle accepting
     if (offerType === "draw") {
-      const { data: updatedGame, error: updateError } = await getTable(
+      const updatedGameRes = await getTable(
         supabase,
         "games",
       )
@@ -514,10 +558,32 @@ async function handleGameOffer(
           result: "draw",
           [field]: null,
           end_reason: "draw_agreement",
-        })
+          version: ((game as any).version ?? 0) + 1,
+        } as any)
         .eq("id", gameId)
         .select("*")
         .maybeSingle();
+
+      let updatedGame = updatedGameRes.data;
+      let updateError = updatedGameRes.error as any;
+
+      if (updateError && (updateError.message?.includes("column \"version\" does not exist") || updateError.details?.includes("version"))) {
+        const fallbackRes = await getTable(
+          supabase,
+          "games",
+        )
+          .update({
+            status: "finished",
+            result: "draw",
+            [field]: null,
+            end_reason: "draw_agreement",
+          })
+          .eq("id", gameId)
+          .select("*")
+          .maybeSingle();
+        updatedGame = fallbackRes.data;
+        updateError = fallbackRes.error as any;
+      }
 
       logOperation("accept draw", updateError);
 
@@ -639,7 +705,7 @@ async function handleResignation(
   // When a player resigns, the opponent wins
   const result = playerColor === "white" ? "black" : "white";
 
-  const { data: updatedGame, error: updateError } = await getTable(
+  const updatedGameRes = await getTable(
     supabase,
     "games",
   )
@@ -647,10 +713,31 @@ async function handleResignation(
       status: "finished",
       result,
       end_reason: "resignation",
-    })
+      version: ((game as any).version ?? 0) + 1,
+    } as any)
     .eq("id", gameId)
     .select("*")
     .maybeSingle();
+
+  let updatedGame = updatedGameRes.data;
+  let updateError = updatedGameRes.error as any;
+
+  if (updateError && (updateError.message?.includes("column \"version\" does not exist") || updateError.details?.includes("version"))) {
+    const fallbackRes = await getTable(
+      supabase,
+      "games",
+    )
+      .update({
+        status: "finished",
+        result,
+        end_reason: "resignation",
+      })
+      .eq("id", gameId)
+      .select("*")
+      .maybeSingle();
+    updatedGame = fallbackRes.data;
+    updateError = fallbackRes.error as any;
+  }
 
   logOperation("resign game", updateError);
 
@@ -673,119 +760,3 @@ async function handleResignation(
   return successResponse(updatedGame);
 }
 
-/**
- * Special mushroom growth transformation handler
- */
-async function handleMushroomGrowth(
-  user: User,
-  params: GameParams,
-  supabase: TypedSupabaseClient,
-): Promise<Response> {
-  // Validate required params using Zod
-  const validation = validateWithZod(params, Schemas.GameParams);
-  if (!validation.valid) {
-    return errorResponse(validation.errors!.join("; "), 400);
-  }
-
-  const { gameId } = params;
-
-  // Verify game access - must be player's turn
-  const { game, playerColor, authorized, error } = await verifyGameAccess(
-    supabase,
-    gameId,
-    user.id,
-    true, // requires turn
-  );
-
-  if (!authorized) {
-    return errorResponse(error, 403);
-  }
-
-  // Implement mushroom transformation (pawns to queens)
-  const chess = new Chess(game.current_fen);
-  let fen = chess.fen();
-
-  // Transform pawns to queens for the current player
-  if (playerColor === "white") {
-    fen = fen.replace(/P/g, "Q");
-  } else {
-    fen = fen.replace(/p/g, "q");
-  }
-
-  // Set the custom position and create a new PGN
-  chess.load(fen);
-
-  // Preserve existing PGN comments/history and add transformation record
-  let newPgn = game.pgn;
-  if (!newPgn || newPgn.trim() === "") {
-    newPgn = `[SetUp "1"]\n[FEN "${fen}"]`;
-  } else {
-    // Add a comment to indicate mushroom transformation
-    chess.loadPgn(game.pgn);
-    chess.setComment(`mushroom_transformation: ${playerColor}`);
-    newPgn = chess.pgn();
-  }
-
-  // Check if the game is over after the transformation
-  const gameOverState = isGameOver(fen, newPgn);
-
-  const updateData: Record<string, any> = {
-    current_fen: fen,
-    pgn: newPgn,
-    turn: playerColor === "white" ? "black" : "white", // Switch turns after transformation
-  };
-
-  // If game is over, update status accordingly
-  if (gameOverState.isOver) {
-    updateData.status = "finished";
-    updateData.result = gameOverState.result;
-    updateData.end_reason = gameOverState.reason;
-  }
-
-  // Update the game with the mushroom transformation
-  const { data: updatedGame, error: updateError } = await getTable(
-    supabase,
-    "games",
-  )
-    .update(updateData)
-    .eq("id", gameId)
-    .select("*")
-    .maybeSingle();
-
-  logOperation("apply mushroom transformation", updateError);
-
-  if (updateError) {
-    return errorResponse(
-      `Failed to apply mushroom transformation: ${updateError.message}`,
-      500,
-    );
-  }
-
-  // Record event
-  await recordEvent(
-    supabase,
-    EventType.GAME_UPDATED,
-    {
-      game_id: gameId,
-      transformation: "mushroom_growth",
-      player_color: playerColor,
-    },
-    user.id,
-  );
-
-  // If game ended after transformation, record that too
-  if (gameOverState.isOver) {
-    await recordEvent(
-      supabase,
-      EventType.GAME_ENDED,
-      {
-        game_id: gameId,
-        result: gameOverState.result,
-        reason: gameOverState.reason,
-      },
-      user.id,
-    );
-  }
-
-  return successResponse(updatedGame);
-}

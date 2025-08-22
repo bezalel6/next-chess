@@ -130,10 +130,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (profileError || !profile) {
-        console.warn("[AuthContext] Session without profile detected - forcing logout");
-        await supabaseBrowser().auth.signOut();
-        updateUserState(null);
-        return null;
+        // Do NOT force logout immediately — webhook/profile creation may lag.
+        console.warn("[AuthContext] Session without profile detected - treating as transient");
+        // Keep session; allow UI to use metadata.username while waitForProfile runs elsewhere.
+        return session;
       }
 
       // Check if session is expired or about to expire (within 60 seconds)
@@ -218,30 +218,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (usernameOrEmail: string, password: string) => {
-    let email = usernameOrEmail.toLowerCase().trim();
+    const input = usernameOrEmail.toLowerCase().trim();
 
-    // Check if the input looks like a username (no @ symbol)
-    if (!email.includes("@")) {
-      // Call API to get email by username
-      const response = await fetch("/api/auth/get-email-by-username", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username: email }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Username not found");
-      }
-
-      const data = await response.json();
-      email = data.email.toLowerCase();
+    if (!input.includes("@")) {
+      // Simplest secure approach: require email-based sign-in. Avoid username->email lookups.
+      throw new Error("Please sign in with your email address.");
     }
 
     const { error } = await supabaseBrowser().auth.signInWithPassword({
-      email,
+      email: input,
       password,
     });
 

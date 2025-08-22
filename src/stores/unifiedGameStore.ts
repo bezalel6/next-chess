@@ -98,6 +98,9 @@ interface NetworkSlice {
   // Sync state
   isSyncing: boolean;
   syncQueue: Array<{ type: 'move' | 'ban'; data: any }>;
+  
+  // Server versioning
+  lastAppliedVersion: number | null;
 }
 
 // Local game slice removed - using unified state only
@@ -242,6 +245,7 @@ const initialState = {
   optimisticFen: null,
   isSyncing: false,
   syncQueue: [],
+  lastAppliedVersion: null as number | null,
   
   // Unified state - no more local duplicates
 };
@@ -358,6 +362,9 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             // This automatic orientation ensures players see the board from their perspective
             // Users can still manually flip via the UI flip button (handled separately in components)
             boardOrientation: myColor || 'white',
+            
+            // Initialize version gating
+            lastAppliedVersion: typeof (game as any).version === 'number' ? (game as any).version : null,
           });
         },
         
@@ -451,12 +458,11 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             currentTurn: state.currentTurn === 'white' ? 'black' : 'white',
             currentBannedMove: null,
             
-            // Set optimistic state for online games
+            // Set optimistic state for online games (do not change phase; server is source of truth)
             ...(state.mode === 'online' ? {
               optimisticMove: { from, to },
               optimisticFen: newFen,
               pendingOperation: 'move' as const,
-              phase: 'selecting_ban' as const,
             } : {}),
           });
         },
@@ -480,11 +486,10 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             currentBannedMove: { from, to },
             banHistory: newBanHistory,
             
-            // Update phase based on mode
+            // For online mode, avoid phase changes; server will drive phase via game_update
             ...(state.mode === 'online' ? {
               optimisticBan: { from, to },
               pendingOperation: 'ban' as const,
-              phase: (state.currentTurn === state.myColor ? 'making_move' : 'waiting_for_move') as GamePhase,
             } : {
               // For local mode, just update the phase
               phase: 'making_move' as GamePhase,
@@ -554,6 +559,12 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           const status = g.status;
           const banningPlayer = g.banningPlayer ?? g.banning_player ?? null;
           const currentBannedMove = g.currentBannedMove ?? g.current_banned_move ?? null;
+          const version = g.version ?? null;
+
+          // Version gating: drop out-of-order updates
+          if (typeof version === 'number' && state.lastAppliedVersion !== null && version <= state.lastAppliedVersion) {
+            return; // stale update
+          }
 
           if (state.chess && currentFen) {
             state.chess.load(currentFen);
@@ -575,12 +586,14 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
               currentBannedMove,
               banningPlayer,
               status,
+              version,
             } as any,
             currentFen: currentFen ?? state.currentFen,
             currentTurn: turn ?? state.currentTurn,
             currentBannedMove: currentBannedMove,
             phase,
             lastSyncTime: Date.now(),
+            lastAppliedVersion: typeof version === 'number' ? version : state.lastAppliedVersion,
           });
         },
         
@@ -684,7 +697,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
         rollbackOptimisticUpdate: () => {
           const state = get();
           
-          let updates: any = {
+          const updates: any = {
             pendingOperation: null,
             optimisticMove: null,
             optimisticBan: null,
@@ -816,7 +829,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             set({
               currentBannedMove: { from, to },
               banHistory: newBanHistory,
-              phase: 'making_move',
+              ...(state.mode === 'local' ? { phase: 'making_move' as GamePhase } : {}),
             });
             
             // Check for Ban Chess checkmate AFTER the ban is applied
@@ -830,7 +843,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
                 !(m.from === from && m.to === to)
               );
               
-              let gameUpdates: any = {};
+              const gameUpdates: any = {};
               
               if (isInCheck && availableMoves.length === 0) {
                 // Ban Chess checkmate! The opponent is in check and their only legal move was banned
@@ -890,7 +903,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             }];
             
             // Check for game over (Ban Chess variant rules)
-            let gameUpdates: any = {
+            const gameUpdates: any = {
               pgn: state.chess.pgn(),
               currentFen: newFen,
               lastMove: { from, to },
@@ -986,7 +999,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
               !(m.from === from && m.to === to)
             );
             
-            let gameUpdates: any = {};
+            const gameUpdates: any = {};
             
             if (isInCheck && availableMoves.length === 0) {
               // Ban Chess checkmate! The opponent is in check and their only legal move was banned
@@ -1010,17 +1023,14 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             });
           }
           
-          // Advance phase and handle mode-specific logic
-          const { advancePhase } = get();
-          advancePhase();
+          // In online mode, do not advance phase locally; server broadcast is source of truth
+          if (state.mode === 'local') {
+            const { advancePhase } = get();
+            advancePhase();
+          }
           
-          // Log the state after phase advance
-          const newState = get();
-          console.log(`[Store] After ban - phase: ${newState.phase}, bannedMove: ${JSON.stringify(newState.currentBannedMove)}`);
-          
-          // For online games, use mutation
+          // For online games, call server mutation
           if (state.mode === 'online') {
-            // The banMove method will handle server sync
             get().banMove(from, to);
           }
           
@@ -1071,7 +1081,7 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           // Update game object
           if (state.game) {
             const updatedPgn = state.chess.pgn();
-            let gameUpdates: any = {
+            const gameUpdates: any = {
               pgn: updatedPgn,
               currentFen: newFen,
               turn: newTurn,
@@ -1113,18 +1123,18 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             set({
               game: { ...state.game, ...gameUpdates }
             });
+            
+            // In online mode, do not advance phase locally; server broadcast is source of truth
+            if (state.mode === 'local') {
+              const { advancePhase } = get();
+              advancePhase();
+            } else {
+              // trigger server mutation
+              get().makeMove(from, to, promotion);
+            }
+            
+            return true;
           }
-          
-          // Advance phase
-          const { advancePhase } = get();
-          advancePhase();
-          
-          // For online games, use mutation
-          if (state.mode === 'online') {
-            get().makeMove(from, to, promotion);
-          }
-          
-          return true;
         },
         
         isOperationValid: (operation, from, to) => {

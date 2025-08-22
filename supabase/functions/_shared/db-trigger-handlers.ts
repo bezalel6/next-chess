@@ -68,54 +68,7 @@ async function notifyGameCreation(
       "system",
     );
 
-    // Send realtime notifications to both players through different channels
-
-    // 1. Game-specific channel that clients can subscribe to
-    const gameChannel = supabase.channel(`game:${gameId}`, {
-      config: {
-        broadcast: { self: true },
-      },
-    });
-
-    await gameChannel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await gameChannel.send({
-          type: "broadcast",
-          event: "game_created",
-          payload: {
-            game: game,
-          },
-        });
-        // Unsubscribe after sending
-        setTimeout(() => gameChannel.unsubscribe(), 1000);
-      }
-    });
-
-    // 2. Player-specific channels for each participant
-    for (const playerId of [whitePlayerId, blackPlayerId]) {
-      const playerChannel = supabase.channel(`player:${playerId}`, {
-        config: {
-          broadcast: { self: true },
-        },
-      });
-
-      await playerChannel.subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await playerChannel.send({
-            type: "broadcast",
-            event: "game_matched",
-            payload: {
-              gameId,
-              isWhite: playerId === whitePlayerId,
-              opponentId:
-                playerId === whitePlayerId ? blackPlayerId : whitePlayerId,
-            },
-          });
-          // Unsubscribe after sending
-          setTimeout(() => playerChannel.unsubscribe(), 1000);
-        }
-      });
-    }
+    // No ad-hoc channel fan-out; unified broadcast is handled in game-operations.
 
     logger.info(
       `Successfully sent game creation notifications for game ${gameId}`,
@@ -224,35 +177,7 @@ export async function createGameFromMatchedPlayers(
     // Send notifications to both players
     try {
       await notifyGameCreation(supabase, game.id, whiteId, blackId);
-      
-      // Also send a match found notification to the game chat
-      const gameChatChannel = supabase.channel(`game-chat:${game.id}`);
-      await gameChatChannel.subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          // Get player usernames
-          const { data: profiles } = await getTable(supabase, "profiles")
-            .select("id, username")
-            .in("id", [whiteId, blackId]);
-          
-          const whiteUsername = profiles?.find(p => p.id === whiteId)?.username || "Player 1";
-          const blackUsername = profiles?.find(p => p.id === blackId)?.username || "Player 2";
-          
-          await gameChatChannel.send({
-            type: "broadcast",
-            event: "game_event",
-            payload: {
-              message: `Match found! ${whiteUsername} (White) vs ${blackUsername} (Black)`,
-              metadata: { 
-                eventType: "match_found",
-                whitePlayer: whiteUsername,
-                blackPlayer: blackUsername
-              }
-            }
-          });
-          // Unsubscribe after sending
-          setTimeout(() => gameChatChannel.unsubscribe(), 1000);
-        }
-      });
+      // No chat broadcast fan-out here; keep creation simple.
     } catch (notifyError) {
       logger.error("Error sending game notifications:", notifyError);
       // Non-critical error, continue with the process

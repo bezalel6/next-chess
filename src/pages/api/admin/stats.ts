@@ -27,37 +27,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    // Get high-level stats
+    // Get high-level stats (use only known-good columns)
     const [
       { count: totalUsers },
       { count: totalGames },
-      { count: activeGames },
-      { count: guestUsers },
-      { count: emailUsers }
+      { count: activeGames }
     ] = await Promise.all([
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('games').select('*', { count: 'exact', head: true }),
-      supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).is('email', null),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).not('email', 'is', null)
+      supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'active')
     ]);
 
-    // Get recent activity stats
+    // Recent activity
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { count: gamesLast24h } = await supabase
       .from('games')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', oneDayAgo);
 
+    // Use profiles.last_online as proxy for active users today
     const { count: activeUsersToday } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
-      .gte('last_sign_in_at', oneDayAgo);
+      .gte('last_online', oneDayAgo);
 
     const stats = {
       totalUsers: totalUsers || 0,
-      guestUsers: guestUsers || 0,
-      emailUsers: emailUsers || 0,
       totalGames: totalGames || 0,
       activeGames: activeGames || 0,
       gamesLast24h: gamesLast24h || 0,

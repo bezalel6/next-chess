@@ -68,8 +68,21 @@ const gameRouter = createRouter([
       "makeMove",
     );
 
-    // After successful operation, notify game update
+    // After successful operation, notify game update and broadcast minimal move
     if (result.status === 200 && params.gameId) {
+      try {
+        // Minimal move broadcast for optimistic UX
+        const channel = supabase.channel(`game:${params.gameId}:unified`);
+        if (params?.move?.from && params?.move?.to) {
+          await channel.send({
+            type: 'broadcast',
+            event: 'move',
+            payload: { from: params.move.from, to: params.move.to },
+          });
+        }
+      } catch (e) {
+        logger.warn(`Failed to broadcast move: ${e?.message}`);
+      }
       try {
         await notifyGameChange(supabase, params.gameId);
       } catch (error) {
@@ -83,6 +96,14 @@ const gameRouter = createRouter([
   defineRoute("banMove", async (user, params, supabase) => {
     const result = await handleGameOperation(user, params, supabase, "banMove");
     if (result.status === 200 && params.gameId) {
+      try {
+        const channel = supabase.channel(`game:${params.gameId}:unified`);
+        if (params?.move?.from && params?.move?.to) {
+          await channel.send({ type: 'broadcast', event: 'ban', payload: { from: params.move.from, to: params.move.to } });
+        }
+      } catch (e) {
+        logger.warn(`Failed to broadcast ban: ${e?.message}`);
+      }
       await notifyGameChange(supabase, params.gameId);
     }
     return result;

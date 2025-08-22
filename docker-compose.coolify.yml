@@ -1,35 +1,21 @@
 version: '3.8'
 
 services:
-  # Next.js Chess Application (using external Supabase)
   app:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        # Required build arguments for Next.js
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      cache_from:
-        - node:20-alpine
     image: next-chess:latest
     container_name: next-chess
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3000}
       HOSTNAME: "0.0.0.0"
-      # Required environment variables
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      # Optional: Direct database connection
-      DATABASE_URL: ${DATABASE_URL}
       SKIP_ENV_VALIDATION: ${SKIP_ENV_VALIDATION:-true}
-      # Performance optimizations
       NEXT_TELEMETRY_DISABLED: 1
-      NODE_OPTIONS: "--max-old-space-size=2048"
     restart: unless-stopped
-    # Resource limits
     deploy:
       resources:
         limits:
@@ -47,7 +33,6 @@ services:
     networks:
       - coolify
     labels:
-      # Simplified labels - let Coolify handle the complex routing
       - coolify.managed=true
       - traefik.enable=true
       - traefik.http.routers.app.rule=Host(`${DOMAIN:-chess.rndev.site}`)

@@ -41,29 +41,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        # These should point to your external Supabase instance
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      cache_from:
-        - node:20-alpine
     image: next-chess:latest
     container_name: next-chess-app
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3000}
       HOSTNAME: "0.0.0.0"
-      # REQUIRED: Set these in your Coolify environment variables
-      # Get these from your Supabase project settings at https://app.supabase.com
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      # Direct database connection to local PostgreSQL
-      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-next_chess}
       SKIP_ENV_VALIDATION: ${SKIP_ENV_VALIDATION:-true}
-      # Disable Next.js telemetry
       NEXT_TELEMETRY_DISABLED: 1
-      # Memory optimization for sharp on Linux
       NODE_OPTIONS: "--max-old-space-size=2048"
     depends_on:
       postgres:

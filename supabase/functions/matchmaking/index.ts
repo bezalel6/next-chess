@@ -361,7 +361,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       .order("joined_at", { ascending: true })
       .limit(20);
     
-    // Deduplicate players (in case of DB issues)
+// Deduplicate players (in case of DB issues)
     const seenPlayers = new Set<string>();
     const waitingPlayersDeduped = waitingPlayersRaw?.filter(p => {
       if (seenPlayers.has(p.player_id)) {
@@ -372,8 +372,8 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
       return true;
     }) || [];
 
-    // Filter by recent activity: last_online within the last 10 seconds
-    const recentThreshold = new Date(Date.now() - 10 * 1000).toISOString();
+    // Filter by recent activity: last_online within the last 30 seconds (broadened from 10s)
+    const recentThreshold = new Date(Date.now() - 30 * 1000).toISOString();
     const { data: recentProfiles } = await getTable(supabase, "profiles")
       .select("id, last_online")
       .in("id", waitingPlayersDeduped.map(p => p.player_id));

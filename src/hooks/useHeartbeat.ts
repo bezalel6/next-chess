@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { invokeWithAuth } from "../utils/supabase";
 
-const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+const HEARTBEAT_INTERVAL = 10000; // 10 seconds to align with matchmaking recency window
 
 export function useHeartbeat() {
   const { session } = useAuth();

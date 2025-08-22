@@ -145,6 +145,31 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
             }
         });
 
+        // Live queue metrics: subscribe to matchmaking table changes and recompute position/size
+        const queueChannel = supabase
+          .channel('mm-live')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'matchmaking' }, async () => {
+            try {
+              if (!session?.user?.id) return;
+              const { data: waiting } = await supabase
+                .from('matchmaking')
+                .select('player_id, joined_at, status')
+                .eq('status', 'waiting')
+                .order('joined_at', { ascending: true })
+                .limit(200);
+              const size = waiting?.length ?? 0;
+              const myIdx = (waiting || []).findIndex(w => w.player_id === session.user.id);
+              setQueue(prev => ({
+                inQueue: myIdx !== -1 || prev.inQueue,
+                size,
+                position: myIdx !== -1 ? myIdx + 1 : prev.position,
+              }));
+            } catch (e) {
+              // non-fatal
+            }
+          })
+          .subscribe();
+
         // Check matchmaking status right after connecting
         const checkMatchmakingStatus = async () => {
             try {
@@ -182,6 +207,10 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     console.error("Error cleaning up player channel:", error);
                 }
             }
+            try {
+                // Also unsubscribe matchmaking live metrics channel
+                queueChannel?.unsubscribe();
+            } catch {}
         };
         // needs to stay without the queue deps
          

@@ -9,10 +9,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY .npmrc ./
 
-# Install dependencies with clean cache to avoid ETXTBSY errors
-RUN npm cache clean --force && \
-    npm ci --legacy-peer-deps --no-audit --no-fund && \
-    npm cache clean --force
+# Install dependencies
+RUN npm ci --legacy-peer-deps --no-audit --no-fund
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
@@ -27,10 +25,8 @@ ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 COPY package*.json ./
 COPY .npmrc ./
 
-# Install all dependencies with clean cache
-RUN npm cache clean --force && \
-    npm ci --legacy-peer-deps --no-audit --no-fund && \
-    npm cache clean --force
+# Install all dependencies
+RUN npm ci --legacy-peer-deps --no-audit --no-fund
 
 # Copy application code
 COPY . .

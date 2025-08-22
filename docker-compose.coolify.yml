@@ -47,33 +47,11 @@ services:
     networks:
       - coolify
     labels:
-      # Coolify-specific labels
+      # Simplified labels - let Coolify handle the complex routing
       - coolify.managed=true
-      - coolify.type=application
-      - coolify.name=next-chess
-      - coolify.applicationId=${COOLIFY_APP_ID:-next-chess}
-      
-      # Traefik routing labels
       - traefik.enable=true
-      - traefik.docker.network=coolify
-      - traefik.http.routers.next-chess.rule=Host(`${DOMAIN}`)
-      - traefik.http.routers.next-chess.entrypoints=http,https
-      - traefik.http.routers.next-chess.service=next-chess
-      - traefik.http.services.next-chess.loadbalancer.server.port=3000
-      
-      # SSL/TLS configuration
-      - traefik.http.routers.next-chess.tls=true
-      - traefik.http.routers.next-chess.tls.certresolver=letsencrypt
-      
-      # Health check for Traefik
-      - traefik.http.services.next-chess.loadbalancer.healthcheck.path=/api/health
-      - traefik.http.services.next-chess.loadbalancer.healthcheck.interval=30s
-      - traefik.http.services.next-chess.loadbalancer.healthcheck.timeout=3s
-      
-      # Optional: Rate limiting
-      - traefik.http.middlewares.next-chess-ratelimit.ratelimit.average=100
-      - traefik.http.middlewares.next-chess-ratelimit.ratelimit.burst=50
-      - traefik.http.routers.next-chess.middlewares=next-chess-ratelimit
+      - traefik.http.routers.app.rule=Host(`${DOMAIN:-chess.rndev.site}`)
+      - traefik.http.services.app.loadbalancer.server.port=3000
 
 networks:
   coolify:

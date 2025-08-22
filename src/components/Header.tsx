@@ -325,7 +325,7 @@ const HowToPlayDialog = () => (
             Continuous Banning:
           </strong>{" "}
           After each move is made, the other player now becomes the banning
-          player for their opponent's next turn.
+          player for their opponent&apos;s next turn.
         </Typography>
       </li>
       <li>
@@ -359,7 +359,7 @@ const HowToPlayDialog = () => (
         border: "1px solid rgba(168, 85, 247, 0.2)",
       }}
     >
-      Every single move in Ban Chess requires adapting to your opponent's ban!
+      Every single move in Ban Chess requires adapting to your opponent&apos;s ban!
     </Typography>
   </TabDialog>
 );

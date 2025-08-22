@@ -71,7 +71,7 @@ export default function Home() {
                   fontWeight: 400,
                 }}
               >
-                A strategic chess variant where you ban your opponent's moves
+                A strategic chess variant where you ban your opponent&apos;s moves
                 before the game begins
               </Typography>
             </Box>

@@ -272,7 +272,7 @@ export default function BanSyncTest() {
             </Typography>
             {game.currentBannedMove && (
               <Typography>
-                Game's Banned Move: {game.currentBannedMove.from}-{game.currentBannedMove.to}
+                Game&apos;s Banned Move: {game.currentBannedMove.from}-{game.currentBannedMove.to}
               </Typography>
             )}
           </Box>

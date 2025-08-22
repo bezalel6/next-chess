@@ -87,10 +87,13 @@ export class TestUserManager {
     const userData = TEST_USERS[role];
     
     // Try to sign in first
-    let { data, error } = await supabase.auth.signInWithPassword({
+    const signInResult = await supabase.auth.signInWithPassword({
       email: userData.email,
       password: userData.password
     });
+
+    let { data } = signInResult;
+    const { error } = signInResult;
 
     // If user doesn't exist, create them
     if (error && error.message.includes('Invalid login')) {

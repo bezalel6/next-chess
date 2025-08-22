@@ -93,7 +93,7 @@ class ErrorBoundary extends Component<Props, State> {
             </Typography>
             
             <Typography variant="body1" color="text.secondary" paragraph>
-              We're sorry, but something unexpected happened. The error has been logged and we'll look into it.
+              We&apos;re sorry, but something unexpected happened. The error has been logged and we&apos;ll look into it.
             </Typography>
 
             {process.env.NODE_ENV === 'development' && (

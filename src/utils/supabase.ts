@@ -19,7 +19,9 @@ export const invokeWithAuth = async (
   params: { body: Record<string, any> },
 ) => {
   // First attempt to get the session
-  let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+
+  let session = initialSession;
 
   if (sessionError || !session) {
     // Try to refresh the session if it's missing

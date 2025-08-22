@@ -77,7 +77,7 @@ export default function TestErrorPage() {
           color="info"
           onClick={triggerLoggedError}
         >
-          Trigger Logged Error (Won't crash app)
+          Trigger Logged Error (Won&apos;t crash app)
         </Button>
       </Stack>
 
@@ -87,7 +87,7 @@ export default function TestErrorPage() {
         </Typography>
         <Typography variant="body2" component="ul">
           <li><strong>React Error:</strong> Triggers ErrorBoundary, shows friendly error page</li>
-          <li><strong>Async Error:</strong> Logged to console, won't trigger ErrorBoundary</li>
+          <li><strong>Async Error:</strong> Logged to console, won&apos;t trigger ErrorBoundary</li>
           <li><strong>Promise Rejection:</strong> Caught by global handler, logged</li>
           <li><strong>Logged Error:</strong> Error is caught and logged without crashing</li>
         </Typography>

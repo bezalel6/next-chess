@@ -38,10 +38,9 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
       typeof window !== "undefined"
     ) {
       scan({
-        enabled: true,
-        log: true, // Enable console logging to debug
+        enabled: false,
+        log: false, // Disable console logging to debug
       });
-      console.log("React Scan initialized");
     }
   }, []);
   const [queryClient] = useState(

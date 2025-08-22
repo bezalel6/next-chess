@@ -38,13 +38,33 @@ import { useAuth } from "@/contexts/AuthContext";
 import NewsManager from "@/components/admin/NewsManager";
 
 interface DashboardStats {
+  // User stats
   totalUsers: number;
-  guestUsers: number;
   emailUsers: number;
+  guestUsers: number;
+  activeUsersToday: number;
+  activeUsersWeek: number;
+  
+  // Game stats
   totalGames: number;
   activeGames: number;
   gamesLast24h: number;
-  activeUsersToday: number;
+  gamesLastWeek: number;
+  avgGameDurationMinutes: number;
+  
+  // Game outcomes
+  gameResults: {
+    white: number;
+    black: number;
+    draw: number;
+  };
+  
+  // End reasons
+  endReasons: Record<string, number>;
+  
+  // Ban Chess specific
+  totalBans: number;
+  avgBansPerGame: number;
 }
 
 interface AdminSetting {
@@ -363,7 +383,7 @@ export default function AdminDashboard() {
                   </Typography>
                   <Typography variant="h4">{stats?.totalUsers || 0}</Typography>
                   <Typography variant="body2" color="textSecondary">
-                    {stats?.activeUsersToday || 0} active today
+                    {stats?.activeUsersToday || 0} today / {stats?.activeUsersWeek || 0} week
                   </Typography>
                 </Box>
                 <PeopleIcon color="primary" sx={{ fontSize: 40 }} />
@@ -378,11 +398,11 @@ export default function AdminDashboard() {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    Email Users
+                    User Types
                   </Typography>
                   <Typography variant="h4">{stats?.emailUsers || 0}</Typography>
                   <Typography variant="body2" color="textSecondary">
-                    {stats?.guestUsers || 0} guests
+                    Registered / {stats?.guestUsers || 0} guests
                   </Typography>
                 </Box>
                 <EmailIcon color="primary" sx={{ fontSize: 40 }} />
@@ -401,7 +421,7 @@ export default function AdminDashboard() {
                   </Typography>
                   <Typography variant="h4">{stats?.totalGames || 0}</Typography>
                   <Typography variant="body2" color="textSecondary">
-                    {stats?.activeGames || 0} active
+                    {stats?.activeGames || 0} active now
                   </Typography>
                 </Box>
                 <GamesIcon color="primary" sx={{ fontSize: 40 }} />
@@ -416,11 +436,11 @@ export default function AdminDashboard() {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    Games Today
+                    Recent Activity
                   </Typography>
                   <Typography variant="h4">{stats?.gamesLast24h || 0}</Typography>
                   <Typography variant="body2" color="textSecondary">
-                    Last 24 hours
+                    Today / {stats?.gamesLastWeek || 0} week
                   </Typography>
                 </Box>
                 <TrendingUpIcon color="primary" sx={{ fontSize: 40 }} />
@@ -440,17 +460,86 @@ export default function AdminDashboard() {
       </Paper>
       {/* Statistics Tab */}
       {tabValue === 0 && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              High-Level Statistics
-            </Typography>
-            <Box>
-              <Typography>This is a simplified admin dashboard showing key metrics only.</Typography>
-              <Typography>For detailed game and user management, use the full admin tools.</Typography>
-            </Box>
-          </CardContent>
-        </Card>
+        <Grid container spacing={3}>
+          {/* Game Outcomes */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Game Outcomes
+                </Typography>
+                {stats?.gameResults && (
+                  <Box>
+                    <Box display="flex" justifyContent="space-between" mb={1}>
+                      <Typography>White Wins:</Typography>
+                      <Typography fontWeight="bold">{stats.gameResults.white}%</Typography>
+                    </Box>
+                    <Box display="flex" justifyContent="space-between" mb={1}>
+                      <Typography>Black Wins:</Typography>
+                      <Typography fontWeight="bold">{stats.gameResults.black}%</Typography>
+                    </Box>
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography>Draws:</Typography>
+                      <Typography fontWeight="bold">{stats.gameResults.draw}%</Typography>
+                    </Box>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Ban Chess Stats */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Ban Chess Statistics
+                </Typography>
+                <Box>
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography>Total Bans:</Typography>
+                    <Typography fontWeight="bold">{stats?.totalBans || 0}</Typography>
+                  </Box>
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography>Avg Bans per Game:</Typography>
+                    <Typography fontWeight="bold">{stats?.avgBansPerGame || 0}</Typography>
+                  </Box>
+                  <Box display="flex" justifyContent="space-between">
+                    <Typography>Avg Game Duration:</Typography>
+                    <Typography fontWeight="bold">{stats?.avgGameDurationMinutes || 0} min</Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* End Reasons */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Game End Reasons
+                </Typography>
+                {stats?.endReasons && Object.keys(stats.endReasons).length > 0 ? (
+                  <Grid container spacing={2}>
+                    {Object.entries(stats.endReasons).map(([reason, count]) => (
+                      <Grid item xs={6} sm={4} md={3} key={reason}>
+                        <Box p={1} border={1} borderColor="divider" borderRadius={1}>
+                          <Typography variant="caption" color="textSecondary">
+                            {reason.replace(/_/g, ' ').toUpperCase()}
+                          </Typography>
+                          <Typography variant="h6">{count}</Typography>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography color="textSecondary">No game end data available</Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
       )}
       {/* Settings Tab */}
       {tabValue === 1 && (

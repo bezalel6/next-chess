@@ -73,10 +73,15 @@ A logic suite exists under `/test/logic-test` to exercise core Ban Chess flows i
 Client performs minimal validation; server performs enforcement via Supabase Auth webhook + `user-management` function.
 - `src/components/auth-form.tsx` — light Zod checks only
 - `src/contexts/AuthContext.tsx` — session validation/refresh
-- `supabase/functions/user-management/index.ts` — username policy + profile creation
+- `supabase/functions/user-management/index.ts` — username policy + profile creation (handles both webhooks and authenticated API calls)
 - `src/pages/auth/callback.tsx` — post-signup redirect
 
-See the existing section in this document’s history for webhook configuration notes if needed.
+**Note:** The user-management edge function handles three request types:
+1. Standard Webhooks (with webhook headers)
+2. Supabase Auth Hooks (specific body formats)
+3. Regular authenticated API calls (Bearer token)
+
+See `docs/USER_MANAGEMENT_FIX.md` for details on the 2025-08-22 fix that properly routes these request types.
 
 ## Important Notes
 - Server-authoritative move/ban validation

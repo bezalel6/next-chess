@@ -366,7 +366,17 @@ serve(async (req)=>{
   // These hooks might send the secret differently
   const authHeader = req.headers.get("authorization");
   const webhookSecret = Deno.env.get("AUTH_WEBHOOK_SECRET");
+  
   // Try to handle as a Supabase Auth Hook if we have a body but no Standard Webhook headers
+  // But first check if this is actually a user-authenticated request
+  if (!webhookId && !webhookTimestamp && !webhookSignature && authHeader?.startsWith("Bearer ")) {
+    // This is a regular authenticated request, not a webhook
+    return await handleAuthenticatedRequest(req, async (user, body, supabase)=>{
+      return await userRouter(user, body, supabase);
+    });
+  }
+  
+  // Try to handle as a potential webhook if no auth header or not a Bearer token
   if (!webhookId && !webhookTimestamp && !webhookSignature) {
     try {
       const bodyText = await req.text();
@@ -399,12 +409,14 @@ serve(async (req)=>{
         table: body?.table,
         hasRecord: !!body?.record
       });
-      return errorResponse("Hook requires authorization token", 500);
+      return errorResponse("Invalid webhook request", 400);
     } catch (error) {
       logger.error("Error processing potential auth hook:", error);
       return errorResponse(`Error processing request: ${error.message}`, 500);
     }
   }
+  
+  // This shouldn't be reached but handle as authenticated request as fallback
   return await handleAuthenticatedRequest(req, async (user, body, supabase)=>{
     return await userRouter(user, body, supabase);
   });

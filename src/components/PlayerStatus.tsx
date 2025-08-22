@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
 import { Circle as CircleIcon } from '@mui/icons-material';
-import type { PlayerPresenceStatus } from '@/services/presenceService';
+import type { PlayerPresenceStatus } from '@/types/presence';
 
 interface PlayerStatusProps {
   username: string;

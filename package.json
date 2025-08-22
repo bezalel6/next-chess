@@ -2,7 +2,6 @@
   "name": "next-chess",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "diagnose:game": "node scripts/diagnose_game.mjs",
     "kill-running": "portio --mine 3000",

@@ -122,6 +122,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
 
+      // Check if profile exists for this session (catches corrupted sessions)
+      const { data: profile, error: profileError } = await supabaseBrowser()
+        .from("profiles")
+        .select("id")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (profileError || !profile) {
+        console.warn("[AuthContext] Session without profile detected - forcing logout");
+        await supabaseBrowser().auth.signOut();
+        updateUserState(null);
+        return null;
+      }
+
       // Check if session is expired or about to expire (within 60 seconds)
       const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
       const now = Date.now();

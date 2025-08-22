@@ -9,8 +9,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY .npmrc ./
 
-# Install dependencies
-RUN npm ci --legacy-peer-deps --no-audit --no-fund
+# Install dependencies including sharp for image optimization
+RUN npm ci --legacy-peer-deps --no-audit --no-fund && \
+    npm install sharp --no-save
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
@@ -79,4 +80,5 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Start the application using the custom server
-CMD ["tsx", "src/server/server.ts"]
+# Using exec form for proper signal handling
+CMD ["tsx", "--enable-source-maps", "src/server/server.ts"]

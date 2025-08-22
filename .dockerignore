@@ -11,6 +11,13 @@ out
 # Testing
 coverage
 .nyc_output
+tests
+playwright-report
+test-results
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
 
 # Misc
 .DS_Store

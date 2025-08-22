@@ -25,6 +25,20 @@ import {
 
 const logger = createLogger("GAME");
 
+// Detects PostgREST schema-cache or missing-column errors for the optional `version` column
+function shouldFallbackVersionError(err: any): boolean {
+  if (!err) return false;
+  const msg = (err.message || "") as string;
+  const details = (err.details || "") as string;
+  return (
+    msg.includes('column "version" does not exist') ||
+    details.includes('version') ||
+    msg.toLowerCase().includes('schema cache') ||
+    msg.includes("Could not find the 'version' column") ||
+    msg.includes("'version' column of 'games'")
+  );
+}
+
 // Common parameter interfaces
 interface GameParams {
   gameId: string;
@@ -187,7 +201,7 @@ async function handleMakeMove(
     logOperation("update game state (with version)", updateError);
 
     // If version column doesn't exist, retry without setting it
-    if (updateError && (updateError.message?.includes("column \"version\" does not exist") || updateError.details?.includes("version"))) {
+    if (shouldFallbackVersionError(updateError)) {
       const fallbackRes = await getTable(
         supabase,
         "games",
@@ -379,7 +393,7 @@ async function handleBanMove(
   let updateError = updatedGameRes.error as any;
   logOperation("update game ban move (with version)", updateError);
 
-  if (updateError && (updateError.message?.includes("column \"version\" does not exist") || updateError.details?.includes("version"))) {
+  if (shouldFallbackVersionError(updateError)) {
     const fallbackRes = await getTable(
       supabase,
       "games",
@@ -516,7 +530,7 @@ async function handleGameOffer(
     let updatedGame = updatedGameRes.data;
     let updateError = updatedGameRes.error as any;
 
-    if (updateError && (updateError.message?.includes("column \"version\" does not exist") || updateError.details?.includes("version"))) {
+    if (shouldFallbackVersionError(updateError)) {
       const fallbackRes = await getTable(
         supabase,
         "games",
@@ -567,7 +581,7 @@ async function handleGameOffer(
       let updatedGame = updatedGameRes.data;
       let updateError = updatedGameRes.error as any;
 
-      if (updateError && (updateError.message?.includes("column \"version\" does not exist") || updateError.details?.includes("version"))) {
+      if (shouldFallbackVersionError(updateError)) {
         const fallbackRes = await getTable(
           supabase,
           "games",
@@ -722,7 +736,7 @@ async function handleResignation(
   let updatedGame = updatedGameRes.data;
   let updateError = updatedGameRes.error as any;
 
-  if (updateError && (updateError.message?.includes("column \"version\" does not exist") || updateError.details?.includes("version"))) {
+  if (shouldFallbackVersionError(updateError)) {
     const fallbackRes = await getTable(
       supabase,
       "games",

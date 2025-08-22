@@ -9,7 +9,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   metadata?: {
-    eventType?: 'match_start' | 'game_end' | 'player_joined' | 'player_left' | 'move' | 'ban' | 'draw_offer' | 'resign' | 'timeout';
+    eventType?: 'match_start' | 'match_found' | 'game_end' | 'player_joined' | 'player_left' | 'move' | 'ban' | 'draw_offer' | 'resign' | 'timeout';
     result?: string;
     [key: string]: any;
   };

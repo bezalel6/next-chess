@@ -121,7 +121,7 @@ export class BugReportService {
         return [];
       }
 
-      return data || [];
+      return (data || []) as unknown as BugReport[];
     } catch (error) {
       console.error('Error in getUserBugReports:', error);
       return [];

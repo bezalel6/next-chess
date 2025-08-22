@@ -37,7 +37,7 @@ async function start() {
     .on("presence", { event: "sync" }, () => {
       try {
         const presenceState = queueChannel!.presenceState();
-        const queue = Object.values(presenceState).flat() as Array<{
+        const queue = Object.values(presenceState).flat() as unknown as Array<{
           user_id: string;
           joined_at: string;
         }>;

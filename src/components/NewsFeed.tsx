@@ -34,17 +34,21 @@ export default function NewsFeed() {
   const fetchNews = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabaseBrowser()
-        .from('news_items')
-        .select('*')
-        .eq('is_active', true)
-        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-        .order('priority', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(3); // Just show top 3
+      // TODO: Uncomment when news_items table is created in the database
+      // const { data, error } = await supabaseBrowser()
+      //   .from('news_items')
+      //   .select('*')
+      //   .eq('is_active', true)
+      //   .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      //   .order('priority', { ascending: false })
+      //   .order('created_at', { ascending: false })
+      //   .limit(3); // Just show top 3
 
-      if (error) throw error;
-      setNewsItems(data || []);
+      // if (error) throw error;
+      // setNewsItems(data || []);
+      
+      // Use empty array for now
+      setNewsItems([]);
     } catch (err: any) {
       console.error('Error fetching news:', err);
     } finally {

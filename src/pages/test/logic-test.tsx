@@ -341,16 +341,25 @@ export default function LogicTestPage() {
                 }
                 break;
               case 'checkmate':
-                actual = chess?.inCheckmate();
-                results[key] = actual === expected;
+                {
+                  const chess = useUnifiedGameStore.getState().chess;
+                  actual = chess?.inCheckmate();
+                  results[key] = actual === expected;
+                }
                 break;
               case 'stalemate':
-                actual = chess?.inStalemate();
-                results[key] = actual === expected;
+                {
+                  const chess = useUnifiedGameStore.getState().chess;
+                  actual = chess?.inStalemate();
+                  results[key] = actual === expected;
+                }
                 break;
               case 'gameOver':
-                actual = chess?.gameOver();
-                results[key] = actual === expected;
+                {
+                  const chess = useUnifiedGameStore.getState().chess;
+                  actual = chess?.gameOver();
+                  results[key] = actual === expected;
+                }
                 break;
               case 'banCount':
                 // Get fresh state for banCount verification

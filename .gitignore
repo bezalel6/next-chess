@@ -133,3 +133,4 @@ public.games
 test-*.mjs
 test-*.js
 !test-*.spec.js
+supabase/schema.sql

@@ -12,12 +12,25 @@ const GameOverDetails = () => {
     const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
     const actions = useGameActions();
 
-    // Animate in on mount
+    // Animate in on mount and auto-dismiss
     const [show, setShow] = useState(false);
+    const [dismissed, setDismissed] = useState(false);
+    
     useEffect(() => {
-        if (game?.status === 'finished') setShow(true);
-        else setShow(false);
-    }, [game?.status]);
+        if (game?.status === 'finished' && !dismissed) {
+            setShow(true);
+            // Auto-dismiss after 2 seconds
+            const timer = setTimeout(() => {
+                setShow(false);
+                setDismissed(true);
+            }, 2000);
+            
+            return () => clearTimeout(timer);
+        } else if (game?.status !== 'finished') {
+            setShow(false);
+            setDismissed(false);
+        }
+    }, [game?.status, dismissed]);
 
     // Generate the game result message and icon
     const gameResultInfo = useMemo(() => {

@@ -7,6 +7,7 @@ import DebugLog from "./DebugLog";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import GameChat from "./GameChat";
 import BanPhaseOverlay from "./BanPhaseOverlay";
+import GameStateIndicator from "./GameStateIndicator";
 
 // Left sidebar component
 const LeftSidebar = () => {
@@ -111,8 +112,12 @@ export default function GameLayout({
         width: "100%",
         justifyContent: "center",
         alignItems: "flex-start",
+        position: "relative",
       }}
     >
+      {/* Subtle game state indicator */}
+      <GameStateIndicator />
+      
       {/* Left sidebar */}
       {!isLocalGame && <LeftSidebar />}
 

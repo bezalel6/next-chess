@@ -1,5 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
-import { env } from "../env";
+import { env } from "../env.mjs";
 import type { Database } from "@/types/database";
 
 const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;

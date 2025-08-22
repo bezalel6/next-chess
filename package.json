@@ -22,7 +22,7 @@
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
 "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "preview": "next build && next start",
+    "preview": "next build && tsx -r dotenv/config src/server/server.ts",
     "start": "tsx -r dotenv/config src/server/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",

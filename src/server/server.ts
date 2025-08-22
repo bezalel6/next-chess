@@ -3,7 +3,7 @@ import { createServer } from "http";
 import next from "next";
 import { createClient, RealtimeChannel } from "@supabase/supabase-js";
 import WebSocket from "ws";
-import { env } from "../env";
+import { env } from "../env.mjs";
 import { spawn } from "child_process";
 
 const dev = env.NODE_ENV !== "production";

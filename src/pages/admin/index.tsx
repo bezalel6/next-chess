@@ -35,7 +35,11 @@ import {
 } from "@mui/icons-material";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
+import dynamic from "next/dynamic";
 import NewsManager from "@/components/admin/NewsManager";
+
+// Heavy charts should load only on the client and only when this page is visited
+const GameChart = dynamic(() => import("@/components/admin/GameChart"), { ssr: false, loading: () => null });
 
 interface DashboardStats {
   // User stats
@@ -458,89 +462,94 @@ export default function AdminDashboard() {
           <Tab label="News" icon={<AnnouncementIcon />} iconPosition="start" />
         </Tabs>
       </Paper>
-      {/* Statistics Tab */}
-      {tabValue === 0 && (
-        <Grid container spacing={3}>
-          {/* Game Outcomes */}
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Game Outcomes
-                </Typography>
-                {stats?.gameResults && (
-                  <Box>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography>White Wins:</Typography>
-                      <Typography fontWeight="bold">{stats.gameResults.white}%</Typography>
-                    </Box>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography>Black Wins:</Typography>
-                      <Typography fontWeight="bold">{stats.gameResults.black}%</Typography>
-                    </Box>
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography>Draws:</Typography>
-                      <Typography fontWeight="bold">{stats.gameResults.draw}%</Typography>
-                    </Box>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
+          {/* Statistics Tab */}
+          {tabValue === 0 && (
+            <Grid container spacing={3}>
+              {/* Optional: Render a chart section when chart data is desired */}
+              <Grid item xs={12}>
+                <GameChart />
+              </Grid>
 
-          {/* Ban Chess Stats */}
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Ban Chess Statistics
-                </Typography>
-                <Box>
-                  <Box display="flex" justifyContent="space-between" mb={1}>
-                    <Typography>Total Bans:</Typography>
-                    <Typography fontWeight="bold">{stats?.totalBans || 0}</Typography>
-                  </Box>
-                  <Box display="flex" justifyContent="space-between" mb={1}>
-                    <Typography>Avg Bans per Game:</Typography>
-                    <Typography fontWeight="bold">{stats?.avgBansPerGame || 0}</Typography>
-                  </Box>
-                  <Box display="flex" justifyContent="space-between">
-                    <Typography>Avg Game Duration:</Typography>
-                    <Typography fontWeight="bold">{stats?.avgGameDurationMinutes || 0} min</Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* End Reasons */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Game End Reasons
-                </Typography>
-                {stats?.endReasons && Object.keys(stats.endReasons).length > 0 ? (
-                  <Grid container spacing={2}>
-                    {Object.entries(stats.endReasons).map(([reason, count]) => (
-                      <Grid item xs={6} sm={4} md={3} key={reason}>
-                        <Box p={1} border={1} borderColor="divider" borderRadius={1}>
-                          <Typography variant="caption" color="textSecondary">
-                            {reason.replace(/_/g, ' ').toUpperCase()}
-                          </Typography>
-                          <Typography variant="h6">{count}</Typography>
+              {/* Game Outcomes */}
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Game Outcomes
+                    </Typography>
+                    {stats?.gameResults && (
+                      <Box>
+                        <Box display="flex" justifyContent="space-between" mb={1}>
+                          <Typography>White Wins:</Typography>
+                          <Typography fontWeight="bold">{stats.gameResults.white}%</Typography>
                         </Box>
+                        <Box display="flex" justifyContent="space-between" mb={1}>
+                          <Typography>Black Wins:</Typography>
+                          <Typography fontWeight="bold">{stats.gameResults.black}%</Typography>
+                        </Box>
+                        <Box display="flex" justifyContent="space-between">
+                          <Typography>Draws:</Typography>
+                          <Typography fontWeight="bold">{stats.gameResults.draw}%</Typography>
+                        </Box>
+                      </Box>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Ban Chess Stats */}
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Ban Chess Statistics
+                    </Typography>
+                    <Box>
+                      <Box display="flex" justifyContent="space-between" mb={1}>
+                        <Typography>Total Bans:</Typography>
+                        <Typography fontWeight="bold">{stats?.totalBans || 0}</Typography>
+                      </Box>
+                      <Box display="flex" justifyContent="space-between" mb={1}>
+                        <Typography>Avg Bans per Game:</Typography>
+                        <Typography fontWeight="bold">{stats?.avgBansPerGame || 0}</Typography>
+                      </Box>
+                      <Box display="flex" justifyContent="space-between">
+                        <Typography>Avg Game Duration:</Typography>
+                        <Typography fontWeight="bold">{stats?.avgGameDurationMinutes || 0} min</Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* End Reasons */}
+              <Grid item xs={12}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Game End Reasons
+                    </Typography>
+                    {stats?.endReasons && Object.keys(stats.endReasons).length > 0 ? (
+                      <Grid container spacing={2}>
+                        {Object.entries(stats.endReasons).map(([reason, count]) => (
+                          <Grid item xs={6} sm={4} md={3} key={reason}>
+                            <Box p={1} border={1} borderColor="divider" borderRadius={1}>
+                              <Typography variant="caption" color="textSecondary">
+                                {reason.replace(/_/g, ' ').toUpperCase()}
+                              </Typography>
+                              <Typography variant="h6">{count}</Typography>
+                            </Box>
+                          </Grid>
+                        ))}
                       </Grid>
-                    ))}
-                  </Grid>
-                ) : (
-                  <Typography color="textSecondary">No game end data available</Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
+                    ) : (
+                      <Typography color="textSecondary">No game end data available</Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          )}
       {/* Settings Tab */}
       {tabValue === 1 && (
         <Paper sx={{ p: 3 }}>

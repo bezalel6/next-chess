@@ -11,8 +11,8 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
-    SUPABASE_SERVICE_ROLE_KEY:z.string(),
-    PORT:z.number().optional()
+    SUPABASE_SERVICE_ROLE_KEY: z.string(),
+    PORT: z.number().optional(),
   },
 
   /**
@@ -23,6 +23,9 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string(),
+    // Explicit flags to enable dev tools when desired; disabled by default
+    NEXT_PUBLIC_ENABLE_RQ_DEVTOOLS: z.string().optional(),
+    NEXT_PUBLIC_ENABLE_REACT_SCAN: z.string().optional(),
   },
 
   /**
@@ -36,7 +39,8 @@ export const env = createEnv({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    
+    NEXT_PUBLIC_ENABLE_RQ_DEVTOOLS: process.env.NEXT_PUBLIC_ENABLE_RQ_DEVTOOLS,
+    NEXT_PUBLIC_ENABLE_REACT_SCAN: process.env.NEXT_PUBLIC_ENABLE_REACT_SCAN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

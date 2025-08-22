@@ -1,4 +1,3 @@
-import { scan } from "react-scan/all-environments";
 import { type AppType } from "next/dist/shared/lib/utils";
 // these styles must be imported somewhere
 import "chessground/assets/chessground.base.css";
@@ -15,10 +14,11 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import Head from "next/head";
 import Layout from "@/components/Layout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { HeartbeatProvider } from "@/components/HeartbeatProvider";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import dynamic from "next/dynamic";
+import { env } from "@/env.mjs";
 
 export type PageProps = {
   title?: string;
@@ -30,29 +30,33 @@ const defaultPageProps: PageProps = {
     "Play Ban Chess - the unique chess variant where you can ban one of your opponent's moves each turn",
   title: "Ban Chess",
 };
+
+// Load RQ Devtools only if explicitly enabled via env and only on client
+const ReactQueryDevtools = env.NEXT_PUBLIC_ENABLE_RQ_DEVTOOLS === "1"
+  ? dynamic(() => import("@tanstack/react-query-devtools").then(m => m.ReactQueryDevtools), { ssr: false })
+  : (() => null as any);
+
 const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
   useEffect(() => {
-    // Only enable React Scan in development
-    if (
-      process.env.NODE_ENV === "development" &&
-      typeof window !== "undefined"
-    ) {
-      scan({
-        enabled: false,
-        log: false, // Disable console logging to debug
-      });
+    // Only enable react-scan when explicitly toggled via env and in the browser
+    if (env.NEXT_PUBLIC_ENABLE_REACT_SCAN === "1" && typeof window !== "undefined") {
+      import("react-scan/all-environments").then(({ scan }) => {
+        scan({ enabled: true, log: false });
+      }).catch(() => {});
     }
   }, []);
-  const [queryClient] = useState(
+
+  const queryClient = useMemo(
     () =>
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 1000 * 10, // 10 seconds
+            staleTime: 1000 * 10,
             refetchOnWindowFocus: false,
           },
         },
-      })
+      }),
+    []
   );
 
   return (
@@ -89,10 +93,7 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
               </HeartbeatProvider>
             </NotificationProvider>
           </AuthProvider>
-          <ReactQueryDevtools
-            initialIsOpen={false}
-            buttonPosition="bottom-left"
-          />
+          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>

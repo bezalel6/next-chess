@@ -4,10 +4,14 @@
  */
 import "./src/env.mjs";
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 /** @type {import("next").NextConfig} */
 const config = {
   reactStrictMode: true,
-  // output: "standalone", // Commented out to use custom server
+  output: "standalone",
+  // Add dev-only page extension to exclude test routes from prod
+  pageExtensions: isDev ? ["ts", "tsx", "js", "jsx", "dev.tsx"] : ["ts", "tsx", "js", "jsx"],
   eslint: {
     // Disable ESLint during builds
     ignoreDuringBuilds: true,
@@ -84,6 +88,20 @@ const config = {
     }
     
     return config;
+  },
+
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.uploadthing.com' },
+      { protocol: 'https', hostname: '*.googleusercontent.com' },
+      { protocol: 'https', hostname: 'accounts.google.com' },
+    ],
+  },
+
+  // Use modularizeImports at the top-level to avoid invalid experimental warnings in Next 15
+  modularizeImports: {
+    lodash: { transform: 'lodash/{{member}}' },
+    'date-fns': { transform: 'date-fns/{{member}}' },
   },
 
   /**

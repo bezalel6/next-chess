@@ -47,16 +47,25 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Install tsx for running TypeScript server
+RUN npm install -g tsx
+
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# No need to copy node_modules in standalone mode - they're bundled
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
 
-# Copy built application (standalone mode)
+# Copy built application
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/.next ./.next
+
+# Copy custom server and source files needed for server
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/next.config.mjs ./
+COPY --from=builder /app/tsconfig.json ./
 
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app
@@ -69,5 +78,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Start the application using the standalone server
-CMD ["node", "server.js"]
+# Start the application using the custom server
+CMD ["tsx", "src/server/server.ts"]

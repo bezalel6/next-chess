@@ -9,7 +9,7 @@ const isDev = process.env.NODE_ENV !== 'production';
 /** @type {import("next").NextConfig} */
 const config = {
   reactStrictMode: true,
-  output: "standalone",
+  // output: "standalone", // Disabled to use custom server with queue system
   // Add dev-only page extension to exclude test routes from prod
   pageExtensions: isDev ? ["ts", "tsx", "js", "jsx", "dev.tsx"] : ["ts", "tsx", "js", "jsx"],
   eslint: {

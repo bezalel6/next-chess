@@ -39,7 +39,10 @@ ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
 # Build the Next.js application
-RUN npm run build
+RUN npm run build:simple
+
+# Copy and compile the custom server separately
+COPY src/server/server.js ./src/server/server.js
 
 # Stage 3: Runner
 FROM node:20-alpine AS runner
@@ -48,14 +51,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install tsx for running TypeScript server
-RUN npm install -g tsx
-
 # Create a non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy dependencies from deps stage
+# Copy only production dependencies
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
@@ -63,10 +63,8 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 
-# Copy custom server and source files needed for server
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/next.config.mjs ./
-COPY --from=builder /app/tsconfig.json ./
+# Copy compiled JavaScript server (not TypeScript)
+COPY --from=builder /app/src/server/server.js ./server.js
 
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app
@@ -79,6 +77,6 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Start the application using the custom server
-# Using exec form for proper signal handling
-CMD ["tsx", "--enable-source-maps", "src/server/server.ts"]
+# Start the application using the compiled JavaScript server
+# No TSX overhead in production!
+CMD ["node", "server.js"]

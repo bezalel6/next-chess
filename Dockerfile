@@ -2,24 +2,35 @@
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 
-# Copy package files
+# Copy package files and .npmrc
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps
+COPY .npmrc ./
+
+# Install dependencies with clean cache to avoid ETXTBSY errors
+RUN npm cache clean --force && \
+    npm ci --legacy-peer-deps --no-audit --no-fund && \
+    npm cache clean --force
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
+RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 
 # Build arguments for required environment variables
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-# Copy package files and install all dependencies
+# Copy package files and .npmrc
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps
+COPY .npmrc ./
+
+# Install all dependencies with clean cache
+RUN npm cache clean --force && \
+    npm ci --legacy-peer-deps --no-audit --no-fund && \
+    npm cache clean --force
 
 # Copy application code
 COPY . .

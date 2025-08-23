@@ -51,7 +51,7 @@ export default function BoardMoveInput() {
         }
       }
 
-      executeGameOperation(operation, from as Square, to as Square, "q");\r
+      executeGameOperation(operation, from as Square, to as Square, "q");
       setValue("");
     },
     [value, canBan, enabled, executeGameOperation]

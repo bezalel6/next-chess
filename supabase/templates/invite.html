@@ -1,1 +1,144 @@
-<p>You’ve been invited. Accept at <a href='{{ .InviteURL }}'>this link</a>.</p>
+<!DOCTYPE html>
+<html lang="en" style="margin:0;padding:0;">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>You’ve been invited | Ban Chess</title>
+    <style>
+        body,
+        table,
+        td,
+        a {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+
+        table,
+        td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+
+        table {
+            border-collapse: collapse !important;
+        }
+
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .bg {
+                background-color: #0f0f10 !important;
+            }
+
+            .card {
+                background-color: #17181a !important;
+                border-color: #2a2b2f !important;
+            }
+
+            .text {
+                color: #e6e6e6 !important;
+            }
+
+            .muted {
+                color: #b9b9c0 !important;
+            }
+
+            .brand {
+                color: #e3b3ff !important;
+            }
+
+            .btn {
+                background: #a855f7 !important;
+            }
+        }
+
+        @media only screen and (max-width: 600px) {
+            .container {
+                width: 100% !important;
+                padding: 0 16px !important;
+            }
+
+            .card {
+                padding: 20px !important;
+            }
+
+            .h1 {
+                font-size: 24px !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg" style="background:#0e0e10; margin:0; padding:0;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td align="center" style="padding:32px 16px;">
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" class="container"
+                    style="width:600px; max-width:100%;">
+                    <tr>
+                        <td align="left" style="padding-bottom:16px;">
+                            <!-- Where it's from -->
+                            <div
+                                style="font-family:Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-weight:800; font-size:20px; letter-spacing:-0.02em; color:#ffffff;">
+                                Ban<span class="brand" style="color:#d08cff;">Chess</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="card"
+                            style="background:#151619; border:1px solid #25262b; border-radius:12px; padding:28px;">
+                            <!-- What this is -->
+                            <h1 class="h1"
+                                style="margin:0 0 20px 0; font-family:Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size:26px; line-height:1.3; font-weight:800; color:#ffffff;">
+                                You’ve been invited
+                            </h1>
+
+                            <!-- Primary action -->
+                            <table role="presentation" border="0" cellpadding="0" cellspacing="0"
+                                style="margin:0 0 16px 0;">
+                                <tr>
+                                    <td align="center" class="btn" bgcolor="#a855f7" style="border-radius:10px;">
+                                        <a href="{{ .ConfirmationURL }}"
+                                            style="display:inline-block; padding:12px 20px; font-family:Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size:15px; font-weight:700; color:#0f0f10; text-decoration:none; background:#a855f7; border-radius:10px;">
+                                            Accept invitation
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Fallback link -->
+                            <p class="muted"
+                                style="margin:0; font-family:Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size:12px; line-height:1.6; color:#a8a8b3;">
+                                If the button doesn’t work, copy and paste this URL into your browser:
+                            </p>
+                            <p style="margin:8px 0 0 0; word-break:break-all;">
+                                <a href="{{ .ConfirmationURL }}"
+                                    style="font-family:Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size:12px; color:#e3b3ff; text-decoration:underline;">
+                                    {{ .ConfirmationURL }}
+                                </a>
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>

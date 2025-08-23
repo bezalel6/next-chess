@@ -30,7 +30,6 @@ import { format } from 'date-fns';
 import type { ChatMessageType } from '@/types/chat';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSendTypingIndicator } from '@/hooks/useGameSync';
 
 interface GameChatProps {
   gameId: string;
@@ -52,12 +51,10 @@ export default function GameChat({ gameId }: GameChatProps) {
     isTimedOut,
     timeoutSecondsRemaining,
     chatEnabled,
-    otherPlayerTyping,
     sendMessage,
     setChatEnabled,
     setChatError,
     checkChatTimeout,
-    setTyping,
   } = useUnifiedGameStore(s => ({
     game: s.game,
     messages: s.messages,
@@ -65,16 +62,11 @@ export default function GameChat({ gameId }: GameChatProps) {
     isTimedOut: s.isTimedOut,
     timeoutSecondsRemaining: s.timeoutSecondsRemaining,
     chatEnabled: s.chatEnabled,
-    otherPlayerTyping: s.otherPlayerTyping,
     sendMessage: s.sendMessage,
     setChatEnabled: s.setChatEnabled,
     setChatError: s.setChatError,
     checkChatTimeout: s.checkChatTimeout,
-    setTyping: s.setTyping,
   }));
-  
-  // Get typing indicator sender
-  const sendTypingIndicator = useSendTypingIndicator(gameId, user?.id);
   
   // Memoize player info
   const playerInfo = useMemo(() => {
@@ -149,10 +141,6 @@ export default function GameChat({ gameId }: GameChatProps) {
     }
   }, [inputValue, user, game, playerInfo, sendMessage, setChatError]);
   
-  const handleTyping = useCallback((isTyping: boolean) => {
-    setTyping(isTyping);
-    sendTypingIndicator(isTyping);
-  }, [setTyping, sendTypingIndicator]);
   
   const handleKeyPress = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -227,11 +215,6 @@ export default function GameChat({ gameId }: GameChatProps) {
             )}
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {chatEnabled && otherPlayerTyping && (
-              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                Opponent is typing...
-              </Typography>
-            )}
             <Tooltip title={chatEnabled ? 'Disable chat' : 'Enable chat'}>
               <IconButton
                 size="small"
@@ -487,12 +470,13 @@ export default function GameChat({ gameId }: GameChatProps) {
               const value = e.target.value;
               if (value.length <= MAX_MESSAGE_LENGTH) {
                 setInputValue(value);
-                setChatError(null);
+                // Only clear error if there actually is an error
+                if (chatError) {
+                  setChatError(null);
+                }
               }
             }}
             onKeyPress={handleKeyPress}
-            onFocus={() => handleTyping(true)}
-            onBlur={() => handleTyping(false)}
             disabled={!playerInfo?.isPlayer || isSending || isTimedOut}
             error={!!chatError || isTimedOut}
             helperText={

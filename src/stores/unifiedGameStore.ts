@@ -112,10 +112,6 @@ interface ChatSlice {
   timeoutUntil: Date | null;
   timeoutSecondsRemaining: number;
   chatEnabled: boolean;
-  
-  // Typing indicators
-  isTyping: boolean;
-  otherPlayerTyping: boolean;
   lastMessageTime: number;
 }
 
@@ -220,10 +216,6 @@ interface ChatActions {
   receiveMessage: (message: ChatMessage) => void;
   clearMessages: () => void;
   
-  // Typing indicators
-  setTyping: (isTyping: boolean) => void;
-  setOtherPlayerTyping: (isTyping: boolean) => void;
-  
   // Chat moderation
   setChatTimeout: (until: Date | null) => void;
   updateTimeoutCountdown: () => void;
@@ -291,8 +283,6 @@ const initialState = {
   timeoutUntil: null,
   timeoutSecondsRemaining: 0,
   chatEnabled: true,
-  isTyping: false,
-  otherPlayerTyping: false,
   lastMessageTime: 0,
   
   // Unified state - no more local duplicates
@@ -1659,13 +1649,6 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
           set({ messages: [], chatError: null });
         },
           
-        setTyping: (isTyping: boolean) => {
-          set({ isTyping });
-        },
-          
-        setOtherPlayerTyping: (isTyping: boolean) => {
-          set({ otherPlayerTyping: isTyping });
-        },
           
         setChatTimeout: (until: Date | null) => {
             set({ 

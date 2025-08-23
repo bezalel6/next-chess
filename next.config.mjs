@@ -12,6 +12,9 @@ const config = {
   output: "standalone",
   // Add dev-only page extension to exclude test routes from prod
   pageExtensions: isDev ? ["ts", "tsx", "js", "jsx", "dev.tsx"] : ["ts", "tsx", "js", "jsx"],
+  env: {
+    BUILD_TIMESTAMP: process.env.BUILD_TIMESTAMP || new Date().toISOString(),
+  },
   eslint: {
     // Disable ESLint during builds
     ignoreDuringBuilds: true,

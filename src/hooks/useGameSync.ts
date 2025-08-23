@@ -18,9 +18,7 @@ export function useGameSync(gameId: string | undefined, userId: string | undefin
   const setConnected = useUnifiedGameStore(s => s.setConnected);
   const loadMessages = useUnifiedGameStore(s => s.loadMessages);
   const receiveMessage = useUnifiedGameStore(s => s.receiveMessage);
-  const setOtherPlayerTyping = useUnifiedGameStore(s => s.setOtherPlayerTyping);
   const setChatTimeout = useUnifiedGameStore(s => s.setChatTimeout);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -74,23 +72,6 @@ export function useGameSync(gameId: string | undefined, userId: string | undefin
           receiveMessage(GameService.mapChatMessageFromDB(message));
         }
       })
-      // Subscribe to typing indicators via broadcast
-      .on('broadcast', { event: 'typing' }, ({ payload }) => {
-        if (payload.userId !== userId) {
-          setOtherPlayerTyping(payload.isTyping);
-          if (payload.isTyping) {
-            // Clear existing timeout
-            if (typingTimeoutRef.current) {
-              clearTimeout(typingTimeoutRef.current);
-            }
-            // Set new timeout to clear typing indicator after 3 seconds
-            typingTimeoutRef.current = setTimeout(() => {
-              setOtherPlayerTyping(false);
-              typingTimeoutRef.current = null;
-            }, 3000);
-          }
-        }
-      })
       // Subscribe to timeout updates for current user
       .on('postgres_changes', {
         event: 'INSERT',
@@ -120,39 +101,7 @@ export function useGameSync(gameId: string | undefined, userId: string | undefin
       .subscribe((status) => setConnected(status === 'SUBSCRIBED'));
 
     return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
       channel.unsubscribe();
     };
-  }, [gameId, userId, syncWithServer, setConnected, receiveMessage, setOtherPlayerTyping, setChatTimeout]);
-}
-
-/**
- * Helper hook to send typing indicators
- */
-export function useSendTypingIndicator(gameId: string | undefined, userId: string | undefined) {
-  const channelRef = useRef<any>(null);
-  
-  useEffect(() => {
-    if (!gameId || gameId === 'local' || !userId) return;
-    
-    channelRef.current = supabase.channel(`game:${gameId}:unified`);
-    
-    return () => {
-      channelRef.current = null;
-    };
-  }, [gameId, userId]);
-  
-  const sendTyping = (isTyping: boolean) => {
-    if (channelRef.current && userId) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { userId, isTyping }
-      });
-    }
-  };
-  
-  return sendTyping;
+  }, [gameId, userId, syncWithServer, setConnected, receiveMessage, setChatTimeout]);
 }

@@ -19,12 +19,11 @@ export default function BanPhaseOverlay({
   return (
     <Box
       sx={{
-        height: 80, // Fixed height to prevent layout shifts
+        height: 40, // Reduced height
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         width: "100%",
-        marginBottom: 2, // Space between banner and board
       }}
     >
       <AnimatePresence mode="wait">
@@ -47,19 +46,19 @@ export default function BanPhaseOverlay({
               sx={{
                 bgcolor: isMyTurnToBan ? "error.main" : "background.paper",
                 color: isMyTurnToBan ? "error.contrastText" : "text.primary",
-                px: 3,
-                py: 1.5,
-                borderRadius: 2,
-                boxShadow: 4,
+                px: 2,
+                py: 0.5,
+                borderRadius: 1,
+                boxShadow: 2,
                 display: "flex",
                 alignItems: "center",
-                gap: 2,
-                border: "2px solid",
+                gap: 1,
+                border: "1px solid",
                 borderColor: isMyTurnToBan ? "error.dark" : "divider",
               }}
             >
-              <BlockIcon sx={{ fontSize: 24 }} />
-              <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+              <BlockIcon sx={{ fontSize: 18 }} />
+              <Typography variant="body2" sx={{ fontWeight: "bold" }}>
                 {isMyTurnToBan
                   ? "Select opponent's move to ban"
                   : "Opponent is selecting a move to ban..."}
@@ -87,9 +86,10 @@ export default function BanPhaseOverlay({
               label={`Banned: ${game.currentBannedMove.from}${game.currentBannedMove.to}`}
               color="error"
               variant="filled"
+              size="small"
               sx={{
                 fontWeight: "bold",
-                boxShadow: 2,
+                boxShadow: 1,
               }}
             />
           </motion.div>

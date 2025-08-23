@@ -52,50 +52,53 @@ type Move = {
 // Helper function to parse PGN into MoveData for local games
 function parsePgnToMoveData(pgn: string): MoveData[] {
   if (!pgn.trim()) return [];
-  
+
   try {
     const chess = new Chess();
     chess.loadPgn(pgn);
-    
+
     const moves: MoveData[] = [];
     const history = chess.history({ verbose: true });
-    
+
     // Reset to starting position and replay moves to capture intermediate FENs
     const replayChess = new Chess();
-    
+
     for (let i = 0; i < history.length; i++) {
       const move = history[i];
       const moveNumber = Math.floor(i / 2) + 1;
       const isWhiteMove = i % 2 === 0;
-      
+
       // Capture FEN before the move
       const fenBefore = replayChess.fen();
-      
+
       // Make the move
       replayChess.move(move);
       const fenAfter = replayChess.fen();
-      
+
       // Check for ban comments in the current position
       // Ban Chess uses comments like: {[%clk banning: e2e4]}
       let bannedFrom: string | undefined;
       let bannedTo: string | undefined;
       let bannedBy: "white" | "black" | undefined;
-      
+
       // Try to extract ban info from PGN comments
       // This is a simplified approach - real implementation might need more sophisticated parsing
-      const moveWithComments = chess.pgn().split('\n').find(line => 
-        line.includes(move.san) && line.includes('banning:')
-      );
-      
+      const moveWithComments = chess
+        .pgn()
+        .split("\n")
+        .find((line) => line.includes(move.san) && line.includes("banning:"));
+
       if (moveWithComments) {
-        const banMatch = moveWithComments.match(/banning:\s*([a-h][1-8])([a-h][1-8])/);
+        const banMatch = moveWithComments.match(
+          /banning:\s*([a-h][1-8])([a-h][1-8])/
+        );
         if (banMatch) {
           bannedFrom = banMatch[1];
           bannedTo = banMatch[2];
           bannedBy = isWhiteMove ? "white" : "black";
         }
       }
-      
+
       const moveData: MoveData = {
         id: `local-${i}`,
         move_number: moveNumber,
@@ -111,10 +114,10 @@ function parsePgnToMoveData(pgn: string): MoveData[] {
         banned_to: bannedTo,
         banned_by: bannedBy,
       };
-      
+
       moves.push(moveData);
     }
-    
+
     return moves;
   } catch (error) {
     console.error("Failed to parse PGN:", error);
@@ -208,10 +211,10 @@ const GamePanel = () => {
       setHasInitialized(true);
     }
   }, [movesData.length, hasInitialized]);
-  
+
   // Track if user has manually navigated away from latest
   const [userNavigatedAway, setUserNavigatedAway] = useState(false);
-  
+
   // Auto-navigate to new moves when they arrive (unless user manually navigated)
   useEffect(() => {
     if (movesData.length > 0 && hasInitialized && !userNavigatedAway) {
@@ -232,7 +235,7 @@ const GamePanel = () => {
       setTimeout(() => {
         container.scrollTo({
           top: container.scrollHeight,
-          behavior: 'smooth'
+          behavior: "smooth",
         });
       }, 50); // Small delay to ensure DOM is updated
     }
@@ -295,9 +298,11 @@ const GamePanel = () => {
         moveIndex: move.ply_number,
         phase: clickedPhase,
       });
-      
+
       // User manually navigated - mark as navigated away if not at latest
-      const isAtLatest = move.ply_number === movesData.length - 1 && clickedPhase === "after-move";
+      const isAtLatest =
+        move.ply_number === movesData.length - 1 &&
+        clickedPhase === "after-move";
       setUserNavigatedAway(!isAtLatest);
     },
     [movesData]
@@ -371,12 +376,16 @@ const GamePanel = () => {
       // Don't use handleMoveClick as it sets userNavigatedAway
       const lastMove = movesData[movesData.length - 1];
       const { navigateToPosition } = useUnifiedGameStore.getState();
-      
-      const bannedMove = lastMove.banned_from && lastMove.banned_to
-        ? { from: lastMove.banned_from as Square, to: lastMove.banned_to as Square }
-        : null;
+
+      const bannedMove =
+        lastMove.banned_from && lastMove.banned_to
+          ? {
+              from: lastMove.banned_from as Square,
+              to: lastMove.banned_to as Square,
+            }
+          : null;
       navigateToPosition(lastMove.ply_number, lastMove.fen_after, bannedMove);
-      
+
       setNavigationState({
         moveIndex: lastMove.ply_number,
         phase: "after-move",
@@ -484,7 +493,6 @@ const GamePanel = () => {
     );
   };
 
-
   if (isLoading) {
     return (
       <Box sx={{ p: 2, textAlign: "center" }}>
@@ -530,11 +538,11 @@ const GamePanel = () => {
               fontWeight: 500,
             }}
           >
-            ← Go to latest move
+            Go to latest move ←
           </Typography>
         </Box>
       )}
-      
+
       {/* Navigation Bar */}
       <Box
         sx={{

@@ -13,7 +13,7 @@
     "supabase:start": "npx dotenv-cli -e .env.local -- supabase start",
     "typegen": "npx supabase gen types --local > src/types/database.ts && cp src/types/database.ts supabase/functions/_shared/database-types.ts",
     "db:remote-reset": "npx supabase@beta db reset --linked",
-    "dev": "npm run kill-running && next dev",
+    "dev": "npm run kill-running && next dev --turbo",
     "dev:watch": "npm run kill-running && next dev",
     "dev:safe": "npm run kill-running && next dev",
     "dev:safe:watch": "npm run kill-running && next dev",

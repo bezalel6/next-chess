@@ -57,7 +57,7 @@ Notes:
 
 ## Testing
 ### Playwright (E2E)
-End-to-end tests validate turn mechanics, bans, and critical flows.
+End-to-end tests validate turn mechanics, bans, and critical flows. For testing UI/UX issues like board resizing, visual element visibility, and interactive features, use the playwright-automation-executor MCP agent to perform browser-based testing rather than relying on TypeScript type checking.
 ```bash path=null start=null
 npm run test          # run all tests
 npm run test:ui       # run with Playwright UI

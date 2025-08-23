@@ -41,7 +41,7 @@ export default function RightSidebar({ boardFlipped, onFlipBoard }: RightSidebar
       flexDirection: 'column',
       height: 'fit-content',
       alignSelf: 'center',
-      ml: 2,
+      
       bgcolor: '#262522',
       borderRadius: '0 8px 8px 0',
     }}>

@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
-import GameBoardV2 from "./GameBoardV2";
+import GameBoard from "./GameBoard";
 import BoardMoveInput from "./BoardMoveInput";
 import RightSidebar from "./RightSidebar";
 import DebugLog from "./DebugLog";
@@ -8,6 +8,7 @@ import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import GameChat from "./GameChat";
 import BanPhaseOverlay from "./BanPhaseOverlay";
 import GameStateIndicator from "./GameStateIndicator";
+import styles from "@/styles/board.module.css";
 
 // Left sidebar component
 const LeftSidebar = () => {
@@ -102,13 +103,47 @@ export default function GameLayout({
     (s) => s.phase === "selecting_ban" && s.game?.status === "active"
   );
 
+  // Center column (resizable) ref and persistence
+  const centerRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const el = centerRef.current;
+    if (!el) return;
+    try {
+      const raw = localStorage.getItem("boardSize");
+      const saved = raw ? Math.round(Number(raw)) : 600;
+      const clamped = Math.max(400, Math.min(1200, saved));
+      el.style.width = `${clamped}px`;
+      document.documentElement.style.setProperty("--board-size", `${clamped}px`);
+    } catch {}
+
+    let rafId: number | null = null;
+    const obs = new ResizeObserver((entries) => {
+      if (!entries.length) return;
+      const w = entries[0].contentRect.width;
+      if (!Number.isFinite(w)) return;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const c = Math.max(400, Math.min(1200, Math.round(w)));
+        try {
+          localStorage.setItem("boardSize", String(c));
+          document.documentElement.style.setProperty("--board-size", `${c}px`);
+        } catch {}
+        rafId = null;
+      });
+    });
+    obs.observe(el);
+    return () => {
+      obs.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, []);
+
   return (
     <Box
       sx={{
         display: "flex",
         flexDirection: "row",
         gap: 2,
-        maxWidth: 1400,
         width: "100%",
         justifyContent: "center",
         alignItems: "flex-start",
@@ -123,43 +158,39 @@ export default function GameLayout({
 
       {/* Center container - Board and controls */}
       <Box
+        ref={centerRef}
         sx={{
+          position: "relative",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           gap: 1,
+          width: "600px",
+          flexShrink: 0,
+          resize: "horizontal",
+          overflow: "visible",
+          minWidth: 400,
+          maxWidth: "min(1200px, calc(100vh - var(--header-height)))",
         }}
       >
-        {/* 
-          Board Orientation Logic:
-          ========================
-          The orientation prop passed to GameBoardV2 is calculated as follows:
-          
-          1. BASE ORIENTATION (from store):
-             - boardOrientation comes from unifiedGameStore
-             - Set to player's color ('white' or 'black') or 'white' for spectators
-          
-          2. MANUAL FLIP OVERRIDE:
-             - If boardFlipped is true (user clicked flip button), invert the orientation
-             - White → Black, Black → White
-          
-          This two-layer system ensures:
-          - Players automatically see the board from their color's perspective
-          - Users can manually flip to see opponent's perspective
-          - No conflicts between automatic and manual orientation
-        */}
-        <GameBoardV2
+        <div className={styles.boardStack}>
+        <GameBoard
           orientation={
             boardFlipped
               ? (boardOrientation === "white" ? "black" : "white")
               : boardOrientation
           }
         />
-
-        {/* Ban notification banner - positioned under the board */}
-        <BanPhaseOverlay isMyTurnToBan={canBan} />
-
-        <BoardMoveInput />
+        <div className={styles.boardFold}>
+          <Box sx={{ width: '100%' }}>
+            <BanPhaseOverlay isMyTurnToBan={canBan} />
+          </Box>
+          <Box sx={{ width: '100%' }}>
+            <BoardMoveInput />
+          </Box>
+        </div>
+        </div>
+        <div className={styles.resizeHint} aria-hidden="true" />
       </Box>
 
       {/* Right sidebar */}

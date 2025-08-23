@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import Head from "next/head";
 import { useState, useEffect } from "react";
 
-import GameBoardV2 from "@/components/GameBoardV2";
+// Removed unused import - GameBoard is used via GameLayout
 import GameLoading from "@/components/GameLoading";
 import LoadingScreen from "@/components/LoadingScreen";
 // import RightSidebar from "@/components/RightSidebar";
@@ -138,7 +138,7 @@ export default function GamePage() {
     // with the store's boardOrientation, resulting in all players seeing White's perspective.
     //
     // Current flow:
-    // Store sets boardOrientation → GameLayout applies manual flip if needed → GameBoardV2 renders
+    // Store sets boardOrientation → GameLayout applies manual flip if needed → GameBoard renders
     useEffect(() => {
         // Reset manual flip state when player color changes
         // Users can still manually flip after this via the flip button

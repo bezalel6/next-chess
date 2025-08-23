@@ -16,43 +16,39 @@ const config = {
     // Disable ESLint during builds
     ignoreDuringBuilds: true,
   },
+  // Turbopack configuration (for when using --turbo)
+  experimental: {
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
+  },
   webpack: (config, { dev, isServer }) => {
-    // Enable infrastructure logging with stack traces
+    // Suppress all webpack warnings and verbose logging
     config.infrastructureLogging = {
-      level: 'verbose',
-      debug: [
-        /PackFileCacheStrategy/,  // Debug cache strategy warnings
-        /webpack\.cache/,          // Debug webpack cache issues
-        /Serializing/,             // Debug serialization warnings
-      ],
-      appendOnly: false,
-      colors: false,
-      stream: process.stderr,
+      level: 'error',  // Only show errors, not warnings or verbose logs
     };
     
-    // Enable detailed stats with stack traces
+    // Minimal stats - suppress warnings and stack traces
     config.stats = {
       ...config.stats,
-      logging: 'verbose',
-      loggingTrace: true,     // Enable stack traces for warnings
-      loggingDebug: [
-        /PackFileCacheStrategy/,
-        /Serializing/,
-      ],
-      errorStack: true,       // Show error stack traces
-      errorDetails: true,     // Show error details
-      warnings: true,         // Show warnings
-      warningsFilter: [],     // Don't filter any warnings
-      moduleTrace: true,      // Show module trace
-      performance: true,      // Show performance warnings
+      logging: 'error',      // Only log errors
+      loggingTrace: false,   // Disable stack traces
+      errorStack: false,     // Hide error stack traces
+      errorDetails: false,   // Hide error details
+      warnings: false,       // Don't show warnings
+      moduleTrace: false,    // Hide module trace
+      performance: false,    // Hide performance warnings
     };
     
-    // Add performance hints for large assets
+    // Disable performance hints
     config.performance = {
       ...config.performance,
-      hints: 'warning',
-      maxAssetSize: 512000,
-      maxEntrypointSize: 512000,
+      hints: false,  // Disable performance warnings
     };
     
     // Optimize webpack cache for development & prefer fastest devtool

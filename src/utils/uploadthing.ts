@@ -4,14 +4,22 @@ import type { OurFileRouter } from "@/server/uploadthing";
 export const UploadButton = generateUploadButton<OurFileRouter>();
 export const UploadDropzone = generateUploadDropzone<OurFileRouter>();
 
-// Generate the useUploadThing hook with proper configuration for v7
-const { useUploadThing: useUploadThingHook } = generateReactHelpers<OurFileRouter>({
-  url: "/api/uploadthing"
-});
+// Lazy initialization to prevent automatic polling
+let uploadThingHelpersCache: ReturnType<typeof generateReactHelpers<OurFileRouter>> | null = null;
+
+const getUploadThingHelpers = () => {
+  if (!uploadThingHelpersCache) {
+    uploadThingHelpersCache = generateReactHelpers<OurFileRouter>({
+      url: "/api/uploadthing"
+    });
+  }
+  return uploadThingHelpersCache;
+};
 
 // Export the custom hook for bug report uploads
 export const useUploadThing = () => {
-  const { startUpload, isUploading } = useUploadThingHook("bugReportScreenshot");
+  const helpers = getUploadThingHelpers();
+  const { startUpload, isUploading } = helpers.useUploadThing("bugReportScreenshot");
   
   return {
     startUpload: async (files: File[]) => {

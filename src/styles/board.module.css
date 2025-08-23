@@ -1,0 +1,218 @@
+/* Lichess-style board layout system */
+.boardLayout {
+  --sidebar-width: 0px; /* Can be set by parent layout */
+  --header-height: 120px; /* Can be adjusted based on actual header */
+  /* Constrain by container width (not viewport) to avoid overflow when sidebars are present */
+  --max-board-size: min(
+    100%,
+    calc(100vh - var(--header-height))
+  );
+  
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  container-type: size;
+  position: relative;
+}
+
+ .boardFrame {
+  /* Board fills the center column's width and remains square */
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  aspect-ratio: 1;
+  position: relative;
+  border-radius: 4px;
+  background: #2a2a2a;
+  /* Clip board internals; container handles resizing, not the board */
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Ban phase indicator - pure CSS, no JS animation library */
+.boardFrame[data-phase="ban"] {
+  animation: banPulse 2s ease-in-out infinite;
+}
+
+@keyframes banPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+  50% { box-shadow: 0 0 20px 4px rgba(255, 0, 0, 0.3); }
+}
+
+.boardFrame[data-phase="ban"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid rgba(255, 0, 0, 0.5);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 10;
+  animation: banBorder 0.3s ease-out;
+}
+
+@keyframes banBorder {
+  from { opacity: 0; transform: scale(1.05); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Chessground container - fills entire frame */
+.boardContent {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden; /* Clip the board content */
+}
+
+/* Center-column stack: board + fold (under-board content) */
+.boardStack {
+  position: relative;
+  width: 100%;
+}
+
+/* Under-board fold: absolutely positioned so it doesn't push the board */
+.boardFold {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+/* Decorative diagonal resize hint in the column's bottom-right */
+.resizeHint {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none; /* don't interfere with native resize */
+  opacity: 0.5;
+}
+.resizeHint::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-right: 2px solid rgba(255,255,255,0.7);
+  border-bottom: 2px solid rgba(255,255,255,0.7);
+  transform: rotate(45deg);
+  transform-origin: center;
+}
+@media (max-width: 480px) {
+  .resizeHint { display: none; }
+}
+
+/* Game over overlay */
+.gameOverOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.gameOverOverlay > * {
+  pointer-events: auto;
+}
+
+
+/* Loading state */
+.loadingState {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+}
+
+/* Responsive breakpoints - hide resize on truly small screens only */
+@media (max-width: 480px) {
+  .boardFrame {
+    resize: none; /* Disable native resize on mobile */
+  }
+}
+
+/* Let Chessground manage its own layout entirely */
+.boardContent :global(.cg-wrap) {
+  border-radius: inherit;
+  user-select: none;
+}
+
+
+/* Shapes layer */
+.boardContent :global(.cg-wrap svg) {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.9;
+}
+
+/* Piece animations */
+.boardContent :global(.cg-wrap piece) {
+  position: absolute;
+  width: 12.5%;
+  height: 12.5%;
+  z-index: 2;
+  will-change: transform;
+}
+
+.boardContent :global(.cg-wrap piece.dragging) {
+  cursor: move;
+  z-index: 11;
+  opacity: 0.8;
+}
+
+.boardContent :global(.cg-wrap piece.anim) {
+  z-index: 8;
+}
+
+.boardContent :global(.cg-wrap piece.fading) {
+  z-index: 1;
+  opacity: 0.5;
+}
+
+/* Square highlights */
+.boardContent :global(.cg-wrap .last-move) {
+  background-color: rgba(255, 255, 170, 0.41);
+}
+
+.boardContent :global(.cg-wrap .selected) {
+  background-color: rgba(20, 85, 30, 0.5);
+}
+
+.boardContent :global(.cg-wrap .check) {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 0, 0, 1) 0%,
+    rgba(231, 0, 0, 1) 25%,
+    rgba(169, 0, 0, 0) 89%,
+    rgba(158, 0, 0, 0) 100%
+  );
+}
+
+/* Move destinations */
+.boardContent :global(.cg-wrap .move-dest) {
+  background: radial-gradient(rgba(20, 85, 30, 0.5) 22%, rgba(0, 0, 0, 0) 23%);
+}
+
+.boardContent :global(.cg-wrap .premove-dest) {
+  background: radial-gradient(rgba(20, 85, 30, 0.5) 22%, rgba(0, 0, 0, 0) 23%);
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .boardContent :global(.cg-wrap piece) {
+    transition: none !important;
+  }
+}

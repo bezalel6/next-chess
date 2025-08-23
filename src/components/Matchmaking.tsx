@@ -3,6 +3,15 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
 import { GameService } from '@/services/gameService';
 import { supabase } from '@/utils/supabase';
+import { 
+  Box, 
+  Paper, 
+  Typography, 
+  Button, 
+  CircularProgress,
+  Fade 
+} from '@mui/material';
+import { SportsEsports, Cancel } from '@mui/icons-material';
 
 export default function Matchmaking() {
   const [inQueue, setInQueue] = useState(false);
@@ -107,77 +116,110 @@ export default function Matchmaking() {
   
   if (!user) {
     return (
-      <div style={{
-        padding: '40px',
-        textAlign: 'center',
-        backgroundColor: '#f5f5f5',
-        borderRadius: '8px',
-      }}>
-        <h2>Sign in to Play</h2>
-        <p>Create an account or sign in to start playing Ban Chess</p>
-      </div>
+      <Paper
+        elevation={3}
+        sx={{
+          p: 5,
+          textAlign: 'center',
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: 3,
+        }}
+      >
+        <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+          Sign in to Play
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Create an account or sign in to start playing Ban Chess
+        </Typography>
+      </Paper>
     );
   }
   
   if (searching) {
     return (
-      <div style={{
-        padding: '40px',
-        textAlign: 'center',
-        backgroundColor: '#f5f5f5',
-        borderRadius: '8px',
-      }}>
-        <h2>Finding Opponent...</h2>
-        <div style={{ fontSize: '48px', margin: '20px 0' }}>♟️</div>
-        <p>Time in queue: {formatTime(timeInQueue)}</p>
-        <button
-          onClick={handleCancel}
-          style={{
-            marginTop: '20px',
-            padding: '10px 30px',
-            fontSize: '16px',
-            backgroundColor: '#dc3545',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
+      <Fade in={searching}>
+        <Paper
+          elevation={3}
+          sx={{
+            p: 5,
+            textAlign: 'center',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: 3,
           }}
         >
-          Cancel
-        </button>
-      </div>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+            Finding Opponent...
+          </Typography>
+          
+          <Box sx={{ my: 3 }}>
+            <CircularProgress size={60} thickness={4} />
+          </Box>
+          
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            Time in queue: {formatTime(timeInQueue)}
+          </Typography>
+          
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleCancel}
+            startIcon={<Cancel />}
+            size="large"
+            sx={{ px: 4 }}
+          >
+            Cancel
+          </Button>
+        </Paper>
+      </Fade>
     );
   }
   
   return (
-    <div style={{
-      padding: '40px',
-      textAlign: 'center',
-      backgroundColor: '#f5f5f5',
-      borderRadius: '8px',
-    }}>
-      <h2>Play Ban Chess</h2>
-      <p style={{ marginBottom: '30px' }}>
+    <Paper
+      elevation={3}
+      sx={{
+        p: 5,
+        textAlign: 'center',
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: 3,
+      }}
+    >
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
+        Play Ban Chess
+      </Typography>
+      
+      <Typography variant="body1" sx={{ mb: 4, color: 'text.secondary' }}>
         In Ban Chess, before each move, you ban one of your opponent's legal moves!
-      </p>
-      <button
+      </Typography>
+      
+      <Button
+        variant="contained"
         onClick={handleFindGame}
-        style={{
-          padding: '15px 40px',
-          fontSize: '18px',
-          backgroundColor: '#28a745',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontWeight: 'bold',
+        startIcon={<SportsEsports />}
+        size="large"
+        sx={{
+          px: 5,
+          py: 2,
+          fontSize: '1.1rem',
+          fontWeight: 600,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          '&:hover': {
+            background: 'linear-gradient(135deg, #5a67d8 0%, #6b3690 100%)',
+          },
         }}
       >
         Find Game
-      </button>
-      <div style={{ marginTop: '20px', color: '#666' }}>
-        <small>10+0 • Rated</small>
-      </div>
-    </div>
+      </Button>
+      
+      <Typography variant="caption" display="block" sx={{ mt: 3, color: 'text.secondary' }}>
+        10+0 • Rated
+      </Typography>
+    </Paper>
   );
 }

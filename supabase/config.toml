@@ -2,7 +2,7 @@
 project_id = "next-chess"
 
 [auth]
-site_url = "https://chess.rndev.site"
+site_url = "env(SITE_URL)"
 additional_redirect_urls = [
   "https://chess.rndev.site",
   "http://127.0.0.1:3000",

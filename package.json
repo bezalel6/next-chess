@@ -34,7 +34,9 @@
     "test:install": "playwright install",
     "functions:serve": "supabase functions serve --env-file supabase/functions/.env",
     "functions:secrets:push": "supabase secrets set --env-file supabase/functions/.env",
-    "functions:secrets:list": "supabase secrets list"
+    "functions:secrets:list": "supabase secrets list",
+    "templates:push": "node scripts/push-email-templates.js",
+    "templates:check": "node scripts/check-email-templates.js"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",

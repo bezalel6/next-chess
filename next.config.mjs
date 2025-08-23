@@ -16,14 +16,12 @@ const config = {
     // Disable ESLint during builds
     ignoreDuringBuilds: true,
   },
-  // Turbopack configuration (for when using --turbo)
-  experimental: {
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
+  // Turbopack configuration (now stable in Next.js 15.4)
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
       },
     },
   },

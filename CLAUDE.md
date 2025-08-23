@@ -97,8 +97,25 @@ See these docs for deeper details:
 ## Next.js 15.4 Notes
 The app runs on Next.js 15.4 Pages Router. Avoid Turbopack and Server Actions (App Router only). Consider optional optimizations in `next.config.js` as documented previously if needed.
 
+## Supabase Configuration & Deployment
+
+### Email Templates
+Email templates are stored in `supabase/templates/` and can be pushed to remote using:
+```bash
+npm run templates:push  # Push email templates via Management API
+npm run templates:check # Verify current template configuration
+```
+These scripts require `SUPABASE_ACCESS_TOKEN` and `PROJECT_REF` in `.env`.
+
+### Configuration Push
+To update remote Supabase with local `config.toml` settings:
+```bash
+npx supabase config push
+```
+This syncs auth settings, email templates, and other configurations from `supabase/config.toml` to your remote project.
+
 ## Supabase Troubleshooting (Quick Reference)
-For comprehensive steps, keep using the “Supabase Troubleshooting Playbook” section from earlier revisions. Highlights:
+For comprehensive steps, keep using the "Supabase Troubleshooting Playbook" section from earlier revisions. Highlights:
 - Prefer the Session Pooler (IPv4) for DB connections.
 - Reset locally with `npx supabase@beta db reset --linked --no-seed` when needed.
 - Repair migration drift with `supabase migration repair`.

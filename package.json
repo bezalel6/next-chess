@@ -63,6 +63,7 @@
     "@types/uuid": "^10.0.0",
     "@uploadthing/react": "^7.3.2",
     "bad-words": "^4.0.0",
+    "ban-chess.ts": "^1.0.1",
     "chart.js": "^4.5.0",
     "chess.js": "^1.4.0",
     "chess.ts": "^0.16.2",

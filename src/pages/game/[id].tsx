@@ -1,195 +1,38 @@
-import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
-import { useGameSync } from "@/hooks/useGameSync";
-import { Box, Typography } from "@mui/material";
 import { useRouter } from 'next/router';
-import Head from "next/head";
-import { useState, useEffect } from "react";
-
-// Removed unused import - GameBoard is used via GameLayout
-import GameLoading from "@/components/GameLoading";
-import LoadingScreen from "@/components/LoadingScreen";
-// import RightSidebar from "@/components/RightSidebar";
-import NotFoundScreen from "@/components/NotFoundScreen";
-// import BoardMoveInput from "@/components/BoardMoveInput";
-import GameChat from "@/components/GameChat";
-import GameLayout from "@/components/GameLayout";
-import { useAuth } from "@/contexts/AuthContext";
-import DisconnectHandler from "@/components/DisconnectHandler";
-// Left sidebar components
-const LeftSidebar = () => {
-    const game = useUnifiedGameStore(s => s.game);
-    
-    // Calculate time ago
-    const getTimeAgo = () => {
-        if (!game?.startTime) return 'just now';
-        const created = new Date(game.startTime);
-        const now = new Date();
-        const diffMs = now.getTime() - created.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        
-        if (diffMins < 1) return 'just now';
-        if (diffMins === 1) return '1 minute ago';
-        if (diffMins < 60) return `${diffMins} minutes ago`;
-        
-        const diffHours = Math.floor(diffMins / 60);
-        if (diffHours === 1) return '1 hour ago';
-        if (diffHours < 24) return `${diffHours} hours ago`;
-        
-        const diffDays = Math.floor(diffHours / 24);
-        if (diffDays === 1) return '1 day ago';
-        return `${diffDays} days ago`;
-    };
-    
-    // Get time control format (e.g., "10+0" for 10 minutes, no increment)
-    const getTimeControl = () => {
-        if (!game) return '10+0';
-        
-        // Check for time control in game object
-        const initialTime = game.timeControl?.initialTime || 600000; // Default 10 minutes
-        const increment = game.timeControl?.increment || 0;
-        
-        const minutes = Math.floor(initialTime / 60000);
-        return `${minutes}+${increment}`;
-    };
-    
-    // Determine game speed category
-    const getGameSpeed = () => {
-        const timeControl = getTimeControl();
-        const [minutes] = timeControl.split('+').map(Number);
-        
-        if (minutes < 3) return 'Bullet';
-        if (minutes < 8) return 'Blitz';
-        if (minutes < 15) return 'Rapid';
-        return 'Classical';
-    };
-    
-    return (
-        <Box sx={{ 
-            display: 'flex',
-            flexDirection: 'column',
-            width: 240,
-            flexShrink: 0,
-            gap: 2,
-            height: '100%',
-        }}>
-            {/* Game info */}
-            <Box sx={{
-                bgcolor: 'rgba(255,255,255,0.03)',
-                borderRadius: 0.5,
-                p: 2,
-            }}>
-                <Typography sx={{ color: '#bababa', fontSize: '0.85rem', mb: 0.5 }}>
-                    {getTimeControl()} • Casual • {getGameSpeed()}
-                </Typography>
-                <Typography sx={{ color: '#7a7a7a', fontSize: '0.8rem' }}>
-                    {getTimeAgo()}
-                </Typography>
-            </Box>
-            
-            {/* Debug Log */}
-            <Box sx={{ 
-                flex: 1, 
-                minHeight: 0, 
-                display: 'flex',
-                flexDirection: 'column',
-            }}>
-                <GameChat gameId={game?.id || ''} />
-            </Box>
-        </Box>
-    );
-};
+import { useGameSync } from '@/hooks/useGameSync';
+import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function GamePage() {
-    // Initialize game sync
-    const router = useRouter();
-    const { id } = router.query;
-    const { session } = useAuth();
-    useGameSync(typeof id === 'string' ? id : undefined, session?.user?.id);
+  const router = useRouter();
+  const { id: gameId } = router.query;
+  const { user } = useAuth();
+  
+  const engine = useUnifiedGameStore(s => s.engine);
+  const playAction = useUnifiedGameStore(s => s.playAction);
+  
+  useGameSync(gameId as string);
+  
+  if (!engine) {
+    return <div>Loading game...</div>;
+  }
+  
+  const handleAction = async (from: string, to: string) => {
+    const nextType = engine.nextActionType();
+    const action = nextType === 'move'
+      ? { move: { from, to } }
+      : { ban: { from, to } };
     
-    // Get state from store
-    const game = useUnifiedGameStore(s => s.game);
-    const loading = useUnifiedGameStore(s => s.loading);
-    const myColor = useUnifiedGameStore(s => s.myColor);
-    const playerUsernames = useUnifiedGameStore(s => s.playerUsernames);
-    const isLocalGame = useUnifiedGameStore(s => s.mode === 'local');
-    const boardOrientation = useUnifiedGameStore(s => s.boardOrientation);
-    
-    const { id: idAgain, as: asParam } = router.query;
-    const [accessError, setAccessError] = useState<string | null>(null);
-    const [boardFlipped, setBoardFlipped] = useState(false);
-
-    // Board Orientation Documentation:
-    // ================================
-    // The board orientation system works in two layers:
-    // 
-    // 1. AUTOMATIC ORIENTATION (handled by unifiedGameStore):
-    //    - White players see board with White at bottom (boardOrientation = 'white')
-    //    - Black players see board with Black at bottom (boardOrientation = 'black')
-    //    - Spectators see board with White at bottom (boardOrientation = 'white')
-    //    - This is set in the store's initGame() method based on myColor
-    //
-    // 2. MANUAL FLIP (handled by local state):
-    //    - boardFlipped state allows users to manually flip the board via UI button
-    //    - When true, it inverts the automatic orientation
-    //    - This is independent of the player's color
-    //
-    // IMPORTANT: We do NOT auto-set boardFlipped based on myColor anymore.
-    // Previous bug: Setting boardFlipped=true for Black players caused double-inversion
-    // with the store's boardOrientation, resulting in all players seeing White's perspective.
-    //
-    // Current flow:
-    // Store sets boardOrientation → GameLayout applies manual flip if needed → GameBoard renders
-    useEffect(() => {
-        // Reset manual flip state when player color changes
-        // Users can still manually flip after this via the flip button
-        setBoardFlipped(false);
-    }, [myColor]);
-
-    // Title based on game state
-    const pageTitle = game
-        ? `${playerUsernames.white} vs ${playerUsernames.black}`
-        : 'Chess Game';
-
-    return (
-        <>
-            <Head>
-                <title>{pageTitle}</title>
-            </Head>
-            <Box sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                height: 'calc(100vh - 64px)', // Account for header height
-                bgcolor: '#161512',
-                p: 2,
-                pt: 3, // Normal padding, board handles banner spacing
-                overflow: 'auto',
-            }}>
-                {loading ? (
-                    id && typeof id === 'string' ? (
-                        <GameLoading
-                            gameId={id}
-                            playerColor={myColor || undefined}
-                            message={accessError || undefined}
-                        />
-                    ) : (
-                        <LoadingScreen />
-                    )
-                ) : game ? (
-                    <>
-                        {/* Game layout with board and sidebars */}
-                        <GameLayout 
-                            boardFlipped={boardFlipped}
-                            onFlipBoard={() => setBoardFlipped(!boardFlipped)}
-                        />
-                        {/* Disconnect handler overlay */}
-                        <DisconnectHandler gameId={game.id} />
-                    </>
-                ) : (
-                    <NotFoundScreen />
-                )}
-            </Box>
-        </>
-    );
+    await playAction(action);
+  };
+  
+  return (
+    <div>
+      <h1>Game {gameId}</h1>
+      <p>Turn: {engine.turn}</p>
+      <p>Next: {engine.nextActionType()}</p>
+      <p>FEN: {engine.fen()}</p>
+      {engine.gameOver() && <p>Game Over</p>}
+    </div>
+  );
 }

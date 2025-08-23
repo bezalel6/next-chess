@@ -59,15 +59,7 @@ export type Database = {
           id?: string
           move_number?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "ban_history_game_id_fkey"
-            columns: ["game_id"]
-            isOneToOne: false
-            referencedRelation: "games"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       bug_reports: {
         Row: {
@@ -136,15 +128,7 @@ export type Database = {
           user_email?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "bug_reports_game_id_fkey"
-            columns: ["game_id"]
-            isOneToOne: false
-            referencedRelation: "games"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       chat_timeouts: {
         Row: {
@@ -233,30 +217,27 @@ export type Database = {
       game_messages: {
         Row: {
           content: string
-          created_at: string
+          created_at: string | null
           game_id: string
           id: string
-          message_type: string
-          metadata: Json | null
-          sender_id: string
+          message_type: string | null
+          sender_id: string | null
         }
         Insert: {
           content: string
-          created_at?: string
+          created_at?: string | null
           game_id: string
           id?: string
-          message_type?: string
-          metadata?: Json | null
-          sender_id: string
+          message_type?: string | null
+          sender_id?: string | null
         }
         Update: {
           content?: string
-          created_at?: string
+          created_at?: string | null
           game_id?: string
           id?: string
-          message_type?: string
-          metadata?: Json | null
-          sender_id?: string
+          message_type?: string | null
+          sender_id?: string | null
         }
         Relationships: [
           {
@@ -266,118 +247,115 @@ export type Database = {
             referencedRelation: "games"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "game_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_moves: {
+        Row: {
+          action_data: Json
+          action_type: string
+          created_at: string | null
+          game_id: string
+          id: string
+          ply: number
+          time_taken_ms: number | null
+        }
+        Insert: {
+          action_data: Json
+          action_type: string
+          created_at?: string | null
+          game_id: string
+          id?: string
+          ply: number
+          time_taken_ms?: number | null
+        }
+        Update: {
+          action_data?: Json
+          action_type?: string
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          ply?: number
+          time_taken_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_moves_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
         ]
       }
       games: {
         Row: {
-          banning_player: Database["public"]["Enums"]["player_color"] | null
-          black_player_id: string
+          ban_chess_state: string
+          black_player_id: string | null
           black_time_remaining: number | null
-          black_turn_start_time: number | null
-          claim_available_at: string | null
-          clock_state: Json | null
-          created_at: string
-          current_banned_move: Json | null
-          current_fen: string
-          disconnect_allowance_seconds: number | null
-          disconnect_started_at: string | null
-          draw_offered_by: Database["public"]["Enums"]["player_color"] | null
-          end_reason: Database["public"]["Enums"]["end_reason"] | null
+          created_at: string | null
           id: string
-          lag_compensation_ms: number | null
-          last_clock_update: string | null
-          last_connection_type: string | null
-          last_move: Json | null
-          parent_game_id: string | null
-          pgn: string
-          rematch_offered_by: Database["public"]["Enums"]["player_color"] | null
-          result: Database["public"]["Enums"]["game_result"] | null
-          status: Database["public"]["Enums"]["game_status"]
-          time_control: Json | null
-          total_disconnect_seconds: number | null
-          turn: Database["public"]["Enums"]["player_color"]
-          updated_at: string
-          version: number
-          white_player_id: string
+          increment_seconds: number | null
+          last_move_at: string | null
+          result_reason: string | null
+          status: string
+          time_control_minutes: number | null
+          updated_at: string | null
+          white_player_id: string | null
           white_time_remaining: number | null
-          white_turn_start_time: number | null
+          winner: string | null
         }
         Insert: {
-          banning_player?: Database["public"]["Enums"]["player_color"] | null
-          black_player_id: string
+          ban_chess_state: string
+          black_player_id?: string | null
           black_time_remaining?: number | null
-          black_turn_start_time?: number | null
-          claim_available_at?: string | null
-          clock_state?: Json | null
-          created_at?: string
-          current_banned_move?: Json | null
-          current_fen: string
-          disconnect_allowance_seconds?: number | null
-          disconnect_started_at?: string | null
-          draw_offered_by?: Database["public"]["Enums"]["player_color"] | null
-          end_reason?: Database["public"]["Enums"]["end_reason"] | null
+          created_at?: string | null
           id?: string
-          lag_compensation_ms?: number | null
-          last_clock_update?: string | null
-          last_connection_type?: string | null
-          last_move?: Json | null
-          parent_game_id?: string | null
-          pgn?: string
-          rematch_offered_by?:
-            | Database["public"]["Enums"]["player_color"]
-            | null
-          result?: Database["public"]["Enums"]["game_result"] | null
-          status?: Database["public"]["Enums"]["game_status"]
-          time_control?: Json | null
-          total_disconnect_seconds?: number | null
-          turn?: Database["public"]["Enums"]["player_color"]
-          updated_at?: string
-          version?: number
-          white_player_id: string
+          increment_seconds?: number | null
+          last_move_at?: string | null
+          result_reason?: string | null
+          status?: string
+          time_control_minutes?: number | null
+          updated_at?: string | null
+          white_player_id?: string | null
           white_time_remaining?: number | null
-          white_turn_start_time?: number | null
+          winner?: string | null
         }
         Update: {
-          banning_player?: Database["public"]["Enums"]["player_color"] | null
-          black_player_id?: string
+          ban_chess_state?: string
+          black_player_id?: string | null
           black_time_remaining?: number | null
-          black_turn_start_time?: number | null
-          claim_available_at?: string | null
-          clock_state?: Json | null
-          created_at?: string
-          current_banned_move?: Json | null
-          current_fen?: string
-          disconnect_allowance_seconds?: number | null
-          disconnect_started_at?: string | null
-          draw_offered_by?: Database["public"]["Enums"]["player_color"] | null
-          end_reason?: Database["public"]["Enums"]["end_reason"] | null
+          created_at?: string | null
           id?: string
-          lag_compensation_ms?: number | null
-          last_clock_update?: string | null
-          last_connection_type?: string | null
-          last_move?: Json | null
-          parent_game_id?: string | null
-          pgn?: string
-          rematch_offered_by?:
-            | Database["public"]["Enums"]["player_color"]
-            | null
-          result?: Database["public"]["Enums"]["game_result"] | null
-          status?: Database["public"]["Enums"]["game_status"]
-          time_control?: Json | null
-          total_disconnect_seconds?: number | null
-          turn?: Database["public"]["Enums"]["player_color"]
-          updated_at?: string
-          version?: number
-          white_player_id?: string
+          increment_seconds?: number | null
+          last_move_at?: string | null
+          result_reason?: string | null
+          status?: string
+          time_control_minutes?: number | null
+          updated_at?: string | null
+          white_player_id?: string | null
           white_time_remaining?: number | null
-          white_turn_start_time?: number | null
+          winner?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "games_parent_game_id_fkey"
-            columns: ["parent_game_id"]
+            foreignKeyName: "games_black_player_id_fkey"
+            columns: ["black_player_id"]
             isOneToOne: false
-            referencedRelation: "games"
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "games_white_player_id_fkey"
+            columns: ["white_player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -410,12 +388,36 @@ export type Database = {
           preferences?: Json | null
           status?: Database["public"]["Enums"]["queue_status"]
         }
+        Relationships: []
+      }
+      matchmaking_queue: {
+        Row: {
+          created_at: string | null
+          id: string
+          increment_seconds: number | null
+          player_id: string
+          time_control_minutes: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          increment_seconds?: number | null
+          player_id: string
+          time_control_minutes?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          increment_seconds?: number | null
+          player_id?: string
+          time_control_minutes?: number | null
+        }
         Relationships: [
           {
-            foreignKeyName: "matchmaking_game_id_fkey"
-            columns: ["game_id"]
-            isOneToOne: false
-            referencedRelation: "games"
+            foreignKeyName: "matchmaking_queue_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -472,15 +474,7 @@ export type Database = {
           san?: string
           to_square?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "moves_game_id_fkey"
-            columns: ["game_id"]
-            isOneToOne: false
-            referencedRelation: "games"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       news_items: {
         Row: {
@@ -568,31 +562,7 @@ export type Database = {
       }
     }
     Views: {
-      followed_users_status: {
-        Row: {
-          active_game: Json | null
-          followed_at: string | null
-          follower_id: string | null
-          following_id: string | null
-          username: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "follows_follower_id_fkey"
-            columns: ["follower_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "follows_following_id_fkey"
-            columns: ["following_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       get_follow_stats: {

@@ -15,7 +15,6 @@ import Head from "next/head";
 import Layout from "@/components/Layout";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
-import { HeartbeatProvider } from "@/components/HeartbeatProvider";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import dynamic from "next/dynamic";
 import { env } from "@/env.mjs";
@@ -85,13 +84,11 @@ const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
             </Head>
             <AuthProvider>
               <NotificationProvider>
-                <HeartbeatProvider>
-                  <ConnectionProvider>
-                    <Layout>
-                      <Component {...pageProps} />
-                    </Layout>
-                  </ConnectionProvider>
-                </HeartbeatProvider>
+                <ConnectionProvider>
+                  <Layout>
+                    <Component {...pageProps} />
+                  </Layout>
+                </ConnectionProvider>
               </NotificationProvider>
             </AuthProvider>
             <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />

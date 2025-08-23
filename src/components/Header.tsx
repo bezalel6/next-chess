@@ -17,13 +17,6 @@ import React, { useState, useEffect } from "react";
 import TabDialog from "./TabDialog";
 import UserLink from "./user-link";
 import Logo from "./Logo";
-import UserMenu from "./UserMenu";
-import dynamic from "next/dynamic";
-
-// Dynamically import BugReportsDropdown to avoid SSR issues
-const BugReportsDropdown = dynamic(() => import("./admin/BugReportsDropdown"), {
-  ssr: false
-});
 
 // Hook for scroll-based header effects
 function useScrollEffect() {
@@ -37,8 +30,7 @@ function useScrollEffect() {
 
 const Header = () => {
   const { profileUsername, isAdmin } = useAuth();
-  const game = useUnifiedGameStore(s => s.game);
-  const loading = useUnifiedGameStore(s => s.loading);
+  const engine = useUnifiedGameStore(s => s.engine);
   const myColor = useUnifiedGameStore(s => s.myColor);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -50,9 +42,9 @@ const Header = () => {
     setMounted(true);
   }, []);
 
-  // Display user info - prioritize game context over general user info
+  // Display user info
   const displayUserInfo = () => {
-    if (game && !loading) {
+    if (engine) {
       if (myColor) {
         return `${profileUsername || "You"} (${myColor})`;
       } else {
@@ -132,8 +124,6 @@ const Header = () => {
                 {profileUsername && (
                   <Fade in={mounted} timeout={1000}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {isAdmin && <BugReportsDropdown />}
-                      <UserMenu />
                     </Box>
                   </Fade>
                 )}
@@ -216,8 +206,6 @@ const Header = () => {
                 {profileUsername && (
                   <Fade in={mounted} timeout={1000}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {isAdmin && <BugReportsDropdown />}
-                      <UserMenu />
                     </Box>
                   </Fade>
                 )}

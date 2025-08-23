@@ -1,5 +1,4 @@
 import Head from "next/head";
-import QueueSystem from "@/components/QueueSystem";
 import AuthForm from "@/components/auth-form";
 import MinimalNewsFeed from "@/components/MinimalNewsFeed";
 import DraggableNewsFeed from "@/components/DraggableNewsFeed";
@@ -145,7 +144,7 @@ export default function Home() {
                     </Typography>
                   </Paper>
                 ) : user ? (
-                  <QueueSystem />
+                  <div>Matchmaking coming soon</div>
                 ) : (
                   <Box sx={{ width: "100%" }}>
                     <Paper

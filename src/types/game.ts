@@ -1,5 +1,5 @@
-import type { Chess } from "chess.ts";
-import type { Square } from "chess.ts/dist/types";
+import type { BanChess } from "ban-chess.ts";
+
 /**
  * Type definitions for color representations
  */
@@ -7,7 +7,7 @@ export type ShortColor = "w" | "b";
 export type LongColor = "white" | "black";
 export type PlayerColor = "white" | "black";
 
-export type GameStatus = "active" | "finished" | "abandoned";
+export type GameStatus = "active" | "completed" | "abandoned";
 export type GameResult = "white" | "black" | "draw" | null;
 export type GameEndReason =
   | "checkmate"
@@ -20,10 +20,21 @@ export type GameEndReason =
   | "timeout"
   | null;
 
-export interface ChessMove {
-  from: Square;
-  to: Square;
-  promotion?: PromoteablePieces;
+// Ban Chess action types
+export interface Move {
+  from: string;
+  to: string;
+  promotion?: string;
+}
+
+export interface Ban {
+  from: string;
+  to: string;
+}
+
+export interface Action {
+  move?: Move;
+  ban?: Ban;
 }
 
 export interface Game {
@@ -34,15 +45,11 @@ export interface Game {
   blackPlayer: string;  // Username
   status: GameStatus;
   result: GameResult;
-  currentFen: string;
-  pgn: string;
-  chess: Chess;
-  lastMove: ChessMove | null;
+  engine: BanChess;
+  lastAction: Action | null;
   turn: PlayerColor;
   startTime: number;
   lastMoveTime: number;
-  banningPlayer: PlayerColor | null;
-  currentBannedMove: ChessMove | null; // The move that was banned for this turn
   drawOfferedBy: PlayerColor | null;
   endReason: GameEndReason;
   rematchOfferedBy: PlayerColor | null;
@@ -61,8 +68,6 @@ export interface Game {
 export interface GameContextType {
   game: Game | null;
   setGame: (game: Game | null) => void;
-  pgn: string;
-  setPgn: (pgn: string) => void;
   isMyTurn: boolean;
   myColor: PlayerColor | null;
   loading: boolean;
@@ -71,12 +76,7 @@ export interface GameContextType {
   localGameOrientation?: PlayerColor;
   boardOrientation?: PlayerColor;
   actions: {
-    makeMove: (
-      from: string,
-      to: string,
-      promotion?: PromoteablePieces,
-    ) => Promise<void>;
-    banMove: (from: string, to: string) => Promise<void>;
+    play: (action: Action) => Promise<void>;
     resetGame: () => void;
     offerDraw: () => Promise<void>;
     acceptDraw: () => Promise<void>;
@@ -93,43 +93,34 @@ export interface GameContextType {
 /**
  * Maps for conversion between short and long color formats
  */
-const shortToLong: Record<ShortColor, LongColor> = {
+export const shortToLong: Record<ShortColor, LongColor> = {
   w: "white",
   b: "black",
 };
 
-const longToShort: Record<LongColor, ShortColor> = {
+export const longToShort: Record<LongColor, ShortColor> = {
   white: "w",
   black: "b",
 };
 
-/**
- * Generic color converter function that can convert in both directions
- * @template Target The target color type (ShortColor or LongColor)
- * @template S The source color type (the opposite of T)
- * @param color The color to convert
- * @returns The converted color in the target format
- */
-export function clr<Target extends ShortColor | LongColor>(
-  color: Target extends ShortColor ? LongColor : ShortColor,
-): Target {
-  if (
-    (typeof color === "string" && color.length === 1) ||
-    color === "w" ||
-    color === "b"
-  ) {
-    // Converting from short to long
-    return shortToLong[color as ShortColor] as Target;
-  } else {
-    // Converting from long to short
-    return longToShort[color as LongColor] as Target;
-  }
+export function convertShortToLongColor(color: ShortColor): LongColor {
+  return shortToLong[color];
 }
-export type PromoteablePieces = "q" | "r" | "b" | "n";
 
-export const PROMOTION_PIECES: Record<PromoteablePieces, string> = {
-  q: "♛",
-  r: "♜",
-  b: "♝",
-  n: "♞",
-} as const;
+export function convertLongToShortColor(color: LongColor): ShortColor {
+  return longToShort[color];
+}
+
+// Type guard functions
+export function isMove(action: Action): action is { move: Move } {
+  return 'move' in action && action.move !== undefined;
+}
+
+export function isBan(action: Action): action is { ban: Ban } {
+  return 'ban' in action && action.ban !== undefined;
+}
+
+// Legacy type aliases for gradual migration
+export type ChessMove = Move;
+export type Square = string;
+export type PromoteablePieces = 'q' | 'r' | 'b' | 'n';

@@ -829,6 +829,10 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             set({
               currentBannedMove: { from, to },
               banHistory: newBanHistory,
+              // Exit any navigation mode so live board reflects updates
+              viewingPly: null,
+              navigationFen: null,
+              navigationBan: null,
               ...(state.mode === 'local' ? { phase: 'making_move' as GamePhase } : {}),
             });
             
@@ -952,6 +956,10 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
               phase: gameUpdates.status === 'finished' ? 'game_over' : 'selecting_ban',
               game: { ...state.game, ...gameUpdates },
               showGameOverModal: gameUpdates.status === 'finished',
+              // Exit any navigation mode so live board reflects updates
+              viewingPly: null,
+              navigationFen: null,
+              navigationBan: null,
             });
             
             return true;
@@ -1068,15 +1076,19 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             } : undefined,
           }];
           
-          // Update core state
-          const newTurn = state.chess.turn() === 'w' ? 'white' : 'black';
-          set({
-            currentFen: newFen,
-            currentTurn: newTurn,
-            lastMove: { from, to },
-            moveHistory: newMoveHistory,
-            currentBannedMove: null, // Clear banned move after successful move
-          });
+            // Update core state
+            const newTurn = state.chess.turn() === 'w' ? 'white' : 'black';
+            set({
+              currentFen: newFen,
+              currentTurn: newTurn,
+              lastMove: { from, to },
+              moveHistory: newMoveHistory,
+              currentBannedMove: null, // Clear banned move after successful move
+              // Exit any navigation mode so live board reflects updates
+              viewingPly: null,
+              navigationFen: null,
+              navigationBan: null,
+            });
           
           // Update game object
           if (state.game) {

@@ -40,9 +40,13 @@ sed -i 's/std@0.168.0/std@0.177.0/g' supabase/functions/*/index.ts
 4. **Documentation**: Document any version changes in commit messages
 
 ### Other Common Dependencies
+
+**Important**: Always use specific versions for external dependencies to avoid resolution errors.
+
 ```typescript
-// Supabase client
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Supabase client - MUST use specific version
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+// NOT: import { createClient } from "https://esm.sh/@supabase/supabase-js@2"; // This will fail!
 
 // Zod for validation
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -53,6 +57,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 ```
+
+### Common Dependency Errors
+
+**Error**: `Import 'https://esm.sh/@supabase/supabase-js@2' failed`
+**Solution**: Use specific version `@supabase/supabase-js@2.39.3`
+
+**Error**: `failed to create the graph`
+**Cause**: Usually means a dependency URL is unreachable or malformed
+**Solution**: 
+1. Use specific versions for all dependencies
+2. Ensure network access to esm.sh and deno.land
+3. Check for typos in import URLs
 
 ### Deployment Checklist
 - [ ] All functions use the same Deno std version

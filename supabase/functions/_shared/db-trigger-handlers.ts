@@ -4,7 +4,7 @@ import { successResponse, errorResponse } from "./response-utils.ts";
 import { createLogger } from "./logger.ts";
 import { getTable, logOperation, ensureSingle } from "./db-utils.ts";
 import type { TypedSupabaseClient } from "./db-utils.ts";
-import type { User } from "https://esm.sh/@supabase/supabase-js@2";
+import type { User } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { EventType, recordEvent } from "./event-utils.ts";
 import type { Json } from "./database-types.ts";

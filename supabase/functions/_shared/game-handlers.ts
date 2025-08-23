@@ -9,7 +9,7 @@ import {
   type GameResult,
   type GameEndReason,
 } from "./chess-utils.ts";
-import type { User } from "https://esm.sh/@supabase/supabase-js@2";
+import type { User } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { createLogger } from "./logger.ts";
 import { successResponse, errorResponse } from "./response-utils.ts";
 import { getTable, logOperation, ensureSingle } from "./db-utils.ts";

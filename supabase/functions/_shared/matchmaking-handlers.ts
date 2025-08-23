@@ -4,7 +4,7 @@ import { createLogger } from "./logger.ts";
 import { validateWithZod, Schemas } from "./validation-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { uuidSchema } from "./validation-utils.ts";
-import type { User } from "https://esm.sh/@supabase/supabase-js@2";
+import type { User } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { getTable, logOperation, ensureSingle } from "./db-utils.ts";
 import type { TypedSupabaseClient } from "./db-utils.ts";
 import { INITIAL_FEN } from "./constants.ts";

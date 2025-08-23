@@ -15,7 +15,7 @@ import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";
 import { validateWithZod } from "../_shared/validation-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import type { User } from "https://esm.sh/@supabase/supabase-js@2";
+import type { User } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { uuidSchema } from "./../_shared/validation-utils.ts";
 import { ensureSingle, logOperation, getTable } from "../_shared/db-utils.ts";
 import type { TypedSupabaseClient } from "../_shared/db-utils.ts";

@@ -1,5 +1,5 @@
 /// <reference lib="deno.ns" />
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { createLogger } from "./logger.ts";
 import type { Database, Tables } from "./database-types.ts";
 

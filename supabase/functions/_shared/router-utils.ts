@@ -2,7 +2,7 @@
 import type {
   User,
   SupabaseClient,
-} from "https://esm.sh/@supabase/supabase-js@2";
+} from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { errorResponse } from "./response-utils.ts";
 import { createLogger } from "./logger.ts";
 

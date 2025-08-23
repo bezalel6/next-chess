@@ -49,15 +49,25 @@ const buildBrowserClient = (flow: 'pkce' | 'implicit') => {
         "X-Client-Info": "ban-chess",
       },
     },
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
   });
 };
 
 // Default PKCE client (for OAuth and same-device flows)
 export const createSupabaseBrowser = () => buildBrowserClient('pkce');
 
-// Singleton instances
+// Singleton instances - IMPORTANT: Only create once to avoid WebSocket connection issues
 let browserClient: ReturnType<typeof createSupabaseBrowser> | undefined;
 let browserClientImplicit: ReturnType<typeof buildBrowserClient> | undefined;
+
+// Only create the client once per page load to avoid multiple WebSocket connections
+if (typeof window !== 'undefined' && !browserClient) {
+  browserClient = createSupabaseBrowser();
+}
 
 export const supabaseBrowser = () => {
   if (!browserClient) {

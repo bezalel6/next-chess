@@ -2,6 +2,7 @@ import Head from "next/head";
 import AuthForm from "@/components/auth-form";
 import MinimalNewsFeed from "@/components/MinimalNewsFeed";
 import DraggableNewsFeed from "@/components/DraggableNewsFeed";
+import Matchmaking from "@/components/Matchmaking";
 import { Box, Container, Typography, Fade, Paper } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
@@ -144,7 +145,7 @@ export default function Home() {
                     </Typography>
                   </Paper>
                 ) : user ? (
-                  <div>Matchmaking coming soon</div>
+                  <Matchmaking />
                 ) : (
                   <Box sx={{ width: "100%" }}>
                     <Paper

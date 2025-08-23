@@ -45,8 +45,8 @@ type NavigationState = {
 
 type Move = {
   number: number;
-  white?: MoveData;
-  black?: MoveData;
+  white?: MoveData & { isPending?: boolean };
+  black?: MoveData & { isPending?: boolean };
 };
 
 // Helper function to parse PGN into MoveData for local games
@@ -218,18 +218,19 @@ const GamePanel = () => {
       
       // Create a "pending" move entry that only has ban info
       // This is a real move in the sequence, just waiting for the actual chess move
-      const pendingMove: MoveData = {
+      const pendingMove: MoveData & { isPending?: boolean } = {
+        id: `pending-${movesData.length}`, // Temporary ID for pending move
         ply_number: movesData.length, // This IS the next ply in sequence
         move_number: nextMoveNumber,
         player_color: isWhiteTurn ? "white" : "black",
         san: "", // No move yet
-        from: "",
-        to: "",
+        from_square: "", // No move yet
+        to_square: "", // No move yet
         fen_after: "", // Will be filled when move is made
         banned_from: currentBannedMove.from,
         banned_to: currentBannedMove.to,
         isPending: true, // Mark as pending (ban without move)
-      } as MoveData & { isPending?: boolean };
+      };
       
       if (isWhiteTurn) {
         movePair.white = pendingMove;

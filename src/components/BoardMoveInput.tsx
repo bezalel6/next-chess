@@ -2,12 +2,16 @@ import { useState, useCallback } from "react";
 import { Box } from "@mui/material";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import type { Square } from "chess.ts/dist/types";
+import { Chess } from "chess.ts";
+import { useChessSounds } from "@/hooks/useChessSounds";
 
 export default function BoardMoveInput() {
   const [value, setValue] = useState("");
   const game = useUnifiedGameStore((s) => s.game);
   const phase = useUnifiedGameStore((s) => s.phase);
   const executeGameOperation = useUnifiedGameStore((s) => s.executeGameOperation);
+  const chess = useUnifiedGameStore((s) => s.chess);
+  const { playMoveSound, playBan } = useChessSounds();
 
   const canBan = phase === "selecting_ban" && game?.status === "active";
   const canMove = phase === "making_move" && game?.status === "active";
@@ -28,7 +32,26 @@ export default function BoardMoveInput() {
       }
       const [, from, to] = match;
       const operation = canBan ? "ban" : "move";
-      executeGameOperation(operation, from as Square, to as Square, "q");
+
+      // Pre-play sounds similar to board interactions
+      const st = useUnifiedGameStore.getState();
+      const isValid = st.isOperationValid?.(operation as any, from as Square, to as Square);
+      if (isValid) {
+        if (operation === "ban") {
+          playBan();
+        } else if (operation === "move") {
+          try {
+            const baseFen = chess?.fen();
+            if (baseFen) {
+              const sim = new Chess(baseFen);
+              const mv = sim.move({ from: from as Square, to: to as Square, promotion: "q" as any });
+              if (mv) playMoveSound(mv as any, sim as any);
+            }
+          } catch {}
+        }
+      }
+
+      executeGameOperation(operation, from as Square, to as Square, "q");\r
       setValue("");
     },
     [value, canBan, enabled, executeGameOperation]

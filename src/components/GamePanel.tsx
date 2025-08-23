@@ -132,6 +132,9 @@ const GamePanel = () => {
   const myColor = useUnifiedGameStore((s) => s.myColor);
   const isLocalGame = useUnifiedGameStore((s) => s.mode === "local");
   const boardOrientation = useUnifiedGameStore((s) => s.boardOrientation);
+  const currentBannedMove = useUnifiedGameStore((s) => s.currentBannedMove);
+  const phase = useUnifiedGameStore((s) => s.phase);
+  const currentTurn = useUnifiedGameStore((s) => s.currentTurn);
   const [navigationState, setNavigationState] = useState<NavigationState>({
     moveIndex: -1,
     phase: "initial",
@@ -141,12 +144,32 @@ const GamePanel = () => {
   const moveHistoryRef = useRef<HTMLDivElement>(null);
   const gameActions = useGameActions();
 
-  // For local games, parse PGN instead of fetching from database
+  // For local games, use moveHistory from store; for online games, parse PGN
+  const storeMovesHistory = useUnifiedGameStore((s) => s.moveHistory);
   const { data: movesData = [], isLoading } = useQuery({
-    queryKey: ["moves-from-pgn", game?.id, game?.pgn],
+    queryKey: ["moves-from-pgn", game?.id, game?.pgn, isLocalGame ? storeMovesHistory : null],
     queryFn: async () => {
       if (!game?.id) return [];
-      // Derive moves uniformly from PGN for both local and online games
+      
+      // For local games, transform store's moveHistory to match MoveData format
+      if (isLocalGame) {
+        return storeMovesHistory.map((move, index) => ({
+          id: `local-${index}`,
+          move_number: Math.floor(index / 2) + 1,
+          ply_number: index,
+          player_color: index % 2 === 0 ? "white" : "black",
+          from_square: move.from,
+          to_square: move.to,
+          san: move.san,
+          fen_after: move.fen,
+          fen_before: index > 0 ? storeMovesHistory[index - 1].fen : "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          banned_from: move.bannedMove?.from,
+          banned_to: move.bannedMove?.to,
+          banned_by: move.bannedMove?.byPlayer,
+        } as MoveData));
+      }
+      
+      // For online games, parse from PGN
       return parsePgnToMoveData(game.pgn || "");
     },
     enabled: !!game?.id,
@@ -155,7 +178,7 @@ const GamePanel = () => {
 
   // Server broadcasts are authoritative; moves are derived from PGN only.
 
-  // Convert flat moves array to paired moves for display
+  // Convert flat moves array to paired moves for display, including pending bans
   const moves = useMemo<Move[]>(() => {
     const paired: Move[] = [];
     const movesByNumber = new Map<number, Move>();
@@ -180,8 +203,43 @@ const GamePanel = () => {
       }
     }
 
+    // Add pending ban if one exists (ban without corresponding move yet)
+    if (currentBannedMove && phase === "making_move") {
+      const nextMoveNumber = Math.floor(movesData.length / 2) + 1;
+      const isWhiteTurn = currentTurn === "white";
+      
+      // Check if we need to add this to an existing move pair or create a new one
+      let movePair = movesByNumber.get(nextMoveNumber);
+      if (!movePair) {
+        movePair = { number: nextMoveNumber };
+        movesByNumber.set(nextMoveNumber, movePair);
+        paired.push(movePair);
+      }
+      
+      // Create a "pending" move entry that only has ban info
+      // This is a real move in the sequence, just waiting for the actual chess move
+      const pendingMove: MoveData = {
+        ply_number: movesData.length, // This IS the next ply in sequence
+        move_number: nextMoveNumber,
+        player_color: isWhiteTurn ? "white" : "black",
+        san: "", // No move yet
+        from: "",
+        to: "",
+        fen_after: "", // Will be filled when move is made
+        banned_from: currentBannedMove.from,
+        banned_to: currentBannedMove.to,
+        isPending: true, // Mark as pending (ban without move)
+      } as MoveData & { isPending?: boolean };
+      
+      if (isWhiteTurn) {
+        movePair.white = pendingMove;
+      } else {
+        movePair.black = pendingMove;
+      }
+    }
+
     return paired;
-  }, [movesData]);
+  }, [movesData, currentBannedMove, phase, currentTurn]);
 
   // Get the currently selected move based on navigation state
   const selectedMove = useMemo(() => {
@@ -191,8 +249,17 @@ const GamePanel = () => {
     ) {
       return movesData[navigationState.moveIndex];
     }
+    // Check if we're on a pending ban
+    if (currentBannedMove && phase === "making_move" && 
+        navigationState.moveIndex === movesData.length) {
+      // Return a synthetic move for the pending ban
+      return {
+        ply_number: movesData.length,
+        isPending: true
+      } as any;
+    }
     return null;
-  }, [navigationState.moveIndex, movesData]);
+  }, [navigationState.moveIndex, movesData, currentBannedMove, phase]);
 
   // Reset initialization when game changes
   useEffect(() => {
@@ -215,31 +282,59 @@ const GamePanel = () => {
   // Track if user has manually navigated away from latest
   const [userNavigatedAway, setUserNavigatedAway] = useState(false);
 
-  // Auto-navigate to new moves when they arrive (unless user manually navigated)
+  // Helper to get the latest game position dynamically
+  const getLatestPosition = useCallback(() => {
+    // If there's a pending ban, that's the latest
+    if (currentBannedMove && phase === "making_move") {
+      return {
+        moveIndex: movesData.length,
+        phase: "after-ban" as const,
+        isPending: true
+      };
+    }
+    // Otherwise, the last move in the data
+    if (movesData.length > 0) {
+      return {
+        moveIndex: movesData.length - 1,
+        phase: "after-move" as const,
+        isPending: false
+      };
+    }
+    // Initial position
+    return {
+      moveIndex: -1,
+      phase: "initial" as const,
+      isPending: false
+    };
+  }, [movesData.length, currentBannedMove, phase]);
+
+  // Auto-navigate to latest position when it changes
   useEffect(() => {
-    if (movesData.length > 0 && hasInitialized && !userNavigatedAway) {
-      const newIndex = movesData.length - 1;
-      // Always jump to new moves unless user explicitly navigated away
+    if (!userNavigatedAway && hasInitialized) {
+      const latest = getLatestPosition();
       setNavigationState({
-        moveIndex: newIndex,
-        phase: "after-move",
+        moveIndex: latest.moveIndex,
+        phase: latest.phase,
       });
     }
-  }, [movesData.length]); // Intentionally not including all deps to prevent loops
+  }, [getLatestPosition, userNavigatedAway, hasInitialized]);
 
-  // Auto-scroll to the latest move when new moves are added (unless user navigated away)
+  // Auto-scroll to the latest position (including pending bans)
   useEffect(() => {
-    if (moveHistoryRef.current && moves.length > 0 && !userNavigatedAway) {
-      // Scroll to bottom when new moves arrive
-      const container = moveHistoryRef.current;
-      setTimeout(() => {
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: "smooth",
-        });
-      }, 50); // Small delay to ensure DOM is updated
+    if (moveHistoryRef.current && !userNavigatedAway) {
+      const latest = getLatestPosition();
+      // Only scroll if we have something to show
+      if (latest.moveIndex >= 0 || moves.length > 0) {
+        const container = moveHistoryRef.current;
+        setTimeout(() => {
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: "smooth",
+          });
+        }, 50); // Small delay to ensure DOM is updated
+      }
     }
-  }, [moves.length, userNavigatedAway]);
+  }, [moves.length, getLatestPosition, userNavigatedAway]);
 
   // Scroll to the selected move when navigating
   useEffect(() => {
@@ -265,10 +360,10 @@ const GamePanel = () => {
   // Handle move selection - now supports half-move navigation
   const handleMoveClick = useCallback(
     (
-      move: MoveData,
+      move: MoveData & { isPending?: boolean },
       clickedPhase: "after-ban" | "after-move" = "after-move"
     ) => {
-      const { navigateToPosition } = useUnifiedGameStore.getState();
+      const { navigateToPosition, currentFen } = useUnifiedGameStore.getState();
 
       // Navigate to the appropriate position based on phase
       if (clickedPhase === "after-ban" && move.banned_from && move.banned_to) {
@@ -277,21 +372,25 @@ const GamePanel = () => {
           from: move.banned_from as Square,
           to: move.banned_to as Square,
         };
-        // Use fen_before if available, otherwise use previous move's fen_after
-        const fenToUse =
-          move.fen_before ||
-          (move.ply_number > 0
-            ? movesData[move.ply_number - 1]?.fen_after
-            : null) ||
-          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        
+        // For pending moves (ban without move), use current board position
+        // For completed moves, use the position before the move
+        const fenToUse = move.isPending 
+          ? currentFen 
+          : (move.fen_before ||
+            (move.ply_number > 0
+              ? movesData[move.ply_number - 1]?.fen_after
+              : null) ||
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+            
         navigateToPosition(move.ply_number, fenToUse, bannedMove);
       } else {
-        // Show position after move
+        // Show position after move (not applicable for pending moves)
         const bannedMove =
           move.banned_from && move.banned_to
             ? { from: move.banned_from as Square, to: move.banned_to as Square }
             : null;
-        navigateToPosition(move.ply_number, move.fen_after, bannedMove);
+        navigateToPosition(move.ply_number, move.fen_after || currentFen, bannedMove);
       }
 
       setNavigationState({
@@ -343,59 +442,124 @@ const GamePanel = () => {
     }
   }, [navigationState, handleMoveClick, movesData, navigateToFirst]);
 
-  const navigateToNext = useCallback(() => {
-    const { moveIndex, phase } = navigationState;
+  // Helper to check if we can navigate to next position
+  const canNavigateNext = useMemo(() => {
+    const { moveIndex, phase: navPhase } = navigationState;
+    const latest = getLatestPosition();
+    
+    // Already at latest? Can't go further
+    if (moveIndex === latest.moveIndex && navPhase === latest.phase) {
+      return false;
+    }
+    
+    // From initial, can go next if there are moves or pending ban
+    if (navPhase === "initial") {
+      return movesData.length > 0 || (currentBannedMove !== null && phase === "making_move");
+    }
+    
+    // From after-ban, can always go to after-move (same move index)
+    if (navPhase === "after-ban") {
+      return moveIndex < movesData.length;
+    }
+    
+    // From after-move, check if there's a next move or pending ban
+    if (navPhase === "after-move") {
+      // Is there another completed move?
+      if (moveIndex < movesData.length - 1) return true;
+      // Is there a pending ban?
+      if (moveIndex === movesData.length - 1 && currentBannedMove !== null && phase === "making_move") return true;
+    }
+    
+    return false;
+  }, [navigationState, movesData, getLatestPosition, currentBannedMove, phase]);
 
-    if (phase === "initial") {
-      // From initial, go to first move's after-ban or after-move
+  const navigateToNext = useCallback(() => {
+    if (!canNavigateNext) return;
+    
+    const { moveIndex, phase: navPhase } = navigationState;
+
+    if (navPhase === "initial") {
+      // From initial, go to first move or pending ban
       if (movesData.length > 0) {
-        if (movesData[0].banned_from) {
-          handleMoveClick(movesData[0], "after-ban");
-        } else {
-          handleMoveClick(movesData[0], "after-move");
+        const firstMove = movesData[0];
+        if (firstMove && firstMove.banned_from) {
+          handleMoveClick(firstMove, "after-ban");
+        } else if (firstMove) {
+          handleMoveClick(firstMove, "after-move");
         }
+      } else if (currentBannedMove && phase === "making_move") {
+        // Go to pending ban - use the actual current banned move only when we're truly at the latest
+        handleMoveClick({
+          ply_number: 0,
+          isPending: true,
+          banned_from: currentBannedMove.from,
+          banned_to: currentBannedMove.to
+        } as any, "after-ban");
       }
-    } else if (phase === "after-ban") {
+    } else if (navPhase === "after-ban" && moveIndex < movesData.length) {
       // From after-ban, go to after-move
-      handleMoveClick(movesData[moveIndex], "after-move");
-    } else if (phase === "after-move") {
+      const currentMove = movesData[moveIndex];
+      if (currentMove) {
+        handleMoveClick(currentMove, "after-move");
+      }
+    } else if (navPhase === "after-move") {
       // From after-move, go to next move's after-ban or after-move
       if (moveIndex < movesData.length - 1) {
         const nextMove = movesData[moveIndex + 1];
-        if (nextMove.banned_from) {
+        if (nextMove && nextMove.banned_from) {
           handleMoveClick(nextMove, "after-ban");
-        } else {
+        } else if (nextMove) {
           handleMoveClick(nextMove, "after-move");
         }
+      } else if (currentBannedMove && phase === "making_move" && moveIndex === movesData.length - 1) {
+        // Go to pending ban - only use current banned move when we're truly at the latest position
+        handleMoveClick({
+          ply_number: movesData.length,
+          isPending: true,
+          banned_from: currentBannedMove.from,
+          banned_to: currentBannedMove.to
+        } as any, "after-ban");
       }
     }
-  }, [navigationState, handleMoveClick, movesData]);
+  }, [navigationState, handleMoveClick, movesData, canNavigateNext, currentBannedMove, phase]);
+
+  // Helper to check if we're at the latest position
+  const isAtLatest = useMemo(() => {
+    const latest = getLatestPosition();
+    return navigationState.moveIndex === latest.moveIndex && 
+           navigationState.phase === latest.phase;
+  }, [navigationState, getLatestPosition]);
 
   const navigateToLast = useCallback(() => {
-    if (movesData.length > 0) {
-      // Don't use handleMoveClick as it sets userNavigatedAway
-      const lastMove = movesData[movesData.length - 1];
-      const { navigateToPosition } = useUnifiedGameStore.getState();
-
-      const bannedMove =
-        lastMove.banned_from && lastMove.banned_to
-          ? {
-              from: lastMove.banned_from as Square,
-              to: lastMove.banned_to as Square,
-            }
-          : null;
-      navigateToPosition(lastMove.ply_number, lastMove.fen_after, bannedMove);
-
-      setNavigationState({
-        moveIndex: lastMove.ply_number,
-        phase: "after-move",
-      });
-      setUserNavigatedAway(false); // Back to latest, allow auto-follow
+    const latest = getLatestPosition();
+    const { navigateToPosition, currentFen } = useUnifiedGameStore.getState();
+    
+    if (latest.isPending && currentBannedMove) {
+      // Pending ban - use current position with ban overlay
+      navigateToPosition(
+        latest.moveIndex,
+        currentFen,
+        { from: currentBannedMove.from as Square, to: currentBannedMove.to as Square }
+      );
+    } else if (latest.moveIndex >= 0 && latest.moveIndex < movesData.length) {
+      // Completed move
+      const move = movesData[latest.moveIndex];
+      const bannedMove = move.banned_from && move.banned_to
+        ? { from: move.banned_from as Square, to: move.banned_to as Square }
+        : null;
+      navigateToPosition(move.ply_number, move.fen_after, bannedMove);
     } else {
-      // If no moves, stay at initial position
+      // Initial position
       navigateToFirst();
+      return;
     }
-  }, [movesData, navigateToFirst]);
+    
+    setNavigationState({
+      moveIndex: latest.moveIndex,
+      phase: latest.phase,
+    });
+    setUserNavigatedAway(false);
+  }, [getLatestPosition, movesData, navigateToFirst, currentBannedMove]);
 
   // Add keyboard navigation
   useSingleKeys(
@@ -517,7 +681,7 @@ const GamePanel = () => {
       }}
     >
       {/* Show indicator when user navigated away from latest move */}
-      {userNavigatedAway && movesData.length > 0 && (
+      {userNavigatedAway && !isAtLatest && (
         <Box
           sx={{
             p: 0.5,
@@ -538,7 +702,7 @@ const GamePanel = () => {
               fontWeight: 500,
             }}
           >
-            Go to latest move ←
+            Go to latest move →
           </Typography>
         </Box>
       )}
@@ -622,10 +786,7 @@ const GamePanel = () => {
             <IconButton
               size="small"
               onClick={navigateToNext}
-              disabled={
-                navigationState.moveIndex >= movesData.length - 1 &&
-                navigationState.phase === "after-move"
-              }
+              disabled={!canNavigateNext}
               sx={{
                 color: "white",
                 "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
@@ -640,10 +801,7 @@ const GamePanel = () => {
             <IconButton
               size="small"
               onClick={navigateToLast}
-              disabled={
-                navigationState.moveIndex >= movesData.length - 1 &&
-                navigationState.phase === "after-move"
-              }
+              disabled={isAtLatest}
               sx={{
                 color: "white",
                 "&.Mui-disabled": { color: "rgba(255,255,255,0.3)" },
@@ -682,7 +840,7 @@ const GamePanel = () => {
         <Box
           sx={{ width: "100%", display: "table", borderCollapse: "collapse" }}
         >
-          {/* Game moves */}
+          {/* Game moves - now includes pending bans */}
           {moves.map((move) => (
             <MovesRow
               key={move.number}
@@ -738,6 +896,8 @@ function MovesRow({
 }) {
   // Checkered pattern: odd rows have light white cell, even rows have dark white cell
   const whiteIsDark = move.number % 2 === 0;
+  const darkBg = "rgba(0,0,0,0.4)";
+  const lightBg = "rgba(255,255,255,0.1)";
 
   return (
     <Box
@@ -745,23 +905,7 @@ function MovesRow({
         display: "table-row",
       }}
     >
-      <Box
-        sx={{
-          display: "table-cell",
-          pr: 0.5,
-          pl: 1,
-          color: "#888",
-          fontSize: "1.1rem",
-          textAlign: "right",
-          verticalAlign: "middle",
-          width: "12%",
-          fontWeight: 400,
-          bgcolor: whiteIsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)", // Same as white cell
-          py: 0.5,
-        }}
-      >
-        {move.number}.
-      </Box>
+      {/* White move cell (includes move number) */}
       <Box
         data-ply={move.white?.ply_number}
         sx={{
@@ -772,46 +916,63 @@ function MovesRow({
           fontSize: "1.2rem",
           textAlign: "left",
           verticalAlign: "middle",
-          bgcolor: whiteIsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)",
+          bgcolor: whiteIsDark ? darkBg : lightBg,
           cursor: move.white ? "pointer" : "default",
-          width: "44%",
+          width: "50%",
           fontWeight:
             selectedMove?.ply_number === move.white?.ply_number ? 600 : 400,
           "&:hover": move.white
             ? {
                 bgcolor: whiteIsDark
-                  ? "rgba(0,0,0,0.3)"
-                  : "rgba(255,255,255,0.06)",
+                  ? "rgba(0,0,0,0.5)"
+                  : "rgba(255,255,255,0.15)",
               }
             : {},
-          // Use outline for selection instead of background
+          // Use outline for selection only when NOT in ban phase and move exists
           outline:
-            selectedMove?.ply_number === move.white?.ply_number
+            move.white && selectedMove?.ply_number === move.white.ply_number && 
+            !(navigationState.moveIndex === move.white.ply_number && navigationState.phase === "after-ban")
               ? "2px solid rgba(255,204,0,0.8)"
               : "none",
           outlineOffset: "-2px",
           position: "relative",
         }}
         onClick={
-          move.white ? () => onMoveClick(move.white, "after-move") : undefined
+          move.white ? () => onMoveClick(move.white, move.white.isPending ? "after-ban" : "after-move") : undefined
         }
       >
-        {move.white && (
-          <MoveComponent
-            move={move.white}
-            isSelected={selectedMove?.ply_number === move.white.ply_number}
-            isBanPhase={
-              navigationState.moveIndex === move.white.ply_number &&
-              navigationState.phase === "after-ban"
-            }
-            onBanClick={
-              move.white.banned_from
-                ? () => onMoveClick(move.white, "after-ban")
-                : undefined
-            }
-          />
-        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          {/* Move number integrated into white cell */}
+          <Typography
+            component="span"
+            sx={{
+              color: "#888",
+              fontSize: "1.1rem",
+              fontWeight: 400,
+              minWidth: "28px",
+              textAlign: "right",
+            }}
+          >
+            {move.number}.
+          </Typography>
+          {move.white && (
+            <MoveComponent
+              move={move.white}
+              isSelected={selectedMove?.ply_number === move.white.ply_number}
+              isBanPhase={
+                navigationState.moveIndex === move.white.ply_number &&
+                navigationState.phase === "after-ban"
+              }
+              onBanClick={
+                move.white.banned_from
+                  ? () => onMoveClick(move.white, "after-ban")
+                  : undefined
+              }
+            />
+          )}
+        </Box>
       </Box>
+      {/* Black move cell */}
       <Box
         data-ply={move.black?.ply_number}
         sx={{
@@ -822,28 +983,29 @@ function MovesRow({
           fontSize: "1.2rem",
           textAlign: "left",
           verticalAlign: "middle",
-          bgcolor: !whiteIsDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.02)", // Opposite of white cell
+          bgcolor: !whiteIsDark ? darkBg : lightBg, // Opposite of white cell
           cursor: move.black ? "pointer" : "default",
-          width: "44%",
+          width: "50%",
           fontWeight:
             selectedMove?.ply_number === move.black?.ply_number ? 600 : 400,
           "&:hover": move.black
             ? {
                 bgcolor: !whiteIsDark
-                  ? "rgba(0,0,0,0.3)"
-                  : "rgba(255,255,255,0.06)",
+                  ? "rgba(0,0,0,0.5)"
+                  : "rgba(255,255,255,0.15)",
               }
             : {},
-          // Use outline for selection instead of background
+          // Use outline for selection only when NOT in ban phase and move exists
           outline:
-            selectedMove?.ply_number === move.black?.ply_number
+            move.black && selectedMove?.ply_number === move.black.ply_number &&
+            !(navigationState.moveIndex === move.black.ply_number && navigationState.phase === "after-ban")
               ? "2px solid rgba(255,204,0,0.8)"
               : "none",
           outlineOffset: "-2px",
           position: "relative",
         }}
         onClick={
-          move.black ? () => onMoveClick(move.black, "after-move") : undefined
+          move.black ? () => onMoveClick(move.black, move.black.isPending ? "after-ban" : "after-move") : undefined
         }
       >
         {move.black && (
@@ -872,12 +1034,13 @@ function MoveComponent({
   isBanPhase,
   onBanClick,
 }: {
-  move: MoveData;
+  move: MoveData & { isPending?: boolean };
   isSelected: boolean;
   isBanPhase: boolean;
   onBanClick?: () => void;
 }) {
   const hasBan = move.banned_from && move.banned_to;
+  const isPending = move.isPending || false;
 
   // Always use inline layout with consistent font sizes
   return (
@@ -936,9 +1099,10 @@ function MoveComponent({
         sx={{
           fontWeight: "normal",
           fontSize: "1.2rem",
+          color: isPending ? "text.secondary" : "inherit",
         }}
       >
-        {move.san}
+        {isPending ? "—" : move.san}
       </Typography>
       {move.time_taken_ms && (
         <Typography

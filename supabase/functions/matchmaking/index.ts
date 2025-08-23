@@ -666,32 +666,28 @@ async function notifyGameChange(
   game: GameRecord,
 ) {
   async function send(uid: string) {
+    // Create channel with the same name the client is listening to
     const channel = supabase.channel(`player:${uid}`);
     
-    // Subscribe to the channel first
-    channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.send({
-          type: "broadcast",
-          event: "game_matched",
-          payload: {
-            gameId: game.id,
-            isWhite: game.white_player_id === uid,
-            opponentId:
-              uid === game.black_player_id
-                ? game.white_player_id
-                : game.black_player_id,
-          },
-        });
-        
-        // Unsubscribe after sending
-        setTimeout(() => {
-          channel.unsubscribe();
-        }, 1000);
-      }
+    // Send the broadcast directly without subscribing
+    // The client is already subscribed to this channel
+    const result = await channel.send({
+      type: "broadcast",
+      event: "game_matched",
+      payload: {
+        gameId: game.id,
+        isWhite: game.white_player_id === uid,
+        opponentId:
+          uid === game.black_player_id
+            ? game.white_player_id
+            : game.black_player_id,
+      },
     });
     
-    return true;
+    // Note: We don't unsubscribe because we never subscribed
+    // The channel will be garbage collected
+    
+    return result === "ok";
   }
   try {
     logger.info(`Game update notification: ${game.id}`);

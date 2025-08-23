@@ -246,43 +246,41 @@ export class GameService {
 
   // Matchmaking
   static async joinMatchmakingQueue(timeControl?: { minutes: number; increment: number }) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
 
-    const { error } = await supabase
-      .from('matchmaking_queue')
-      .upsert({
-        player_id: user.id,
-        time_control_minutes: timeControl?.minutes || 10,
-        increment_seconds: timeControl?.increment || 0,
-      });
+    // Call the matchmaking edge function to join queue
+    const { data, error } = await supabase.functions.invoke('matchmaking', {
+      body: { operation: 'joinQueue' },
+    });
 
     if (error) throw error;
+    return data;
   }
 
   static async leaveMatchmakingQueue() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
 
-    const { error } = await supabase
-      .from('matchmaking_queue')
-      .delete()
-      .eq('player_id', user.id);
+    // Call the matchmaking edge function to leave queue
+    const { data, error } = await supabase.functions.invoke('matchmaking', {
+      body: { operation: 'leaveQueue' },
+    });
 
     if (error) throw error;
+    return data;
   }
 
   static async checkMatchmakingStatus() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase
-      .from('matchmaking_queue')
-      .select('*')
-      .eq('player_id', user.id)
-      .single();
+    // Call the matchmaking edge function to check status
+    const { data, error } = await supabase.functions.invoke('matchmaking', {
+      body: { operation: 'checkStatus' },
+    });
 
-    if (error && error.code !== 'PGRST116') throw error;
-    return data;
+    if (error) throw error;
+    return data?.inQueue || false;
   }
 }

@@ -76,15 +76,13 @@ export default function Matchmaking() {
     setTimeInQueue(0);
     
     try {
-      // Call matchmaking edge function to join queue
-      const response = await supabase.functions.invoke('matchmaking', {
-        body: { operation: 'joinQueue' }
-      });
+      // Join matchmaking queue - server will handle the matching
+      await GameService.joinMatchmakingQueue();
       
-      if (response.data?.matchFound) {
-        // Immediate match found
-        router.push(`/game/${response.data.game.id}`);
-      }
+      // The server will match players and send a realtime notification
+      // via the player:${user.id} channel with event 'game_matched'
+      // The useEffect above is already listening for this notification
+      
     } catch (error) {
       console.error('Failed to join queue:', error);
       setSearching(false);
@@ -98,10 +96,8 @@ export default function Matchmaking() {
     setTimeInQueue(0);
     
     try {
-      // Call matchmaking edge function to leave queue
-      await supabase.functions.invoke('matchmaking', {
-        body: { operation: 'leaveQueue' }
-      });
+      // Use GameService to leave queue
+      await GameService.leaveMatchmakingQueue();
     } catch (error) {
       console.error('Failed to leave queue:', error);
     }

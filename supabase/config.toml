@@ -1,6 +1,19 @@
 # Cleaned Supabase config.toml
 project_id = "next-chess"
 
+[api]
+enabled = true
+port = 54321
+max_rows = 1000
+
+[realtime]
+enabled = true
+ip_version = "IPv4"
+
+[db]
+port = 54322
+major_version = 15
+
 [auth]
 site_url = "env(SITE_URL)"
 additional_redirect_urls = [

@@ -64,11 +64,6 @@ export const createSupabaseBrowser = () => buildBrowserClient('pkce');
 let browserClient: ReturnType<typeof createSupabaseBrowser> | undefined;
 let browserClientImplicit: ReturnType<typeof buildBrowserClient> | undefined;
 
-// Only create the client once per page load to avoid multiple WebSocket connections
-if (typeof window !== 'undefined' && !browserClient) {
-  browserClient = createSupabaseBrowser();
-}
-
 export const supabaseBrowser = () => {
   if (!browserClient) {
     browserClient = createSupabaseBrowser();

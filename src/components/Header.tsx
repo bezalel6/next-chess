@@ -18,6 +18,12 @@ import TabDialog from "./TabDialog";
 import UserLink from "./user-link";
 import Logo from "./Logo";
 import UserMenu from "./UserMenu";
+import dynamic from "next/dynamic";
+
+// Dynamically import BugReportsDropdown to avoid SSR issues
+const BugReportsDropdown = dynamic(() => import("./admin/BugReportsDropdown"), {
+  ssr: false
+});
 
 // Hook for scroll-based header effects
 function useScrollEffect() {
@@ -30,7 +36,7 @@ function useScrollEffect() {
 }
 
 const Header = () => {
-  const { profileUsername } = useAuth();
+  const { profileUsername, isAdmin } = useAuth();
   const game = useUnifiedGameStore(s => s.game);
   const loading = useUnifiedGameStore(s => s.loading);
   const myColor = useUnifiedGameStore(s => s.myColor);
@@ -125,7 +131,8 @@ const Header = () => {
                 {/* Mobile User Menu */}
                 {profileUsername && (
                   <Fade in={mounted} timeout={1000}>
-                    <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {isAdmin && <BugReportsDropdown />}
                       <UserMenu />
                     </Box>
                   </Fade>
@@ -208,7 +215,8 @@ const Header = () => {
                 {/* Desktop User Menu */}
                 {profileUsername && (
                   <Fade in={mounted} timeout={1000}>
-                    <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {isAdmin && <BugReportsDropdown />}
                       <UserMenu />
                     </Box>
                   </Fade>

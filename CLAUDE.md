@@ -126,3 +126,5 @@ For comprehensive steps, keep using the "Supabase Troubleshooting Playbook" sect
 - Lint is clean (0 errors); warnings intentionally left.
 - Local and online flows are functional; components use `GameService` + unified store.
 - Further cleanup and optimization guidance is tracked in docs and research files.
+
+- To get the database types to reflect the correct and up-to-date database, you will: apply       all the migrations to the local supabase, and once thats configured correctly, run npm typegn

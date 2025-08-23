@@ -68,8 +68,6 @@ const config = {
         profile: false,
         allowCollectingMemory: true
       };
-      // Use eval-based source maps for fastest incremental builds
-      config.devtool = 'eval';
     }
     
     // For production builds, optimize serialization

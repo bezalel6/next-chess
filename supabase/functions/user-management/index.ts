@@ -179,6 +179,24 @@ const userRouter = createRouter([
       return errorResponse(validation.errors.join("; "), 400);
     }
     const { user } = params;
+    
+    // Handle anonymous users
+    if (user.is_anonymous || user.email === null) {
+      const guestUsername = `guest_${crypto.randomUUID().substring(0, 8)}`;
+      const { error } = await getTable(supabase, "profiles")
+        .insert({
+          id: user.id,
+          username: guestUsername
+        });
+      
+      if (error) {
+        logger.error(`Failed to create guest profile for ${user.id}:`, error);
+        return errorResponse(`Failed to create guest profile: ${error.message}`, 500);
+      }
+      
+      return successResponse({ username: guestUsername });
+    }
+    
     let username = user.user_metadata?.username;
     // If username provided, validate it
     if (username) {

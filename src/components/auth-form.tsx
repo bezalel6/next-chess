@@ -42,7 +42,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
-  const [loginUsername, setLoginUsername] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -85,7 +85,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
           redirectOnSuccess && setTimeout(() => window.location.href = "/", 1500);
         }
       } else {
-        await signIn(loginUsername, password);
+        await signIn(loginEmail, password);
         setSuccess("Sign in successful! Redirecting...");
         redirectOnSuccess && setTimeout(() => window.location.href = "/", 1500);
       }
@@ -151,6 +151,8 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
     setSuccess(null);
     if (isSignUp) {
       setUsername("");
+    } else {
+      setLoginEmail("");
     }
     
     if (onModeChange) {
@@ -162,7 +164,7 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
     if (isSignUp) {
       return !!(email && password && username);
     }
-    return !!(loginUsername && password);
+    return !!(loginEmail && password);
   };
 
   return (
@@ -270,14 +272,14 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
             />
           ) : (
             <TextField
-              label="Username"
-              type="text"
-              value={loginUsername}
-              onChange={(e) => setLoginUsername(e.target.value.toLowerCase())}
+              label="Email"
+              type="email"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value.toLowerCase())}
               required
               fullWidth
               disabled={isLoading}
-              helperText="Enter your username to sign in"
+              helperText="Enter your email address to sign in"
             />
           )}
           <TextField

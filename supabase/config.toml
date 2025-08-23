@@ -80,3 +80,19 @@ enabled = true
 client_id = "907502703164-g5of7ia6g6i48cafibflb0aj2ac87v3l.apps.googleusercontent.com"
 secret = "env(GOOGLE_CLIENT_SECRET)"
 skip_nonce_check = false
+
+# Auth Hooks
+[auth.hook.custom_access_token]
+enabled = false
+
+[auth.hook.send_email]
+enabled = false
+
+[auth.hook.send_sms]
+enabled = false
+
+[auth.hook.mfa_verification_attempt]
+enabled = false
+
+[auth.hook.password_verification_attempt]
+enabled = false

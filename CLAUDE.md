@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Last updated: 2025-08-22
+Last updated: 2025-08-23
 
 ## Project Overview
 Real-time multiplayer chess with the Ban Chess variant. Before each turn, the non-moving player bans one legal move from the opponent.
@@ -43,12 +43,28 @@ Real-time multiplayer chess with the Ban Chess variant. Before each turn, the no
 Checkmate condition: If a king is in check and the side to move has exactly one legal move, the opponent can ban that move, resulting in no legal moves to escape check.
 
 ## Development
-```bash path=null start=null
-npm run dev       # Start dev server (remote Supabase)
-npm run dev:local # Start dev server with local Supabase
+
+### Local Development (Recommended)
+```bash
+# Start local Supabase first
+npx supabase start
+
+# In another terminal, serve edge functions locally
+npx supabase functions serve
+
+# In another terminal, start Next.js dev server
+npm run dev  # Uses local Supabase by default (localhost:54321)
 ```
+
+### Remote Development
+```bash
+npm run dev:remote  # Uses remote Supabase project
+```
+
 Notes:
-- Use npm for all scripts (bun not supported).
+- Use npm for all scripts (bun not supported)
+- Local development uses Supabase on localhost:54321
+- Guest authentication works with local Supabase after migrations are applied
 
 ## Linting & TypeScript
 - ESLint uses a flat config at `eslint.config.mjs`.
@@ -144,10 +160,17 @@ For comprehensive steps, keep using the "Supabase Troubleshooting Playbook" sect
 - Repair migration drift with `supabase migration repair`.
 - Grant EXECUTE per function signature when overloads exist.
 
-## Current Status (2025-08-22)
+## Current Status (2025-08-23)
 - Unified store + sync strategy in place; legacy hooks/services removed.
 - Lint is clean (0 errors); warnings intentionally left.
 - Local and online flows are functional; components use `GameService` + unified store.
+- **Guest authentication fixed**: Database trigger `handle_new_user()` now creates profiles correctly
+- **Matchmaking functional**: Guest users can join matchmaking queues
 - Further cleanup and optimization guidance is tracked in docs and research files.
+
+### Recent Fixes
+- Removed cascading settings trigger that was causing profile creation failures
+- Added proper permissions for `supabase_auth_admin` role
+- Guest users now get `guest_xxxxx` usernames automatically
 
 - To get the database types to reflect the correct and up-to-date database, you will: apply       all the migrations to the local supabase, and once thats configured correctly, run npm typegn

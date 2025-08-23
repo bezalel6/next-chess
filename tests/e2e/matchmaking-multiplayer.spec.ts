@@ -1,4 +1,5 @@
-import { test, expect, Browser, BrowserContext, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 
 test.describe('Matchmaking Multiplayer Tests', () => {
   let browser1: Browser;

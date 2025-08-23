@@ -202,9 +202,8 @@ export class GameService {
       .from('game_messages')
       .insert({
         game_id: gameId,
-        sender_id: user.id,
-        content,
-        message_type: 'chat',
+        player_id: user.id,
+        message: content,
       });
 
     if (error) throw error;
@@ -215,9 +214,8 @@ export class GameService {
       .from('game_messages')
       .insert({
         game_id: gameId,
-        sender_id: null,
-        content,
-        message_type: 'system',
+        player_id: null,
+        message: content,
       });
 
     if (error) throw error;

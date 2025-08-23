@@ -176,7 +176,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                 // Check if we're already in the matchmaking system
                 const { data } = await supabase
                     .from('matchmaking')
-                    .select('status, game_id')
+                    .select('status')
                     .eq('player_id', session.user.id)
                     .maybeSingle();
 
@@ -184,10 +184,20 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     if (data.status === 'waiting') {
                         setQueue(prev => ({ ...prev, inQueue: true }));
                         addLogEntry("Detected existing queue entry");
-                    } else if (data.status === 'matched' && data.game_id) {
-                        setQueue(prev => ({ ...prev, inQueue: false }));
-                        addLogEntry(`Detected matched game: ${data.game_id}`);
-                        router.push(`/game/${data.game_id}`);
+                    } else if (data.status === 'matched') {
+                        // Check for active game since matchmaking doesn't have game_id
+                        const { data: activeGame } = await supabase
+                            .from('games')
+                            .select('id')
+                            .eq('status', 'active')
+                            .or(`white_player_id.eq.${session.user.id},black_player_id.eq.${session.user.id}`)
+                            .maybeSingle();
+                            
+                        if (activeGame) {
+                            setQueue(prev => ({ ...prev, inQueue: false }));
+                            addLogEntry(`Detected matched game: ${activeGame.id}`);
+                            router.push(`/game/${activeGame.id}`);
+                        }
                     }
                 }
             } catch (error) {

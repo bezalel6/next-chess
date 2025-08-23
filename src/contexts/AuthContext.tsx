@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: profile, error } = await supabaseBrowser()
         .from("profiles")
-        .select("username, is_admin")
+        .select("username")
         .eq("id", userId)
         .maybeSingle();
 
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setProfileUsername(profile.username || null);
-      setIsAdmin(!!profile.is_admin);
+      setIsAdmin(false); // No admin system in this refactor
       return profile;
     } catch (e) {
       console.warn("[AuthContext] fetchProfile exception:", e);

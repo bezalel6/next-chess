@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from "react";
+import type React from "react";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import LichessBoard from "./LichessBoard";
 import GameOverDetails from "./GameOverDetails";
@@ -7,9 +8,10 @@ import type { Api } from "chessground/api";
 
 interface GameBoardProps {
   orientation?: "white" | "black";
+  onResizeHandleMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
-export default function GameBoard({ orientation }: GameBoardProps) {
+export default function GameBoard({ orientation, onResizeHandleMouseDown }: GameBoardProps) {
   const game = useUnifiedGameStore(s => s.game);
   const myColor = useUnifiedGameStore(s => s.myColor);
   const phase = useUnifiedGameStore(s => s.phase);
@@ -125,6 +127,9 @@ export default function GameBoard({ orientation }: GameBoardProps) {
             onBoardApi={handleBoardApi}
           />
         </div>
+        {/* Ban border overlay inside the board */}
+        {isBanPhase && <div className={styles.banBorderOverlay} aria-hidden />}
+        <div className={styles.resizeHandle} title="Drag to resize" onMouseDown={onResizeHandleMouseDown} />
       </div>
     </div>
   );

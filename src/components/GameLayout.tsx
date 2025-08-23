@@ -138,6 +138,31 @@ export default function GameLayout({
     };
   }, []);
 
+  const onHandleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const el = centerRef.current;
+    if (!el) return;
+    const startW = el.getBoundingClientRect().width;
+    const clamp = (w: number) => Math.max(400, Math.min(1200, Math.round(w)));
+    const onMove = (ev: MouseEvent) => {
+      const next = clamp(startW + (ev.clientX - startX));
+      el.style.width = `${next}px`;
+      try {
+        localStorage.setItem('boardSize', String(next));
+        document.documentElement.style.setProperty('--board-size', `${next}px`);
+      } catch {}
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+    };
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   return (
     <Box
       sx={{
@@ -180,6 +205,7 @@ export default function GameLayout({
               ? (boardOrientation === "white" ? "black" : "white")
               : boardOrientation
           }
+          onResizeHandleMouseDown={onHandleMouseDown}
         />
         <div className={styles.boardFold}>
           <Box sx={{ width: '100%' }}>
@@ -190,7 +216,6 @@ export default function GameLayout({
           </Box>
         </div>
         </div>
-        <div className={styles.resizeHint} aria-hidden="true" />
       </Box>
 
       {/* Right sidebar */}

@@ -30,7 +30,7 @@
   box-sizing: border-box;
 }
 
-/* Ban phase indicator - pure CSS, no JS animation library */
+/* Ban phase indicator - subtle outer glow on the board */
 .boardFrame[data-phase="ban"] {
   animation: banPulse 2s ease-in-out infinite;
 }
@@ -40,20 +40,14 @@
   50% { box-shadow: 0 0 20px 4px rgba(255, 0, 0, 0.3); }
 }
 
-.boardFrame[data-phase="ban"]::before {
-  content: '';
+/* Explicit DOM overlay for the ban border, rendered inside GameBoard */
+.banBorderOverlay {
   position: absolute;
   inset: 0;
-  border: 3px solid rgba(255, 0, 0, 0.5);
+  border: 3px solid rgba(255, 0, 0, 0.55);
   border-radius: inherit;
   pointer-events: none;
-  z-index: 10;
-  animation: banBorder 0.3s ease-out;
-}
-
-@keyframes banBorder {
-  from { opacity: 0; transform: scale(1.05); }
-  to { opacity: 1; transform: scale(1); }
+  z-index: 1000;
 }
 
 /* Chessground container - fills entire frame */
@@ -70,6 +64,7 @@
 .boardStack {
   position: relative;
   width: 100%;
+  height: 100%;
 }
 
 /* Under-board fold: absolutely positioned so it doesn't push the board */
@@ -84,27 +79,40 @@
   padding-top: 8px;
 }
 
-/* Decorative diagonal resize hint in the column's bottom-right */
-.resizeHint {
+/* Interactive se-resize icon overlay at the board's bottom-right */
+.resizeHandle {
   position: absolute;
   right: 6px;
   bottom: 6px;
-  width: 16px;
-  height: 16px;
-  pointer-events: none; /* don't interfere with native resize */
-  opacity: 0.5;
+  width: 22px;
+  height: 22px;
+  cursor: se-resize;
+  z-index: 2001; /* Above all board overlays */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  pointer-events: auto;
+  background: none;
 }
-.resizeHint::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-right: 2px solid rgba(255,255,255,0.7);
-  border-bottom: 2px solid rgba(255,255,255,0.7);
-  transform: rotate(45deg);
-  transform-origin: center;
+.resizeHandle::before {
+  content: '↘';
+  font-size: 18px;
+  line-height: 1;
+  color: #ffffff;
+  /* Strong black outline for visibility on any background */
+  text-shadow:
+    -1px -1px 0 #000,
+     0   -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  0   0 #000,
+     1px  0   0 #000,
+    -1px  1px 0 #000,
+     0    1px 0 #000,
+     1px  1px 0 #000;
 }
 @media (max-width: 480px) {
-  .resizeHint { display: none; }
+  .resizeHandle { display: none; }
 }
 
 /* Game over overlay */

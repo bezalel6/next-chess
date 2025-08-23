@@ -65,11 +65,14 @@ const Footer = () => {
             <GitHub fontSize="small" />
           </Link>
         </Box>
-        {process.env.BUILD_TIMESTAMP && (
-          <Typography variant="caption" color="text.disabled">
-            Deployed: {formatTimestamp(process.env.BUILD_TIMESTAMP)}
-          </Typography>
-        )}
+        <Typography variant="caption" color="text.disabled">
+          {process.env.NODE_ENV === 'development' 
+            ? 'Development Build' 
+            : process.env.BUILD_TIMESTAMP 
+              ? `Deployed: ${formatTimestamp(process.env.BUILD_TIMESTAMP)}`
+              : 'Production Build'
+          }
+        </Typography>
       </Box>
     </Box>
   );

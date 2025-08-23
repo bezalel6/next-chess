@@ -88,6 +88,29 @@ See `docs/USER_MANAGEMENT_FIX.md` for details on the 2025-08-22 fix that properl
 - Supabase is the state of record; client replays updates received via realtime
 - Client store is the only state consumed by UI
 
+## Zustand Store Best Practices
+**CRITICAL: Prevent infinite loops by using individual selectors**
+
+When using Zustand stores with React components, NEVER destructure multiple properties in a single selector:
+
+```typescript
+// ❌ BAD - Causes infinite loops and "getSnapshot should be cached" errors
+const { game, messages, chatError, sendMessage } = useStore(s => ({
+  game: s.game,
+  messages: s.messages,
+  chatError: s.chatError,
+  sendMessage: s.sendMessage,
+}));
+
+// ✅ GOOD - Each selector is independent, prevents unnecessary re-renders
+const game = useStore(s => s.game);
+const messages = useStore(s => s.messages);
+const chatError = useStore(s => s.chatError);
+const sendMessage = useStore(s => s.sendMessage);
+```
+
+This pattern prevents FormControl and other MUI components from triggering infinite update loops when store values change frequently (e.g., countdown timers, typing indicators).
+
 ## Upgrade & Ops Notes
 See these docs for deeper details:
 - `docs/SECURITY_HARDENING.md`

@@ -32,15 +32,13 @@ const Footer = () => {
       <Box
         sx={{
           display: "flex",
-          flexDirection: "column",
+          justifyContent: "space-between",
           alignItems: "center",
-          gap: 1,
         }}
       >
         <Box
           sx={{
             display: "flex",
-            justifyContent: "center",
             alignItems: "center",
             gap: 1,
           }}

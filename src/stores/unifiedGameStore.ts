@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BanChess } from 'ban-chess.ts';
+import { BanChess } from '@/lib/simple-ban-chess';
 import { GameService } from '@/services/gameService';
 
 interface GameStore {

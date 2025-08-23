@@ -1,7 +1,7 @@
 import { supabase, invokeWithAuth } from "../utils/supabase";
 import type { PlayerColor } from "@/types/game";
 import type { ChatMessage } from "@/types/chat";
-import { BanChess } from "ban-chess.ts";
+import { BanChess } from "@/lib/simple-ban-chess";
 
 export interface GameAction {
   move?: { from: string; to: string; promotion?: string };

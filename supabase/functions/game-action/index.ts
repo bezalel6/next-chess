@@ -1,7 +1,65 @@
 /// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { BanChess } from "https://esm.sh/ban-chess.ts@1.0.1";
+import { Chess } from "https://esm.sh/chess.js@0.13.4";
+
+// Simple BanChess implementation for edge function
+class BanChess {
+  private chess: any;
+  private bannedMove: { from: string; to: string } | null = null;
+  private actionCount: number = 0;
+  
+  constructor(fen?: string) {
+    this.chess = new Chess(fen);
+  }
+  
+  get turn(): 'w' | 'b' {
+    return this.chess.turn();
+  }
+  
+  nextActionType(): 'ban' | 'move' {
+    if (this.actionCount === 0) return 'ban';
+    return this.actionCount % 2 === 0 ? 'ban' : 'move';
+  }
+  
+  play(action: any) {
+    if (action.ban) {
+      this.bannedMove = action.ban;
+      this.actionCount++;
+    } else if (action.move) {
+      if (this.bannedMove && 
+          this.bannedMove.from === action.move.from && 
+          this.bannedMove.to === action.move.to) {
+        throw new Error('Move is banned');
+      }
+      
+      this.chess.move({
+        from: action.move.from,
+        to: action.move.to,
+        promotion: action.move.promotion
+      });
+      
+      this.bannedMove = null;
+      this.actionCount++;
+    }
+  }
+  
+  fen(): string {
+    return this.chess.fen();
+  }
+  
+  gameOver(): boolean {
+    return this.chess.isGameOver();
+  }
+  
+  result(): string {
+    if (!this.gameOver()) return '*';
+    if (this.chess.isCheckmate()) {
+      return this.chess.turn() === 'w' ? '0-1' : '1-0';
+    }
+    return '1/2-1/2';
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

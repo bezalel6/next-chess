@@ -29,6 +29,7 @@ This document explains the new approach we migrated to for sizing and laying out
 - `.boardFrame` owns the square aspect and clips its internals (`overflow: hidden`).
 - `.boardContent` holds the Chessground view. It never changes size independently; it inherits from the frame.
 - The ban border overlay and the resize icon are rendered inside the board frame so they always move with the board and layer above the chess content.
+- The moves input is docked under the board on the left, inside the absolute “fold” under the board; it follows the board width and never pushes the board up.
 - Z-index ordering ensures the resize icon is always visible above board overlays.
 
 5) Under-board UI does not push the board
@@ -47,6 +48,7 @@ Files of interest:
   - `.banBorderOverlay`: explicit DOM overlay for the red border during ban phase (inside the frame)
   - `.resizeHandle`: the visible se-resize icon at the board’s bottom-right (high z-index, white with black outline)
   - `.boardStack`, `.boardFold`: wrappers to control stacking and under-board placement without affecting board position
+  - `.boardInputDock`: the bottom-left, width-aware moves input dock that follows the board
 
 - `src/components/GameBoard.tsx`
   - Renders the board frame and contents, and now renders the ban border overlay + resize handle inside the frame

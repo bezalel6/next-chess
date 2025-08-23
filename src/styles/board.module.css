@@ -79,6 +79,13 @@
   padding-top: 8px;
 }
 
+/* Bottom-left dock for a compact moves input that follows board width */
+.boardInputDock {
+  align-self: flex-start;
+  width: min(360px, 100%);
+  z-index: 1000;
+}
+
 /* Interactive se-resize icon overlay at the board's bottom-right */
 .resizeHandle {
   position: absolute;

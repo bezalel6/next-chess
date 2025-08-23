@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import GameBoard from "@/components/GameBoard";
 import GamePanel from "@/components/GamePanel";
 import BanPhaseOverlay from "@/components/BanPhaseOverlay";
+import BoardMoveInput from "@/components/BoardMoveInput";
 import InfoIcon from "@mui/icons-material/Info";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import { useChessSounds } from "@/hooks/useChessSounds";
@@ -218,6 +219,9 @@ export default function LocalGamePage() {
                   <Box sx={{ width: "100%" }}>
                     <BanPhaseOverlay isMyTurnToBan={canBan} />
                   </Box>
+                  <div className={styles.boardInputDock}>
+                    <BoardMoveInput />
+                  </div>
                 </div>
               </div>
             </Box>

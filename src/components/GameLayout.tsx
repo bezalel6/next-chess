@@ -211,9 +211,9 @@ export default function GameLayout({
           <Box sx={{ width: '100%' }}>
             <BanPhaseOverlay isMyTurnToBan={canBan} />
           </Box>
-          <Box sx={{ width: '100%' }}>
+          <div className={styles.boardInputDock}>
             <BoardMoveInput />
-          </Box>
+          </div>
         </div>
         </div>
       </Box>

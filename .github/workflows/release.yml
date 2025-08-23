@@ -1,0 +1,88 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run typecheck
+        run: npm run typecheck
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Generate version number
+        id: version
+        run: |
+          # Use timestamp-based version for automatic releases
+          VERSION="v$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+
+      - name: Create build artifact
+        run: |
+          # Create a compressed archive of the build
+          tar -czf next-chess-${{ steps.version.outputs.version }}.tar.gz \
+            .next \
+            public \
+            package.json \
+            package-lock.json \
+            next.config.mjs
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body: |
+            🚀 **Automated Release**
+            
+            **Changes in this release:**
+            - Latest changes from main branch
+            - Commit: ${{ github.sha }}
+            
+            **Build Information:**
+            - Node.js: 20
+            - Next.js: 15.4
+            - Build Date: $(date -u)
+            
+            **For Coolify Deployment:**
+            Download the `next-chess-*.tar.gz` artifact and deploy directly.
+          files: |
+            next-chess-${{ steps.version.outputs.version }}.tar.gz
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+      - name: Update latest tag
+        run: |
+          git tag -f latest
+          git push origin latest --force

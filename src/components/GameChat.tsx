@@ -13,6 +13,7 @@ import {
   Tooltip,
   Collapse,
   Stack,
+  Alert,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -23,47 +24,59 @@ import {
   SpeakerNotesOff as ChatOffIcon,
   Timer as TimerIcon,
   CalendarToday as CalendarIcon,
+  Block as BlockIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
-import type { ChatMessage, ChatMessageType } from '@/types/chat';
+import type { ChatMessageType } from '@/types/chat';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/utils/supabase';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { useSendTypingIndicator } from '@/hooks/useGameSync';
 
 interface GameChatProps {
   gameId: string;
 }
 
 const MAX_MESSAGE_LENGTH = 200;
-const MIN_MESSAGE_INTERVAL = 500; // ms between messages
-const CHAT_ENABLED_KEY = 'chess-chat-enabled';
 
 export default function GameChat({ gameId }: GameChatProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [otherPlayerTyping, setOtherPlayerTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [chatEnabled, setChatEnabled] = useState<boolean>(() => {
-    // Load chat preference from localStorage
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(CHAT_ENABLED_KEY);
-      return saved !== null ? saved === 'true' : true; // Default to enabled
-    }
-    return true;
-  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastMessageTimeRef = useRef<number>(0);
-  const gameStateUnsubRef = useRef<(() => void) | null>(null);
-  
   const { user } = useAuth();
-  const game = useUnifiedGameStore(s => s.game);
   
-  // Memoize player info to avoid recalculation
+  // Get everything from unified store
+  const {
+    game,
+    messages,
+    chatError,
+    isTimedOut,
+    timeoutSecondsRemaining,
+    chatEnabled,
+    otherPlayerTyping,
+    sendMessage,
+    setChatEnabled,
+    setChatError,
+    checkChatTimeout,
+    setTyping,
+  } = useUnifiedGameStore(s => ({
+    game: s.game,
+    messages: s.messages,
+    chatError: s.chatError,
+    isTimedOut: s.isTimedOut,
+    timeoutSecondsRemaining: s.timeoutSecondsRemaining,
+    chatEnabled: s.chatEnabled,
+    otherPlayerTyping: s.otherPlayerTyping,
+    sendMessage: s.sendMessage,
+    setChatEnabled: s.setChatEnabled,
+    setChatError: s.setChatError,
+    checkChatTimeout: s.checkChatTimeout,
+    setTyping: s.setTyping,
+  }));
+  
+  // Get typing indicator sender
+  const sendTypingIndicator = useSendTypingIndicator(gameId, user?.id);
+  
+  // Memoize player info
   const playerInfo = useMemo(() => {
     if (!user || !game) return null;
     const isWhite = game.whitePlayerId === user.id;
@@ -76,6 +89,7 @@ export default function GameChat({ gameId }: GameChatProps) {
     };
   }, [user?.id, game?.whitePlayerId, game?.blackPlayerId, game?.whitePlayer, game?.blackPlayer]);
   
+  // Scroll to bottom when messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -84,130 +98,33 @@ export default function GameChat({ gameId }: GameChatProps) {
     scrollToBottom();
   }, [messages]);
   
-  // Toggle chat enabled/disabled
-  const toggleChat = useCallback(() => {
-    const newState = !chatEnabled;
-    setChatEnabled(newState);
-    localStorage.setItem(CHAT_ENABLED_KEY, String(newState));
-    if (!newState) {
-      setError(null); // Clear any errors when disabling
+  // Check timeout status on mount
+  useEffect(() => {
+    if (gameId !== 'local') {
+      checkChatTimeout();
     }
-  }, [chatEnabled]);
+  }, [gameId, checkChatTimeout]);
   
-  // Clear messages when game changes
+  // Load chat enabled preference from localStorage
   useEffect(() => {
-    setMessages([]);
-  }, [gameId]);
-  
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!gameId || !chatEnabled) return;
-    
-    const channel = supabase
-      .channel(`game-chat:${gameId}`)
-      .on('broadcast', { event: 'chat_message' }, ({ payload }) => {
-        const message = payload as ChatMessage;
-        if (message.senderId !== user?.id) {
-          setMessages(prev => [...prev, message]);
-        }
-      })
-      .on('broadcast', { event: 'typing' }, ({ payload }) => {
-        if (payload.userId !== user?.id) {
-          setOtherPlayerTyping(payload.isTyping);
-          if (payload.isTyping) {
-            // Clear existing timeout
-            if (typingTimeoutRef.current) {
-              clearTimeout(typingTimeoutRef.current);
-            }
-            // Set new timeout
-            typingTimeoutRef.current = setTimeout(() => {
-              setOtherPlayerTyping(false);
-              typingTimeoutRef.current = null;
-            }, 3000);
-          }
-        }
-      })
-      .on('broadcast', { event: 'game_event' }, ({ payload }) => {
-        const eventMessage: ChatMessage = {
-          id: `system-${Date.now()}-${Math.random()}`,
-          gameId,
-          type: 'server',
-          content: payload.message,
-          timestamp: new Date(),
-          metadata: payload.metadata
-        };
-        setMessages(prev => [...prev, eventMessage]);
-      })
-      .subscribe();
-    
-    channelRef.current = channel;
-    
-    return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('chess-chat-enabled');
+      if (saved !== null) {
+        setChatEnabled(saved === 'true');
       }
-      channel.unsubscribe();
-      channelRef.current = null;
-    };
-  }, [gameId, user?.id, chatEnabled]);
-  
-  // Listen to game state changes for server notifications
-  useEffect(() => {
-    // Clean up previous subscription
-    if (gameStateUnsubRef.current) {
-      gameStateUnsubRef.current();
     }
+  }, [setChatEnabled]);
+  
+  // Update timeout countdown
+  useEffect(() => {
+    if (!isTimedOut) return;
     
-    const unsubscribe = useUnifiedGameStore.subscribe(
-      (state) => state.game,
-      (game) => {
-        if (!game) return;
-        
-        // Check for game end
-        if (game.status === 'finished') {
-          const result = game.result;
-          const endReason = game.endReason;
-          let resultMessage = '';
-          
-          if (result === 'white') {
-            resultMessage = `Game over - White wins`;
-          } else if (result === 'black') {
-            resultMessage = `Game over - Black wins`;
-          } else if (result === 'draw') {
-            resultMessage = 'Game over - Draw';
-          }
-          
-          if (endReason) {
-            resultMessage += ` by ${endReason.replace(/_/g, ' ').toLowerCase()}`;
-          }
-          
-          if (resultMessage) {
-            const gameEndMessage: ChatMessage = {
-              id: `system-end-${Date.now()}`,
-              gameId,
-              type: 'server',
-              content: resultMessage,
-              timestamp: new Date(),
-              metadata: { eventType: 'game_end', result }
-            };
-            setMessages(prev => {
-              const hasEndMessage = prev.some(m => m.metadata?.eventType === 'game_end');
-              return hasEndMessage ? prev : [...prev, gameEndMessage];
-            });
-          }
-        }
-      }
-    );
+    const interval = setInterval(() => {
+      useUnifiedGameStore.getState().updateTimeoutCountdown();
+    }, 1000);
     
-    gameStateUnsubRef.current = unsubscribe;
-    
-    return () => {
-      if (gameStateUnsubRef.current) {
-        gameStateUnsubRef.current();
-        gameStateUnsubRef.current = null;
-      }
-    };
-  }, [gameId]);
+    return () => clearInterval(interval);
+  }, [isTimedOut]);
   
   const handleSendMessage = useCallback(async () => {
     const trimmedInput = inputValue.trim();
@@ -215,69 +132,37 @@ export default function GameChat({ gameId }: GameChatProps) {
     // Validation
     if (!trimmedInput || !user || !game || !playerInfo?.isPlayer) return;
     if (trimmedInput.length > MAX_MESSAGE_LENGTH) {
-      setError(`Message too long (max ${MAX_MESSAGE_LENGTH} characters)`);
-      return;
-    }
-    
-    // Rate limiting
-    const now = Date.now();
-    if (now - lastMessageTimeRef.current < MIN_MESSAGE_INTERVAL) {
-      setError('Please wait before sending another message');
+      setChatError(`Message too long (max ${MAX_MESSAGE_LENGTH} characters)`);
       return;
     }
     
     setIsSending(true);
-    setError(null);
+    setChatError(null);
     
     try {
-      const message: ChatMessage = {
-        id: `${user.id}-${Date.now()}-${Math.random()}`,
-        gameId,
-        type: 'player',
-        senderId: user.id,
-        senderName: playerInfo.username,
-        content: trimmedInput,
-        timestamp: new Date(),
-      };
-      
-      // Add to local state immediately
-      setMessages(prev => [...prev, message]);
+      await sendMessage(trimmedInput);
       setInputValue('');
-      lastMessageTimeRef.current = now;
-      
-      // Broadcast to other players
-      if (channelRef.current) {
-        await channelRef.current.send({
-          type: 'broadcast',
-          event: 'chat_message',
-          payload: message
-        });
-      }
     } catch (err) {
       console.error('Failed to send message:', err);
-      setError('Failed to send message. Please try again.');
-      // Remove optimistic message on error
-      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsSending(false);
     }
-  }, [inputValue, user, game, gameId, playerInfo]);
+  }, [inputValue, user, game, playerInfo, sendMessage, setChatError]);
   
-  const handleTyping = (isTyping: boolean) => {
-    if (channelRef.current && user) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { userId: user.id, isTyping }
-      });
-    }
-  };
+  const handleTyping = useCallback((isTyping: boolean) => {
+    setTyping(isTyping);
+    sendTypingIndicator(isTyping);
+  }, [setTyping, sendTypingIndicator]);
   
   const handleKeyPress = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+  
+  const toggleChat = () => {
+    setChatEnabled(!chatEnabled);
   };
   
   const getMessageIcon = (type: ChatMessageType) => {
@@ -288,7 +173,7 @@ export default function GameChat({ gameId }: GameChatProps) {
     }
   };
   
-  const getMessageColor = (message: ChatMessage) => {
+  const getMessageColor = (message: typeof messages[0]) => {
     if (message.type === 'server') {
       if (message.metadata?.eventType === 'game_end') return 'success.main';
       if (message.metadata?.eventType === 'player_left') return 'warning.main';
@@ -387,6 +272,23 @@ export default function GameChat({ gameId }: GameChatProps) {
           </Typography>
         </Stack>
       </Box>
+      
+      {/* Timeout Warning */}
+      {isTimedOut && chatEnabled && (
+        <Alert 
+          severity="warning" 
+          icon={<BlockIcon />}
+          sx={{ 
+            borderRadius: 0,
+            py: 1,
+          }}
+        >
+          <Typography variant="body2">
+            Chat disabled for {timeoutSecondsRemaining} seconds due to inappropriate content
+          </Typography>
+        </Alert>
+      )}
+      
       {/* Messages */}
       <Collapse in={chatEnabled} sx={{ flex: chatEnabled ? 1 : 0, minHeight: 0 }}>
         <Box
@@ -409,102 +311,129 @@ export default function GameChat({ gameId }: GameChatProps) {
             },
           }}
         >
-        {messages.map((message) => 
-          message.type === 'server' ? (
-            // Server notifications - centered, no border, timestamp prefix
-            (<Box
-              key={message.id}
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                my: 1.5,
-                px: 2,
+          {messages.length === 0 && (
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ 
+                textAlign: 'center',
+                mt: 4,
+                fontStyle: 'italic',
               }}
             >
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'text.secondary',
-                  textAlign: 'center',
-                  fontWeight: 'normal',
-                }}
-              >
-                [{format(message.timestamp, 'HH:mm:ss')}] {message.content}
-              </Typography>
-            </Box>)
-          ) : (
-            // Regular player and system messages
-            (<Box
-              key={message.id}
-              sx={{
-                display: 'flex',
-                flexDirection: message.senderId === user?.id ? 'row-reverse' : 'row',
-                alignItems: 'flex-start',
-                gap: 1,
-              }}
-            >
-              <Avatar
-                sx={{
-                  width: 28,
-                  height: 28,
-                  bgcolor: message.type === 'player' ? 
-                    (message.senderId === user?.id ? 'primary.main' : 'secondary.main') :
-                    'grey.500',
-                }}
-              >
-                {getMessageIcon(message.type)}
-              </Avatar>
+              No messages yet. Start a conversation!
+            </Typography>
+          )}
+          
+          {messages.map((message) => 
+            message.type === 'server' ? (
+              // Server notifications - centered
               <Box
+                key={message.id}
                 sx={{
-                  maxWidth: '70%',
-                  bgcolor: message.type === 'player' && message.senderId === user?.id ? 
-                    'primary.dark' : 
-                    message.type === 'system' ?
-                    'background.default' : 'grey.800',
-                  borderRadius: 2,
-                  p: 1.5,
-                  boxShadow: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  my: 1.5,
+                  px: 2,
                 }}
               >
-                {message.senderName && (
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
-                      fontWeight: 'bold',
-                      color: getMessageColor(message),
-                      display: 'block',
-                      mb: 0.5,
-                    }}
-                  >
-                    {message.senderName}
-                  </Typography>
-                )}
-                <Typography 
-                  variant="body2"
+                <Typography
+                  variant="caption"
                   sx={{
-                    color: message.type === 'player' ? 'text.primary' : getMessageColor(message),
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {message.content}
-                </Typography>
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
                     color: 'text.secondary',
-                    display: 'block',
-                    mt: 0.5,
+                    opacity: 0.7,
+                    fontSize: '0.75rem',
                   }}
                 >
                   {format(message.timestamp, 'HH:mm')}
                 </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: getMessageColor(message),
+                    textAlign: 'center',
+                    fontWeight: 'normal',
+                    mt: 0.5,
+                  }}
+                >
+                  {message.content}
+                </Typography>
               </Box>
-            </Box>)
-          )
-        )}
+            ) : (
+              // Regular player messages
+              <Box
+                key={message.id}
+                sx={{
+                  display: 'flex',
+                  flexDirection: message.senderId === user?.id ? 'row-reverse' : 'row',
+                  alignItems: 'flex-start',
+                  gap: 1,
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    bgcolor: message.type === 'player' ? 
+                      (message.senderId === user?.id ? 'primary.main' : 'secondary.main') :
+                      'grey.500',
+                  }}
+                >
+                  {getMessageIcon(message.type)}
+                </Avatar>
+                <Box
+                  sx={{
+                    maxWidth: '70%',
+                    bgcolor: message.type === 'player' && message.senderId === user?.id ? 
+                      'primary.dark' : 
+                      message.type === 'system' ?
+                      'background.default' : 'grey.800',
+                    borderRadius: 2,
+                    p: 1.5,
+                    boxShadow: 1,
+                  }}
+                >
+                  {message.senderName && (
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        color: getMessageColor(message),
+                        display: 'block',
+                        mb: 0.5,
+                      }}
+                    >
+                      {message.senderName}
+                    </Typography>
+                  )}
+                  <Typography 
+                    variant="body2"
+                    sx={{
+                      color: message.type === 'player' ? 'text.primary' : getMessageColor(message),
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {message.content}
+                  </Typography>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      color: 'text.secondary',
+                      display: 'block',
+                      mt: 0.5,
+                    }}
+                  >
+                    {format(message.timestamp, 'HH:mm')}
+                  </Typography>
+                </Box>
+              </Box>
+            )
+          )}
           <div ref={messagesEndRef} />
         </Box>
       </Collapse>
+      
       {/* Chat disabled indicator */}
       {!chatEnabled && (
         <Box 
@@ -528,43 +457,66 @@ export default function GameChat({ gameId }: GameChatProps) {
           </Typography>
         </Box>
       )}
+      
       <Divider />
+      
       {/* Input */}
       <Collapse in={chatEnabled}>
         <Box sx={{ p: 2 }}>
-        <TextField
-          fullWidth
-          size="small"
-          placeholder={playerInfo?.isPlayer ? "Type a message..." : "Spectators cannot chat"}
-          value={inputValue}
-          onChange={(e) => {
-            const value = e.target.value;
-            if (value.length <= MAX_MESSAGE_LENGTH) {
-              setInputValue(value);
-              setError(null);
+          {chatError && (
+            <Typography 
+              variant="caption" 
+              color="error" 
+              sx={{ display: 'block', mb: 1 }}
+            >
+              {chatError}
+            </Typography>
+          )}
+          <TextField
+            fullWidth
+            size="small"
+            placeholder={
+              isTimedOut 
+                ? "You are temporarily unable to send messages"
+                : playerInfo?.isPlayer 
+                ? "Type a message..." 
+                : "Spectators cannot chat"
             }
-          }}
-          onKeyPress={handleKeyPress}
-          onFocus={() => handleTyping(true)}
-          onBlur={() => handleTyping(false)}
-          disabled={!playerInfo?.isPlayer || isSending}
-          error={!!error}
-          helperText={error || (inputValue.length > 100 ? `${inputValue.length}/${MAX_MESSAGE_LENGTH}${inputValue.length > 150 ? ' ⚠️' : ''}` : '')}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton
-                  size="small"
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isSending || !playerInfo?.isPlayer}
-                  color="primary"
-                >
-                  <SendIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
+            value={inputValue}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value.length <= MAX_MESSAGE_LENGTH) {
+                setInputValue(value);
+                setChatError(null);
+              }
+            }}
+            onKeyPress={handleKeyPress}
+            onFocus={() => handleTyping(true)}
+            onBlur={() => handleTyping(false)}
+            disabled={!playerInfo?.isPlayer || isSending || isTimedOut}
+            error={!!chatError || isTimedOut}
+            helperText={
+              isTimedOut 
+                ? `Chat timeout: ${timeoutSecondsRemaining}s remaining`
+                : inputValue.length > 100 
+                ? `${inputValue.length}/${MAX_MESSAGE_LENGTH}${inputValue.length > 150 ? ' ⚠️' : ''}` 
+                : ''
+            }
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={handleSendMessage}
+                    disabled={!inputValue.trim() || isSending || !playerInfo?.isPlayer || isTimedOut}
+                    color="primary"
+                  >
+                    <SendIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
         </Box>
       </Collapse>
     </Paper>

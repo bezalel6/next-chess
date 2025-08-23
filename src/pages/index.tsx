@@ -1,7 +1,7 @@
 import Head from "next/head";
 import QueueSystem from "@/components/QueueSystem";
 import AuthForm from "@/components/auth-form";
-import NewsFeed from "@/components/NewsFeed";
+import MinimalNewsFeed from "@/components/MinimalNewsFeed";
 import DraggableNewsFeed from "@/components/DraggableNewsFeed";
 import { Box, Container, Typography, Fade, Paper } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
@@ -83,7 +83,7 @@ export default function Home() {
               display: "grid",
               gridTemplateColumns: { 
                 xs: "1fr", // Single column on mobile
-                md: user ? "280px 500px 280px" : "1fr 500px 1fr" // 3 columns on desktop
+                md: "280px 500px 280px" // 3 columns on desktop for all users
               },
               gap: 3,
               width: "100%",
@@ -93,7 +93,7 @@ export default function Home() {
             }}
           >
             {/* News Feed - Left column on desktop, below on mobile */}
-            {user && !isDraggable ? (
+            {!isDraggable ? (
               <Fade in={mounted} timeout={800}>
                 <Box 
                   sx={{ 
@@ -104,12 +104,9 @@ export default function Home() {
                     margin: { xs: "0 auto", md: 0 },
                   }}
                 >
-                  <NewsFeed />
+                  <MinimalNewsFeed />
                 </Box>
               </Fade>
-            ) : !user ? (
-              // Empty spacer for non-logged in users to keep queue centered
-              <Box sx={{ display: { xs: "none", md: "block" } }} />
             ) : (
               // Empty spacer when using draggable news feed
               <Box sx={{ display: { xs: "none", md: "block" } }} />

@@ -146,6 +146,27 @@ export type Database = {
           },
         ]
       }
+      chat_timeouts: {
+        Row: {
+          last_violation: string
+          timeout_until: string
+          user_id: string
+          violation_count: number
+        }
+        Insert: {
+          last_violation?: string
+          timeout_until: string
+          user_id: string
+          violation_count?: number
+        }
+        Update: {
+          last_violation?: string
+          timeout_until?: string
+          user_id?: string
+          violation_count?: number
+        }
+        Relationships: []
+      }
       event_log: {
         Row: {
           created_at: string
@@ -181,19 +202,16 @@ export type Database = {
           created_at: string
           follower_id: string
           following_id: string
-          id: string
         }
         Insert: {
           created_at?: string
           follower_id: string
           following_id: string
-          id?: string
         }
         Update: {
           created_at?: string
           follower_id?: string
           following_id?: string
-          id?: string
         }
         Relationships: [
           {
@@ -208,6 +226,44 @@ export type Database = {
             columns: ["following_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_messages: {
+        Row: {
+          content: string
+          created_at: string
+          game_id: string
+          id: string
+          message_type: string
+          metadata: Json | null
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          game_id: string
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          game_id?: string
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_messages_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
             referencedColumns: ["id"]
           },
         ]
@@ -241,6 +297,7 @@ export type Database = {
           total_disconnect_seconds: number | null
           turn: Database["public"]["Enums"]["player_color"]
           updated_at: string
+          version: number
           white_player_id: string
           white_time_remaining: number | null
           white_turn_start_time: number | null
@@ -259,7 +316,7 @@ export type Database = {
           disconnect_started_at?: string | null
           draw_offered_by?: Database["public"]["Enums"]["player_color"] | null
           end_reason?: Database["public"]["Enums"]["end_reason"] | null
-          id: string
+          id?: string
           lag_compensation_ms?: number | null
           last_clock_update?: string | null
           last_connection_type?: string | null
@@ -275,6 +332,7 @@ export type Database = {
           total_disconnect_seconds?: number | null
           turn?: Database["public"]["Enums"]["player_color"]
           updated_at?: string
+          version?: number
           white_player_id: string
           white_time_remaining?: number | null
           white_turn_start_time?: number | null
@@ -309,6 +367,7 @@ export type Database = {
           total_disconnect_seconds?: number | null
           turn?: Database["public"]["Enums"]["player_color"]
           updated_at?: string
+          version?: number
           white_player_id?: string
           white_time_remaining?: number | null
           white_turn_start_time?: number | null
@@ -363,57 +422,54 @@ export type Database = {
       }
       moves: {
         Row: {
-          banned_by: string | null
+          banned_by: Database["public"]["Enums"]["player_color"] | null
           banned_from: string | null
           banned_to: string | null
-          created_at: string | null
+          created_at: string
           created_by: string | null
           fen_after: string
           from_square: string
           game_id: string
           id: string
           move_number: number
-          player_color: string
+          player_color: Database["public"]["Enums"]["player_color"]
           ply_number: number
           promotion: string | null
           san: string
-          time_taken_ms: number | null
           to_square: string
         }
         Insert: {
-          banned_by?: string | null
+          banned_by?: Database["public"]["Enums"]["player_color"] | null
           banned_from?: string | null
           banned_to?: string | null
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           fen_after: string
           from_square: string
           game_id: string
           id?: string
           move_number: number
-          player_color: string
+          player_color: Database["public"]["Enums"]["player_color"]
           ply_number: number
           promotion?: string | null
-          san: string
-          time_taken_ms?: number | null
+          san?: string
           to_square: string
         }
         Update: {
-          banned_by?: string | null
+          banned_by?: Database["public"]["Enums"]["player_color"] | null
           banned_from?: string | null
           banned_to?: string | null
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           fen_after?: string
           from_square?: string
           game_id?: string
           id?: string
           move_number?: number
-          player_color?: string
+          player_color?: Database["public"]["Enums"]["player_color"]
           ply_number?: number
           promotion?: string | null
           san?: string
-          time_taken_ms?: number | null
           to_square?: string
         }
         Relationships: [
@@ -426,14 +482,50 @@ export type Database = {
           },
         ]
       }
+      news_items: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          priority: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
           id: string
-          is_admin: boolean | null
-          is_online: boolean | null
-          last_active: string | null
-          last_heartbeat: string | null
+          is_admin: boolean
           last_online: string
           updated_at: string
           username: string
@@ -441,10 +533,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id: string
-          is_admin?: boolean | null
-          is_online?: boolean | null
-          last_active?: string | null
-          last_heartbeat?: string | null
+          is_admin?: boolean
           last_online?: string
           updated_at?: string
           username: string
@@ -452,10 +541,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          is_admin?: boolean | null
-          is_online?: boolean | null
-          last_active?: string | null
-          last_heartbeat?: string | null
+          is_admin?: boolean
           last_online?: string
           updated_at?: string
           username?: string
@@ -464,22 +550,16 @@ export type Database = {
       }
       settings: {
         Row: {
-          created_at: string
-          description: string | null
           key: string
           updated_at: string
           value: Json
         }
         Insert: {
-          created_at?: string
-          description?: string | null
           key: string
           updated_at?: string
           value: Json
         }
         Update: {
-          created_at?: string
-          description?: string | null
           key?: string
           updated_at?: string
           value?: Json
@@ -515,121 +595,25 @@ export type Database = {
       }
     }
     Functions: {
-      calculate_disconnect_allowance: {
-        Args: {
-          is_classical?: boolean
-          is_rapid?: boolean
-          time_control_minutes: number
-        }
-        Returns: number
-      }
-      calculate_time_remaining: {
-        Args: {
-          current_ts?: number
-          initial_time: number
-          turn_start_time: number
-        }
-        Returns: number
-      }
-      check_time_violations: {
-        Args: { game_id: string }
-        Returns: Database["public"]["Enums"]["player_color"]
-      }
-      claim_abandonment: {
-        Args: {
-          claim_type: string
-          claiming_player_id: string
-          game_id: string
-        }
-        Returns: Json
-      }
-      cleanup_expired_clocks: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      get_default_initial_time: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      get_default_time_control: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
       get_follow_stats: {
         Args: { user_id: string }
         Returns: Json
       }
-      get_game_moves: {
-        Args: { p_game_id: string }
-        Returns: {
-          banned_by: string
-          banned_from: string
-          banned_to: string
-          fen_after: string
-          from_square: string
-          id: string
-          move_number: number
-          player_color: string
-          ply_number: number
-          promotion: string
-          san: string
-          time_taken_ms: number
-          to_square: string
-        }[]
-      }
-      handle_move_clock_update: {
-        Args: {
-          game_id: string
-          moving_color: Database["public"]["Enums"]["player_color"]
-        }
-        Returns: Json
-      }
       handle_player_disconnect: {
-        Args: { disconnect_type: string; game_id: string; player_id: string }
+        Args: { disconnect_type?: string; game_id: string; player_id: string }
         Returns: Json
       }
       handle_player_reconnect: {
         Args: { game_id: string; player_id: string }
         Returns: Json
       }
-      is_current_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
       is_following: {
         Args: { follower: string; following: string }
         Returns: boolean
       }
-      is_user_alive: {
-        Args: { threshold_seconds?: number; user_id: string }
+      is_user_timed_out: {
+        Args: { p_user_id: string }
         Returns: boolean
-      }
-      mark_stale_users_offline: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      remove_stale_from_matchmaking: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      start_player_clock: {
-        Args: {
-          game_id: string
-          player_color: Database["public"]["Enums"]["player_color"]
-        }
-        Returns: undefined
-      }
-      stop_player_clock: {
-        Args: {
-          apply_increment?: boolean
-          game_id: string
-          player_color: Database["public"]["Enums"]["player_color"]
-        }
-        Returns: number
-      }
-      update_user_heartbeat: {
-        Args: { user_id: string }
-        Returns: undefined
       }
     }
     Enums: {

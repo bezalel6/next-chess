@@ -1,5 +1,6 @@
 import { supabase, invokeWithAuth } from "../utils/supabase";
 import type { Game, ChessMove, PlayerColor } from "@/types/game";
+import type { ChatMessage } from "@/types/chat";
 import { Chess } from "chess.ts";
 import type { Database } from "@/types/database";
 
@@ -286,5 +287,89 @@ export class GameService {
   private static mapGameFromResponse(game: GameRow): Game {
     if (!game) throw new Error("Game data is missing from response");
     return this.mapGameFromDB(game);
+  }
+
+  // ============= Chat Methods =============
+  
+  static async sendChatMessage(gameId: string, content: string): Promise<ChatMessage> {
+    try {
+      const response = await this.performGameOperation("sendChatMessage", gameId, { 
+        content: content.trim() 
+      }) as any;
+      
+      if (response.error) {
+        if (response.error.includes('moderation')) {
+          // Include timeout data in error
+          const error = new Error(response.error) as any;
+          error.data = response.data;
+          throw error;
+        }
+        throw new Error(response.error);
+      }
+      
+      return response.message;
+    } catch (error: any) {
+      // If it's a moderation error from the edge function, preserve the data
+      if (error.data) {
+        throw error;
+      }
+      throw new Error(error.message || 'Failed to send message');
+    }
+  }
+  
+  static async getChatMessages(gameId: string, limit: number = 50): Promise<ChatMessage[]> {
+    const { data, error } = await supabase
+      .from('game_messages' as any)
+      .select('*')
+      .eq('game_id', gameId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error('Failed to fetch chat messages:', error);
+      throw error;
+    }
+    
+    // Reverse to get chronological order and map to ChatMessage type
+    return (data || []).reverse().map(this.mapChatMessageFromDB);
+  }
+  
+  static async checkChatTimeout(): Promise<{ isTimedOut: boolean; until?: Date }> {
+    const { data: user } = await supabase.auth.getUser();
+    if (!user?.user) {
+      return { isTimedOut: false };
+    }
+    
+    const { data, error } = await supabase
+      .from('chat_timeouts' as any)
+      .select('timeout_until')
+      .eq('user_id', user.user.id)
+      .single();
+    
+    if (error || !data) {
+      return { isTimedOut: false };
+    }
+    
+    const timeoutUntil = new Date((data as any).timeout_until);
+    if (timeoutUntil < new Date()) {
+      return { isTimedOut: false };
+    }
+    
+    return { 
+      isTimedOut: true, 
+      until: timeoutUntil 
+    };
+  }
+  
+  static mapChatMessageFromDB(dbMessage: any): ChatMessage {
+    return {
+      id: dbMessage.id,
+      gameId: dbMessage.game_id,
+      type: dbMessage.message_type,
+      senderId: dbMessage.sender_id,
+      content: dbMessage.content,
+      timestamp: new Date(dbMessage.created_at),
+      metadata: dbMessage.metadata || {}
+    };
   }
 }

@@ -195,9 +195,174 @@ const gameRouter = createRouter([
     return result;
   }),
 
+  defineRoute("sendChatMessage", async (user, params, supabase) => {
+    const result = await handleChatMessage(user, params, supabase);
+    return result;
+  }),
+
 ]);
 
-
+/**
+ * Handles chat message with moderation
+ */
+async function handleChatMessage(
+  user: User,
+  params: any,
+  supabase: TypedSupabaseClient
+) {
+  try {
+    const { gameId, content } = params;
+    
+    if (!gameId || !content) {
+      return errorResponse("Missing gameId or content", 400);
+    }
+    
+    // Trim and validate content
+    const trimmedContent = content.trim();
+    if (!trimmedContent || trimmedContent.length > 200) {
+      return errorResponse("Invalid message content", 400);
+    }
+    
+    // Check if user is timed out
+    const { data: timeout, error: timeoutError } = await getTable(supabase, "chat_timeouts")
+      .select("timeout_until, violation_count")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (timeout && new Date(timeout.timeout_until) > new Date()) {
+      return {
+        status: 403,
+        body: {
+          error: "moderation_timeout",
+          data: {
+            timeout_until: timeout.timeout_until,
+            timeout_seconds: Math.ceil((new Date(timeout.timeout_until).getTime() - Date.now()) / 1000)
+          }
+        }
+      };
+    }
+    
+    // Get moderation settings
+    const { data: settings } = await getTable(supabase, "settings")
+      .select("key, value")
+      .in("key", ["banned_words", "chat_timeout_seconds", "chat_timeout_multiplier"]);
+    
+    const bannedWordsRow = settings?.find((s: any) => s.key === "banned_words");
+    const timeoutSecondsRow = settings?.find((s: any) => s.key === "chat_timeout_seconds");
+    const timeoutMultiplierRow = settings?.find((s: any) => s.key === "chat_timeout_multiplier");
+    
+    const bannedWords = bannedWordsRow?.value || ["spam", "cheat", "hack", "bot", "engine", "stockfish", "leela"];
+    const timeoutSeconds = timeoutSecondsRow?.value || 30;
+    const timeoutMultiplier = timeoutMultiplierRow?.value || 2;
+    
+    // Check for banned words (case-insensitive)
+    const contentLower = trimmedContent.toLowerCase();
+    const containsBannedWord = bannedWords.some((word: string) => 
+      contentLower.includes(word.toLowerCase())
+    );
+    
+    if (containsBannedWord) {
+      // Calculate timeout duration
+      const violationCount = (timeout?.violation_count || 0) + 1;
+      const actualTimeout = timeoutSeconds * Math.pow(timeoutMultiplier, violationCount - 1);
+      const timeoutUntil = new Date(Date.now() + actualTimeout * 1000);
+      
+      // Upsert timeout record
+      const { error: upsertError } = await getTable(supabase, "chat_timeouts")
+        .upsert({
+          user_id: user.id,
+          timeout_until: timeoutUntil.toISOString(),
+          violation_count: violationCount,
+          last_violation: new Date().toISOString()
+        });
+      
+      if (upsertError) {
+        logger.error("Failed to update chat timeout:", upsertError);
+      }
+      
+      // Log moderation event
+      await getTable(supabase, "event_log")
+        .insert({
+          event_type: "chat_moderation",
+          user_id: user.id,
+          game_id: gameId,
+          details: { 
+            action: "timeout",
+            violation_count: violationCount,
+            timeout_seconds: actualTimeout
+          }
+        });
+      
+      return {
+        status: 403,
+        body: {
+          error: "moderation_violation",
+          data: {
+            timeout_until: timeoutUntil.toISOString(),
+            timeout_seconds: actualTimeout
+          }
+        }
+      };
+    }
+    
+    // Validate game and player authorization
+    const { data: game, error: gameError } = await getTable(supabase, "games")
+      .select("id, white_player_id, black_player_id, status, white_player:profiles!games_white_player_id_fkey(username), black_player:profiles!games_black_player_id_fkey(username)")
+      .eq("id", gameId)
+      .maybeSingle();
+    
+    if (gameError || !game) {
+      return errorResponse("Game not found", 404);
+    }
+    
+    const isWhite = game.white_player_id === user.id;
+    const isBlack = game.black_player_id === user.id;
+    
+    if (!isWhite && !isBlack) {
+      return errorResponse("Not authorized to chat in this game", 403);
+    }
+    
+    if (game.status !== "active") {
+      return errorResponse("Cannot chat in finished games", 400);
+    }
+    
+    // Get sender name
+    const senderName = isWhite ? game.white_player?.username : game.black_player?.username;
+    
+    // Insert message
+    const { data: message, error: insertError } = await getTable(supabase, "game_messages")
+      .insert({
+        game_id: gameId,
+        sender_id: user.id,
+        content: trimmedContent,
+        message_type: "player"
+      })
+      .select()
+      .single();
+    
+    if (insertError) {
+      logger.error("Failed to insert chat message:", insertError);
+      return errorResponse("Failed to send message", 500);
+    }
+    
+    // Map to client format
+    const clientMessage = {
+      id: message.id,
+      gameId: message.game_id,
+      type: message.message_type,
+      senderId: message.sender_id,
+      senderName: senderName,
+      content: message.content,
+      timestamp: message.created_at,
+      metadata: message.metadata || {}
+    };
+    
+    return successResponse({ message: clientMessage });
+  } catch (error) {
+    logger.error("Error handling chat message:", error);
+    return errorResponse(`Internal server error: ${error.message}`, 500);
+  }
+}
 
 /**
  * Handles game update notifications

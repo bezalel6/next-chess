@@ -35,6 +35,21 @@ async function broadcastGameEvent(
   eventType: string = 'game_event'
 ) {
   try {
+    // Persist server message to database
+    const { error: insertError } = await getTable(supabase, "game_messages")
+      .insert({
+        game_id: gameId,
+        sender_id: null, // System message
+        content: message,
+        message_type: 'server',
+        metadata: { event_type: eventType }
+      });
+    
+    if (insertError) {
+      logger.warn(`Failed to persist game event message: ${insertError.message}`);
+    }
+    
+    // Also broadcast for immediate realtime updates (legacy support)
     const channel = supabase.channel(`game-chat:${gameId}`);
     
     // Subscribe first then send

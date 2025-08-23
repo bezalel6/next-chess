@@ -3,6 +3,7 @@ import { subscribeWithSelector, devtools } from 'zustand/middleware';
 import { Chess } from 'chess.ts';
 import type { Square, PartialMove } from 'chess.ts/dist/types';
 import type { Game, PlayerColor, GameStatus } from '@/types/game';
+import type { ChatMessage } from '@/types/chat';
 
 // ============= Types =============
 export type GameMode = 'online' | 'local' | 'spectator';
@@ -103,6 +104,21 @@ interface NetworkSlice {
   lastAppliedVersion: number | null;
 }
 
+interface ChatSlice {
+  // Chat state
+  messages: ChatMessage[];
+  chatError: string | null;
+  isTimedOut: boolean;
+  timeoutUntil: Date | null;
+  timeoutSecondsRemaining: number;
+  chatEnabled: boolean;
+  
+  // Typing indicators
+  isTyping: boolean;
+  otherPlayerTyping: boolean;
+  lastMessageTime: number;
+}
+
 // Local game slice removed - using unified state only
 
 // ============= Store Actions =============
@@ -197,9 +213,30 @@ interface NetworkActions {
   syncGameState: (data: { game: any; moves: any[] }) => void;
 }
 
+interface ChatActions {
+  // Message operations
+  loadMessages: (gameId: string) => Promise<void>;
+  sendMessage: (content: string) => Promise<void>;
+  receiveMessage: (message: ChatMessage) => void;
+  clearMessages: () => void;
+  
+  // Typing indicators
+  setTyping: (isTyping: boolean) => void;
+  setOtherPlayerTyping: (isTyping: boolean) => void;
+  
+  // Chat moderation
+  setChatTimeout: (until: Date | null) => void;
+  updateTimeoutCountdown: () => void;
+  checkChatTimeout: () => Promise<void>;
+  
+  // Chat settings
+  setChatEnabled: (enabled: boolean) => void;
+  setChatError: (error: string | null) => void;
+}
+
 // ============= Unified Store =============
 
-export interface UnifiedGameStore extends GameSlice, UISlice, NetworkSlice, GameActions, UIActions, NetworkActions {}
+export interface UnifiedGameStore extends GameSlice, UISlice, NetworkSlice, ChatSlice, GameActions, UIActions, NetworkActions, ChatActions {}
 
 const initialState = {
   // Game slice
@@ -246,6 +283,17 @@ const initialState = {
   isSyncing: false,
   syncQueue: [],
   lastAppliedVersion: null as number | null,
+  
+  // Chat slice
+  messages: [],
+  chatError: null,
+  isTimedOut: false,
+  timeoutUntil: null,
+  timeoutSecondsRemaining: 0,
+  chatEnabled: true,
+  isTyping: false,
+  otherPlayerTyping: false,
+  lastMessageTime: 0,
   
   // Unified state - no more local duplicates
 };
@@ -1520,20 +1568,151 @@ export const useUnifiedGameStore = create<UnifiedGameStore>()(
             const state = get();
             set({ boardOrientation: state.boardOrientation === 'white' ? 'black' : 'white' });
           },
+        },
+        
+        // ============= Chat Actions =============
+        
+        loadMessages: async (gameId: string) => {
+          if (gameId === 'local') {
+            set({ messages: [] });
+            return;
+          }
           
-          setupTestPosition: (fen: string) => {
-            // Method for tests to set up specific board positions
-            const chess = new Chess();
-            chess.load(fen);
-            set({
-              chess,
-              currentFen: fen,
-              currentTurn: chess.turn() === 'w' ? 'white' : 'black',
-              moveHistory: [],
-              banHistory: [],
-              currentBannedMove: null,
-            });
-          },
+          try {
+            const { GameService } = await import('@/services/gameService');
+            const messages = await GameService.getChatMessages(gameId);
+            set({ messages, chatError: null });
+          } catch (error: any) {
+            console.error('Failed to load messages:', error);
+            set({ chatError: 'Failed to load chat history' });
+          }
+        },
+          
+        sendMessage: async (content: string) => {
+            const state = get();
+            const gameId = state.game?.id;
+            
+            if (!gameId || gameId === 'local') return;
+            
+            // Check if timed out locally first
+            if (state.isTimedOut) {
+              set({ chatError: 'You are temporarily unable to send messages' });
+              return;
+            }
+            
+            // Check rate limiting
+            const now = Date.now();
+            if (now - state.lastMessageTime < 500) {
+              set({ chatError: 'Please wait before sending another message' });
+              return;
+            }
+            
+            try {
+              const { GameService } = await import('@/services/gameService');
+              const message = await GameService.sendChatMessage(gameId, content);
+              set(state => ({ 
+                messages: [...state.messages, message],
+                chatError: null,
+                lastMessageTime: now
+              }));
+            } catch (error: any) {
+              if (error.message?.includes('moderation')) {
+                // Server detected banned word
+                const timeoutData = error.data;
+                const timeoutUntil = new Date(timeoutData.timeout_until);
+                set({ 
+                  chatError: 'Your message could not be sent',
+                  isTimedOut: true,
+                  timeoutUntil,
+                  timeoutSecondsRemaining: timeoutData.timeout_seconds
+                });
+                
+                // Start countdown
+                const countdown = setInterval(() => {
+                  const state = get();
+                  const remaining = Math.ceil((state.timeoutUntil?.getTime() || 0) - Date.now()) / 1000;
+                  if (remaining <= 0) {
+                    set({ 
+                      isTimedOut: false, 
+                      timeoutUntil: null, 
+                      timeoutSecondsRemaining: 0,
+                      chatError: null 
+                    });
+                    clearInterval(countdown);
+                  } else {
+                    set({ timeoutSecondsRemaining: remaining });
+                  }
+                }, 1000);
+            } else {
+              set({ chatError: error.message || 'Failed to send message' });
+            }
+          }
+        },
+          
+        receiveMessage: (message: ChatMessage) => {
+            set(state => ({ 
+              messages: [...state.messages, message] 
+            }));
+        },
+          
+        clearMessages: () => {
+          set({ messages: [], chatError: null });
+        },
+          
+        setTyping: (isTyping: boolean) => {
+          set({ isTyping });
+        },
+          
+        setOtherPlayerTyping: (isTyping: boolean) => {
+          set({ otherPlayerTyping: isTyping });
+        },
+          
+        setChatTimeout: (until: Date | null) => {
+            set({ 
+              isTimedOut: !!until,
+              timeoutUntil: until,
+            timeoutSecondsRemaining: until ? Math.ceil((until.getTime() - Date.now()) / 1000) : 0
+          });
+        },
+          
+        updateTimeoutCountdown: () => {
+            const state = get();
+            if (!state.timeoutUntil) return;
+            
+            const remaining = Math.ceil((state.timeoutUntil.getTime() - Date.now()) / 1000);
+            if (remaining <= 0) {
+              set({ 
+                isTimedOut: false,
+                timeoutUntil: null,
+                timeoutSecondsRemaining: 0,
+                chatError: null
+              });
+            } else {
+            set({ timeoutSecondsRemaining: remaining });
+          }
+        },
+          
+        checkChatTimeout: async () => {
+            try {
+              const { GameService } = await import('@/services/gameService');
+              const { isTimedOut, until } = await GameService.checkChatTimeout();
+              if (isTimedOut && until) {
+                get().setChatTimeout(until);
+              }
+            } catch (error) {
+            console.error('Failed to check chat timeout:', error);
+          }
+        },
+          
+        setChatEnabled: (enabled: boolean) => {
+            set({ chatEnabled: enabled });
+            if (typeof window !== 'undefined') {
+            localStorage.setItem('chess-chat-enabled', String(enabled));
+          }
+        },
+          
+        setChatError: (error: string | null) => {
+          set({ chatError: error });
         },
       })),
     {

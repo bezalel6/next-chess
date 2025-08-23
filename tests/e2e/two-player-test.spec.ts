@@ -69,9 +69,9 @@ test('two players matchmaking flow', async () => {
       await page2.waitForTimeout(3000);
     }
     
-    // Check if they need to sign in
-    const signInBtn1 = page1.locator('button:text("Sign in")');
-    const signInBtn2 = page2.locator('button:text("Sign in")');
+    // Check if they need to sign in - use more specific selector
+    const signInBtn1 = page1.locator('button[type="submit"]:has-text("Sign In")');
+    const signInBtn2 = page2.locator('button[type="submit"]:has-text("Sign In")');
     
     if (await signInBtn1.isVisible()) {
       console.log('👤 Player 1 signing in...');
@@ -162,8 +162,8 @@ test('single player can join and leave queue', async ({ page }) => {
     await page.waitForTimeout(3000);
   }
   
-  // Sign in if needed
-  const signInBtn = page.locator('button:text("Sign in")');
+  // Sign in if needed - use more specific selector
+  const signInBtn = page.locator('button[type="submit"]:has-text("Sign In")');
   if (await signInBtn.isVisible()) {
     await page.fill('[name="email"]', email);
     await page.fill('[name="password"]', 'testpass123');

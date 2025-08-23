@@ -2,6 +2,7 @@ import { useRouter } from 'next/router';
 import { useGameSync } from '@/hooks/useGameSync';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import { useAuth } from '@/contexts/AuthContext';
+import SimpleBoard from '@/components/SimpleBoard';
 
 export default function GamePage() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function GamePage() {
   useGameSync(gameId as string);
   
   if (!engine) {
-    return <div>Loading game...</div>;
+    return <div style={{ padding: '20px' }}>Loading game...</div>;
   }
   
   const handleAction = async (from: string, to: string) => {
@@ -23,16 +24,34 @@ export default function GamePage() {
       ? { move: { from, to } }
       : { ban: { from, to } };
     
-    await playAction(action);
+    try {
+      await playAction(action);
+    } catch (error) {
+      console.error('Action failed:', error);
+    }
   };
   
   return (
-    <div>
-      <h1>Game {gameId}</h1>
-      <p>Turn: {engine.turn}</p>
-      <p>Next: {engine.nextActionType()}</p>
-      <p>FEN: {engine.fen()}</p>
-      {engine.gameOver() && <p>Game Over</p>}
+    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+      <h1>Ban Chess Game</h1>
+      <div style={{ marginBottom: '20px' }}>
+        <p><strong>Game ID:</strong> {gameId}</p>
+        <p><strong>Turn:</strong> {engine.turn === 'w' ? 'White' : 'Black'}</p>
+        <p><strong>Next Action:</strong> {engine.nextActionType() === 'ban' ? 
+          'Ban an opponent move' : 'Make a move'}</p>
+        {engine.gameOver() && (
+          <p style={{ color: 'red', fontWeight: 'bold' }}>Game Over!</p>
+        )}
+      </div>
+      
+      <SimpleBoard engine={engine} onAction={handleAction} />
+      
+      <div style={{ marginTop: '20px' }}>
+        <details>
+          <summary>FEN</summary>
+          <code>{engine.fen()}</code>
+        </details>
+      </div>
     </div>
   );
 }

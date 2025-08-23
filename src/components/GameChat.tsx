@@ -166,14 +166,19 @@ export default function GameChat({ gameId }: GameChatProps) {
         // Check for game end
         if (game.status === 'finished') {
           const result = game.result;
+          const endReason = game.endReason;
           let resultMessage = '';
           
           if (result === 'white') {
-            resultMessage = `Game Over: ${game.whitePlayer} wins!`;
+            resultMessage = `Game over - White wins`;
           } else if (result === 'black') {
-            resultMessage = `Game Over: ${game.blackPlayer} wins!`;
+            resultMessage = `Game over - Black wins`;
           } else if (result === 'draw') {
-            resultMessage = 'Game Over: Draw!';
+            resultMessage = 'Game over - Draw';
+          }
+          
+          if (endReason) {
+            resultMessage += ` by ${endReason.replace(/_/g, ' ').toLowerCase()}`;
           }
           
           if (resultMessage) {
@@ -190,23 +195,6 @@ export default function GameChat({ gameId }: GameChatProps) {
               return hasEndMessage ? prev : [...prev, gameEndMessage];
             });
           }
-        }
-        
-        // Check for draw offers
-        if (game.drawOfferedBy) {
-          const offeringPlayer = game.drawOfferedBy === game.whitePlayerId ? game.whitePlayer : game.blackPlayer;
-          const drawOfferMessage: ChatMessage = {
-            id: `system-draw-${Date.now()}`,
-            gameId,
-            type: 'server',
-            content: `${offeringPlayer} offers a draw`,
-            timestamp: new Date(),
-            metadata: { eventType: 'draw_offer' }
-          };
-          setMessages(prev => {
-            const hasDrawMessage = prev.some(m => m.metadata?.eventType === 'draw_offer');
-            return hasDrawMessage ? prev : [...prev, drawOfferMessage];
-          });
         }
       }
     );
@@ -423,54 +411,26 @@ export default function GameChat({ gameId }: GameChatProps) {
         >
         {messages.map((message) => 
           message.type === 'server' ? (
-            // Server notifications - centered with border
+            // Server notifications - centered, no border, timestamp prefix
             (<Box
               key={message.id}
               sx={{
                 display: 'flex',
                 justifyContent: 'center',
-                my: 2,
+                my: 1.5,
                 px: 2,
               }}
             >
-              <Paper
-                variant="outlined"
+              <Typography
+                variant="body2"
                 sx={{
-                  bgcolor: 'background.paper',
-                  borderRadius: 1,
-                  p: 1.5,
-                  maxWidth: '75%',
+                  color: 'text.secondary',
                   textAlign: 'center',
-                  border: '1px solid',
-                  borderColor: message.metadata?.eventType === 'game_end' ? 'success.main' : 
-                               message.metadata?.eventType === 'match_found' ? 'info.main' : 
-                               'warning.main',
+                  fontWeight: 'normal',
                 }}
               >
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: 'text.primary',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {message.content}
-                    </Typography>
-                  </Box>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'text.secondary',
-                      fontSize: '0.7rem',
-                    }}
-                  >
-                    {format(message.timestamp, 'HH:mm')}
-                  </Typography>
-                </Box>
-              </Paper>
+                [{format(message.timestamp, 'HH:mm:ss')}] {message.content}
+              </Typography>
             </Box>)
           ) : (
             // Regular player and system messages

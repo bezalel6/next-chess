@@ -25,6 +25,41 @@ import {
 
 const logger = createLogger("GAME");
 
+/**
+ * Broadcast game events to both players via chat channel
+ */
+async function broadcastGameEvent(
+  supabase: TypedSupabaseClient,
+  gameId: string,
+  message: string,
+  eventType: string = 'game_event'
+) {
+  try {
+    const channel = supabase.channel(`game-chat:${gameId}`);
+    
+    // Subscribe first then send
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.send({
+          type: 'broadcast',
+          event: 'game_event',
+          payload: {
+            message,
+            metadata: { eventType }
+          }
+        });
+        
+        // Unsubscribe after sending
+        setTimeout(() => {
+          channel.unsubscribe();
+        }, 500);
+      }
+    });
+  } catch (error) {
+    logger.warn(`Failed to broadcast game event: ${error.message}`);
+  }
+}
+
 // Detects PostgREST schema-cache or missing-column errors for the optional `version` column
 function shouldFallbackVersionError(err: any): boolean {
   if (!err) return false;
@@ -251,6 +286,39 @@ async function handleMakeMove(
       if (flaggedPlayer) {
         logger.info(`Player ${flaggedPlayer} flagged in game ${gameId}`);
         // Game status already updated by checkTimeViolations
+        const winningPlayer = flaggedPlayer === "white" ? "Black" : "White";
+        await broadcastGameEvent(
+          supabase,
+          gameId,
+          `${flaggedPlayer === "white" ? "White" : "Black"} time out - ${winningPlayer} wins`,
+          'game_end'
+        );
+      }
+    }
+    
+    // Broadcast game end if checkmate or stalemate
+    if (gameOverState.isOver) {
+      let message = "";
+      if (gameOverState.reason === "checkmate") {
+        const winner = gameOverState.result === "white" ? "White" : "Black";
+        message = `Checkmate - ${winner} wins`;
+      } else if (gameOverState.reason === "stalemate") {
+        message = "Stalemate - Draw";
+      } else if (gameOverState.reason === "insufficient_material") {
+        message = "Insufficient material - Draw";
+      } else if (gameOverState.reason === "threefold_repetition") {
+        message = "Threefold repetition - Draw";
+      } else if (gameOverState.reason === "fifty_move_rule") {
+        message = "Fifty move rule - Draw";
+      }
+      
+      if (message) {
+        await broadcastGameEvent(
+          supabase,
+          gameId,
+          message,
+          'game_end'
+        );
       }
     }
 
@@ -489,6 +557,28 @@ async function handleGameOffer(
   const field = `${offerType}_offered_by`;
 
   if (action === "offer") {
+    // Rate limiting for draw offers - one per move
+    if (offerType === "draw") {
+      // Check if a draw was already offered this move
+      const currentPly = game.pgn ? game.pgn.split(' ').filter(m => m && !m.includes('.')).length : 0;
+      
+      // Get last draw offer event
+      const { data: lastDrawOffer } = await getTable(supabase, "events")
+        .select("metadata")
+        .eq("game_id", gameId)
+        .eq("event_type", EventType.OFFER_MADE)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (lastDrawOffer?.metadata) {
+        const metadata = lastDrawOffer.metadata as any;
+        if (metadata.offer_type === "draw" && metadata.ply_number === currentPly) {
+          return errorResponse("Only one draw offer allowed per move", 400);
+        }
+      }
+    }
+    
     // Handle offering
     const { data: updatedGame, error: updateError } = await getTable(
       supabase,
@@ -508,12 +598,29 @@ async function handleGameOffer(
       );
     }
 
+    // Record event with ply number for draw offers
+    const eventMetadata: any = { game_id: gameId, offer_type: offerType };
+    if (offerType === "draw") {
+      const currentPly = game.pgn ? game.pgn.split(' ').filter(m => m && !m.includes('.')).length : 0;
+      eventMetadata.ply_number = currentPly;
+    }
+    
     await recordEvent(
       supabase,
       EventType.OFFER_MADE,
-      { game_id: gameId, offer_type: offerType },
+      eventMetadata,
       user.id,
     );
+    
+    // Broadcast draw offer
+    if (offerType === "draw") {
+      await broadcastGameEvent(
+        supabase,
+        gameId,
+        `${userColor === 'white' ? 'White' : 'Black'} offers a draw`,
+        'draw_offer'
+      );
+    }
 
     return successResponse(updatedGame);
   } else if (action === "decline") {
@@ -558,6 +665,16 @@ async function handleGameOffer(
       { game_id: gameId, offer_type: offerType },
       user.id,
     );
+    
+    // Broadcast draw decline
+    if (offerType === "draw") {
+      await broadcastGameEvent(
+        supabase,
+        gameId,
+        `Draw offer declined`,
+        'draw_declined'
+      );
+    }
 
     return successResponse(updatedGame);
   } else if (action === "accept") {
@@ -621,6 +738,14 @@ async function handleGameOffer(
         EventType.GAME_ENDED,
         { game_id: gameId, result: "draw", reason: "draw_agreement" },
         user.id,
+      );
+      
+      // Broadcast draw acceptance and game end
+      await broadcastGameEvent(
+        supabase,
+        gameId,
+        `Draw accepted - Game over`,
+        'game_end'
       );
 
       return successResponse(updatedGame);
@@ -769,6 +894,16 @@ async function handleResignation(
       reason: "resignation",
     },
     user.id,
+  );
+  
+  // Broadcast resignation
+  const resigningPlayer = playerColor === "white" ? "White" : "Black";
+  const winningPlayer = result === "white" ? "White" : "Black";
+  await broadcastGameEvent(
+    supabase,
+    gameId,
+    `${resigningPlayer} resigns - ${winningPlayer} wins`,
+    'game_end'
   );
 
   return successResponse(updatedGame);

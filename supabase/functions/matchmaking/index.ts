@@ -667,18 +667,31 @@ async function notifyGameChange(
 ) {
   async function send(uid: string) {
     const channel = supabase.channel(`player:${uid}`);
-    return await channel.send({
-      type: "broadcast",
-      event: "game_matched",
-      payload: {
-        gameId: game.id,
-        isWhite: game.white_player_id === uid,
-        opponentId:
-          uid === game.black_player_id
-            ? game.white_player_id
-            : game.black_player_id,
-      },
+    
+    // Subscribe to the channel first
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.send({
+          type: "broadcast",
+          event: "game_matched",
+          payload: {
+            gameId: game.id,
+            isWhite: game.white_player_id === uid,
+            opponentId:
+              uid === game.black_player_id
+                ? game.white_player_id
+                : game.black_player_id,
+          },
+        });
+        
+        // Unsubscribe after sending
+        setTimeout(() => {
+          channel.unsubscribe();
+        }, 1000);
+      }
     });
+    
+    return true;
   }
   try {
     logger.info(`Game update notification: ${game.id}`);

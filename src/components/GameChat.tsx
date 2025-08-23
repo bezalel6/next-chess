@@ -43,30 +43,17 @@ export default function GameChat({ gameId }: GameChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   
-  // Get everything from unified store
-  const {
-    game,
-    messages,
-    chatError,
-    isTimedOut,
-    timeoutSecondsRemaining,
-    chatEnabled,
-    sendMessage,
-    setChatEnabled,
-    setChatError,
-    checkChatTimeout,
-  } = useUnifiedGameStore(s => ({
-    game: s.game,
-    messages: s.messages,
-    chatError: s.chatError,
-    isTimedOut: s.isTimedOut,
-    timeoutSecondsRemaining: s.timeoutSecondsRemaining,
-    chatEnabled: s.chatEnabled,
-    sendMessage: s.sendMessage,
-    setChatEnabled: s.setChatEnabled,
-    setChatError: s.setChatError,
-    checkChatTimeout: s.checkChatTimeout,
-  }));
+  // Get everything from unified store - split into separate selectors to prevent re-render issues
+  const game = useUnifiedGameStore(s => s.game);
+  const messages = useUnifiedGameStore(s => s.messages);
+  const chatError = useUnifiedGameStore(s => s.chatError);
+  const isTimedOut = useUnifiedGameStore(s => s.isTimedOut);
+  const timeoutSecondsRemaining = useUnifiedGameStore(s => s.timeoutSecondsRemaining);
+  const chatEnabled = useUnifiedGameStore(s => s.chatEnabled);
+  const sendMessage = useUnifiedGameStore(s => s.sendMessage);
+  const setChatEnabled = useUnifiedGameStore(s => s.setChatEnabled);
+  const setChatError = useUnifiedGameStore(s => s.setChatError);
+  const checkChatTimeout = useUnifiedGameStore(s => s.checkChatTimeout);
   
   // Memoize player info
   const playerInfo = useMemo(() => {
@@ -107,15 +94,22 @@ export default function GameChat({ gameId }: GameChatProps) {
     }
   }, [setChatEnabled]);
   
-  // Update timeout countdown
+  // Update timeout countdown - with reduced frequency to prevent excessive re-renders
   useEffect(() => {
     if (!isTimedOut) return;
     
+    // Only update countdown if component is mounted and visible
+    let mounted = true;
     const interval = setInterval(() => {
-      useUnifiedGameStore.getState().updateTimeoutCountdown();
+      if (mounted) {
+        useUnifiedGameStore.getState().updateTimeoutCountdown();
+      }
     }, 1000);
     
-    return () => clearInterval(interval);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, [isTimedOut]);
   
   const handleSendMessage = useCallback(async () => {
@@ -152,6 +146,17 @@ export default function GameChat({ gameId }: GameChatProps) {
   const toggleChat = () => {
     setChatEnabled(!chatEnabled);
   };
+  
+  // Memoize helper text to prevent infinite re-renders
+  const helperText = useMemo(() => {
+    if (isTimedOut) {
+      return `Chat timeout: ${timeoutSecondsRemaining}s remaining`;
+    }
+    if (inputValue.length > 100) {
+      return `${inputValue.length}/${MAX_MESSAGE_LENGTH}${inputValue.length > 150 ? ' ⚠️' : ''}`;
+    }
+    return '';
+  }, [isTimedOut, timeoutSecondsRemaining, inputValue.length]);
   
   const getMessageIcon = (type: ChatMessageType) => {
     switch (type) {
@@ -479,13 +484,7 @@ export default function GameChat({ gameId }: GameChatProps) {
             onKeyPress={handleKeyPress}
             disabled={!playerInfo?.isPlayer || isSending || isTimedOut}
             error={!!chatError || isTimedOut}
-            helperText={
-              isTimedOut 
-                ? `Chat timeout: ${timeoutSecondsRemaining}s remaining`
-                : inputValue.length > 100 
-                ? `${inputValue.length}/${MAX_MESSAGE_LENGTH}${inputValue.length > 150 ? ' ⚠️' : ''}` 
-                : ''
-            }
+            helperText={helperText}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">

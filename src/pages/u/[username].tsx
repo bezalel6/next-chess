@@ -1,4 +1,4 @@
-import { GetServerSideProps } from 'next';
+import type { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import { Container, Typography, Paper, Box, Avatar, Divider, Chip, CircularProgress } from '@mui/material';
@@ -54,8 +54,8 @@ export default function ProfilePage({ username }: ProfilePageProps) {
         // Fetch game statistics
         const { data: games, error: gamesError } = await supabaseBrowser()
           .from('games')
-          .select('status, white_id, black_id, result')
-          .or(`white_id.eq.${profileData.id},black_id.eq.${profileData.id}`)
+          .select('status, white_player_id, black_player_id, winner')
+          .or(`white_player_id.eq.${profileData.id},black_player_id.eq.${profileData.id}`)
           .in('status', ['completed', 'resigned', 'timeout', 'draw']);
 
         if (!gamesError && games) {
@@ -67,14 +67,14 @@ export default function ProfilePage({ username }: ProfilePageProps) {
           };
 
           games.forEach((game) => {
-            const isWhite = game.white_id === profileData.id;
+            const isWhite = game.white_player_id === profileData.id;
             
-            if (game.result === 'draw' || game.status === 'draw') {
+            if (game.winner === 'draw' || game.status === 'draw') {
               stats.games_drawn++;
-            } else if (game.result === 'white_wins') {
+            } else if (game.winner === 'white') {
               if (isWhite) stats.games_won++;
               else stats.games_lost++;
-            } else if (game.result === 'black_wins') {
+            } else if (game.winner === 'black') {
               if (!isWhite) stats.games_won++;
               else stats.games_lost++;
             } else if (game.status === 'resigned') {

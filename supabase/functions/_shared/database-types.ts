@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -310,7 +305,6 @@ export type Database = {
       }
       matchmaking: {
         Row: {
-          created_at: string | null
           id: string
           joined_at: string | null
           player_id: string
@@ -321,7 +315,6 @@ export type Database = {
           time_control_id: string | null
         }
         Insert: {
-          created_at?: string | null
           id?: string
           joined_at?: string | null
           player_id: string
@@ -332,7 +325,6 @@ export type Database = {
           time_control_id?: string | null
         }
         Update: {
-          created_at?: string | null
           id?: string
           joined_at?: string | null
           player_id?: string
@@ -344,7 +336,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "matchmaking_queue_player_id_fkey"
+            foreignKeyName: "matchmaking_player_id_fkey"
             columns: ["player_id"]
             isOneToOne: true
             referencedRelation: "profiles"
@@ -560,7 +552,15 @@ export type Database = {
       }
     }
     Functions: {
+      before_user_created_hook: {
+        Args: { event: Json }
+        Returns: Json
+      }
       cleanup_abandoned_games: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_old_anonymous_users: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -703,3 +703,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

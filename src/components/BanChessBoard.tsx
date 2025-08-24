@@ -165,7 +165,6 @@ export default function BanChessBoard({
                       width: '85%',
                       height: '85%',
                       userSelect: 'none',
-                      WebkitUserDrag: 'none',
                     }}
                   />
                 )}

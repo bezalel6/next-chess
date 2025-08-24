@@ -200,19 +200,82 @@ export default function BanChessBoard({
                         }}
                       />
                     )}
-                    {/* For captures - show ring around square */}
+                    {/* For captures - show corner edges that overflow */}
                     {piece && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          inset: 0,
-                          border: isBanMode 
-                            ? `6px solid rgba(var(--ban-indicator-color), var(--ban-indicator-opacity))` 
-                            : `6px solid rgba(var(--move-indicator-color), var(--move-indicator-opacity))`,
-                          boxSizing: 'border-box',
-                          pointerEvents: 'none',
-                        }}
-                      />
+                      <>
+                        {/* Top-left corner */}
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: -3,
+                            left: -3,
+                            width: 20,
+                            height: 20,
+                            borderTop: isBanMode 
+                              ? `6px solid rgba(var(--ban-indicator-color), var(--ban-indicator-opacity))` 
+                              : `6px solid rgba(var(--move-indicator-color), var(--move-indicator-opacity))`,
+                            borderLeft: isBanMode 
+                              ? `6px solid rgba(var(--ban-indicator-color), var(--ban-indicator-opacity))` 
+                              : `6px solid rgba(var(--move-indicator-color), var(--move-indicator-opacity))`,
+                            pointerEvents: 'none',
+                            zIndex: 2,
+                          }}
+                        />
+                        {/* Top-right corner */}
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: -3,
+                            right: -3,
+                            width: 20,
+                            height: 20,
+                            borderTop: isBanMode 
+                              ? `6px solid rgba(var(--ban-indicator-color), var(--ban-indicator-opacity))` 
+                              : `6px solid rgba(var(--move-indicator-color), var(--move-indicator-opacity))`,
+                            borderRight: isBanMode 
+                              ? `6px solid rgba(var(--ban-indicator-color), var(--ban-indicator-opacity))` 
+                              : `6px solid rgba(var(--move-indicator-color), var(--move-indicator-opacity))`,
+                            pointerEvents: 'none',
+                            zIndex: 2,
+                          }}
+                        />
+                        {/* Bottom-left corner */}
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            bottom: -3,
+                            left: -3,
+                            width: 20,
+                            height: 20,
+                            borderBottom: isBanMode 
+                              ? `6px solid rgba(var(--ban-indicator-color), var(--ban-indicator-opacity))` 
+                              : `6px solid rgba(var(--move-indicator-color), var(--move-indicator-opacity))`,
+                            borderLeft: isBanMode 
+                              ? `6px solid rgba(var(--ban-indicator-color), var(--ban-indicator-opacity))` 
+                              : `6px solid rgba(var(--move-indicator-color), var(--move-indicator-opacity))`,
+                            pointerEvents: 'none',
+                            zIndex: 2,
+                          }}
+                        />
+                        {/* Bottom-right corner */}
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            bottom: -3,
+                            right: -3,
+                            width: 20,
+                            height: 20,
+                            borderBottom: isBanMode 
+                              ? `6px solid rgba(var(--ban-indicator-color), var(--ban-indicator-opacity))` 
+                              : `6px solid rgba(var(--move-indicator-color), var(--move-indicator-opacity))`,
+                            borderRight: isBanMode 
+                              ? `6px solid rgba(var(--ban-indicator-color), var(--ban-indicator-opacity))` 
+                              : `6px solid rgba(var(--move-indicator-color), var(--move-indicator-opacity))`,
+                            pointerEvents: 'none',
+                            zIndex: 2,
+                          }}
+                        />
+                      </>
                     )}
                   </>
                 )}

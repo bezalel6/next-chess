@@ -51,13 +51,16 @@ export class GameService {
   }
 
   static async playAction(gameId: string, action: GameAction): Promise<void> {
+    console.log('GameService.playAction called:', { gameId, action });
     const { data, error } = await invokeWithAuth('game-action', {
       body: { gameId, action }
     });
 
     if (error) {
+      console.error('GameService.playAction error:', error);
       throw new Error(error.message || 'Failed to play action');
     }
+    console.log('GameService.playAction success:', data);
   }
 
   static async resignGame(gameId: string): Promise<void> {

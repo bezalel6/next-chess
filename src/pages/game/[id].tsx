@@ -19,13 +19,16 @@ export default function GamePage() {
   }
   
   const handleAction = async (from: string, to: string) => {
+    console.log('handleAction called:', from, '->', to);
     const nextType = engine.nextActionType();
     const action = nextType === 'move'
       ? { move: { from, to } }
       : { ban: { from, to } };
     
+    console.log('Sending action to server:', action);
     try {
       await playAction(action);
+      console.log('Action sent successfully');
     } catch (error) {
       console.error('Action failed:', error);
     }

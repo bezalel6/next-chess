@@ -117,8 +117,8 @@ serve(async (req) => {
       );
     }
 
-    // Load engine state
-    const engine = new BanChess(game.ban_chess_state || undefined);
+    // Load engine state - use current_fen, not ban_chess_state
+    const engine = new BanChess(game.current_fen || undefined);
 
     // Check if it's the player's turn
     const turn = engine.turn();
@@ -141,14 +141,21 @@ serve(async (req) => {
     }
 
     // Save the new state
-    const newState = engine.fen();
+    const newFen = engine.fen();
+    const nextAction = engine.nextActionType();
+    const newTurn = engine.turn();
+    
     const { error: updateError } = await supabaseClient
       .from('games')
       .update({
-        ban_chess_state: newState,
+        current_fen: newFen,
+        ban_chess_state: nextAction === 'ban' ? 'waiting_for_ban' : 'waiting_for_move',
+        turn: newTurn === 'w' ? 'white' : 'black',
+        banning_player: nextAction === 'ban' ? (newTurn === 'w' ? 'white' : 'black') : null,
         status: engine.gameOver() ? 'completed' : 'active',
         winner: engine.gameOver() ? getWinner(engine) : null,
         updated_at: new Date().toISOString(),
+        last_move_at: new Date().toISOString(),
       })
       .eq('id', gameId);
 
@@ -179,10 +186,11 @@ serve(async (req) => {
       type: 'broadcast',
       event: 'game_update',
       payload: {
-        state: newState,
+        current_fen: newFen,
+        ban_chess_state: nextAction === 'ban' ? 'waiting_for_ban' : 'waiting_for_move',
         lastAction: { type: actionType, ...actionData },
-        nextActionType: engine.nextActionType(),
-        turn: engine.turn(),
+        nextActionType: nextAction,
+        turn: newTurn,
         gameOver: engine.gameOver(),
       }
     });
@@ -190,9 +198,10 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        state: newState,
-        nextActionType: engine.nextActionType(),
-        turn: engine.turn(),
+        current_fen: newFen,
+        ban_chess_state: nextAction === 'ban' ? 'waiting_for_ban' : 'waiting_for_move',
+        nextActionType: nextAction,
+        turn: newTurn,
         gameOver: engine.gameOver(),
       }),
       { 

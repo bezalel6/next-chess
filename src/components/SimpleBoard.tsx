@@ -93,6 +93,7 @@ export default function SimpleBoard({ engine, onAction }: SimpleBoardProps) {
             return (
               <div
                 key={square}
+                data-square={square}
                 onClick={() => handleSquareClick(square)}
                 style={{
                   width: '60px',

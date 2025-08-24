@@ -10,17 +10,18 @@ export function useGameSync(gameId: string | undefined) {
     
     // Load initial game state
     GameService.loadGame(gameId).then(game => {
-      if (game?.ban_chess_state) {
-        loadGame(gameId, game.ban_chess_state);
+      if (game) {
+        loadGame(gameId, game);
       }
     });
     
     // Subscribe to updates
     const unsubscribe = GameService.subscribeToGame(gameId, (payload) => {
-      if (payload.state) {
-        loadGame(gameId, payload.state);
-      } else if (payload.game?.ban_chess_state) {
-        loadGame(gameId, payload.game.ban_chess_state);
+      if (payload.game) {
+        loadGame(gameId, payload.game);
+      } else if (payload.new) {
+        // Handle direct table updates
+        loadGame(gameId, payload.new);
       }
     });
     

@@ -2,20 +2,15 @@ import { supabase, invokeWithAuth } from "../utils/supabase";
 import type { PlayerColor } from "@/types/game";
 import type { ChatMessage } from "@/types/chat";
 import { BanChess } from "@/lib/simple-ban-chess";
+import { Tables } from "@/types/database";
 
 export interface GameAction {
   move?: { from: string; to: string; promotion?: string };
   ban?: { from: string; to: string };
 }
 
-export interface GameData {
-  id: string;
-  ban_chess_state: string;
-  white_player_id: string;
-  black_player_id: string;
-  status: string;
-  [key: string]: any; // Allow all extra fields
-}
+// Use the actual database type for games
+export type GameData = Tables<'games'>;
 
 export class GameService {
   static async createGame(

@@ -7,7 +7,7 @@ import MoveHistoryTable from '@/components/MoveHistoryTable';
 import type { HistoryEntry } from '@/components/MoveHistoryTable';
 import { Refresh } from '@mui/icons-material';
 
-export default function LocalGamePage() {
+function LocalGamePage() {
   const [game, setGame] = useState(() => new BanChess());
   const [moveHistory, setMoveHistory] = useState<HistoryEntry[]>([]);
   const [currentEntry, setCurrentEntry] = useState<Partial<HistoryEntry>>({});
@@ -49,6 +49,9 @@ export default function LocalGamePage() {
           ? { move: { from: selectedSquare, to: square } }
           : { ban: { from: selectedSquare, to: square } };
         
+        // Capture who is acting BEFORE we play the action
+        const currentTurn = game.turn;
+        
         const result = game.play(action);
         
         if (result.success) {
@@ -56,51 +59,54 @@ export default function LocalGamePage() {
           const newGame = new BanChess(game.fen());
           setGame(newGame);
           
-          // Update history tracking
-          if (nextType === 'move' && result.san) {
-            const wasWhiteMove = game.turn === 'black';
-            const moveKey = wasWhiteMove ? 'whiteMove' : 'blackMove';
-            
-            const updatedEntry = {
-              ...currentEntry,
-              turnNumber,
-              [moveKey]: result.san,
-            };
-            
-            if (!wasWhiteMove) {
-              setMoveHistory(prev => [...prev, updatedEntry as HistoryEntry]);
-              setCurrentEntry({});
-              setTurnNumber(prev => prev + 1);
-            } else {
-              setCurrentEntry(updatedEntry);
-            }
-            
-            setLastBan(null);
-          } else if (nextType === 'ban') {
+          // Update history tracking based on Ban Chess flow:
+          // 1. Black bans (before White's move) -> whiteBan in row 1
+          // 2. White moves -> whiteMove in row 1
+          // 3. White bans (before Black's move) -> blackBan in row 1
+          // 4. Black moves -> blackMove in row 1
+          // 5. Black bans (before White's move) -> whiteBan in row 2
+          // etc...
+          
+          if (nextType === 'ban') {
             const banNotation = `${selectedSquare}→${square}`;
             setLastBan({ from: selectedSquare, to: square });
             
-            // Immediately add the ban to the history
-            const isWhiteBanning = game.turn === 'white';
-            const banKey = isWhiteBanning ? 'whiteBan' : 'blackBan';
+            // Who is banning and what column does it go in?
+            // Black bans -> whiteBan (restricts White's move)
+            // White bans -> blackBan (restricts Black's move)
+            const banKey = currentTurn === 'black' ? 'whiteBan' : 'blackBan';
             
-            if (isWhiteBanning) {
-              // White just moved and is now banning - update current entry
-              const updatedEntry = {
-                ...currentEntry,
+            // Check if we need to start a new row
+            // New row starts when Black bans after completing a full turn
+            const needNewRow = banKey === 'whiteBan' && currentEntry.blackMove;
+            
+            if (needNewRow) {
+              // Save current row and start new one
+              setMoveHistory(prev => [...prev, currentEntry as HistoryEntry]);
+              setCurrentEntry({
+                turnNumber: turnNumber + 1,
                 [banKey]: banNotation,
-              };
-              setCurrentEntry(updatedEntry);
-            } else {
-              // Black just moved and is now banning - need to complete the entry
-              const updatedEntry = {
-                ...currentEntry,
-                [banKey]: banNotation,
-              };
-              setMoveHistory(prev => [...prev, updatedEntry as HistoryEntry]);
-              setCurrentEntry({});
+              });
               setTurnNumber(prev => prev + 1);
+            } else {
+              // Add to current row
+              setCurrentEntry({
+                ...currentEntry,
+                turnNumber: currentEntry.turnNumber || turnNumber,
+                [banKey]: banNotation,
+              });
             }
+          } else if (nextType === 'move' && result.san) {
+            // Use the turn we captured BEFORE playing the move
+            const moveKey = currentTurn === 'white' ? 'whiteMove' : 'blackMove';
+            
+            setCurrentEntry({
+              ...currentEntry,
+              turnNumber: currentEntry.turnNumber || turnNumber,
+              [moveKey]: result.san,
+            });
+            
+            setLastBan(null);
           }
         }
       }
@@ -130,48 +136,43 @@ export default function LocalGamePage() {
 
   return (
     <Box sx={{ 
-      height: '100vh',
+      position: 'relative',
       display: 'flex',
-      p: 3,
-      gap: 3,
-      bgcolor: 'background.default',
       justifyContent: 'center',
-      alignItems: 'center',
+      alignItems: 'flex-start',
+      pt: 4,
+      pb: 4,
+      minHeight: 'calc(100vh - 200px)', // Account for header and footer
     }}>
-      {/* Board - Primary Focus */}
-      <Box sx={{ 
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        flex: '0 1 auto',
-      }}>
-        <Paper elevation={3} sx={{ p: 1.5, bgcolor: 'background.paper' }}>
-          <ResizableChessBoard
-            fen={game.fen()}
-            onSquareClick={handleSquareClick}
-            highlightedSquares={highlightedSquares}
-            lastBan={lastBan}
-            orientation="white"
-            isBanMode={nextAction === 'ban'}
-          />
-        </Paper>
-      </Box>
+      {/* Board - Centered */}
+      <Paper elevation={3} sx={{ p: 1, bgcolor: 'background.paper' }}>
+        <ResizableChessBoard
+          fen={game.fen()}
+          onSquareClick={handleSquareClick}
+          highlightedSquares={highlightedSquares}
+          lastBan={lastBan}
+          orientation="white"
+          isBanMode={nextAction === 'ban'}
+        />
+      </Paper>
 
-      {/* Side Panel - Move History and Controls */}
+      {/* Side Panel - Positioned absolutely */}
       <Paper 
         elevation={2} 
         sx={{ 
+          position: 'absolute',
+          right: 20,
+          top: 60,
           width: 280,
           maxWidth: 280,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
           height: 'fit-content',
-          maxHeight: '80vh',
         }}
       >
         <MoveHistoryTable 
-          history={[...moveHistory, ...(Object.keys(currentEntry).length > 1 ? [currentEntry as HistoryEntry] : [])]}
+          history={[...moveHistory, ...(currentEntry.turnNumber ? [currentEntry as HistoryEntry] : [])]}
         />
         
         {/* Game Status and Controls */}
@@ -221,3 +222,5 @@ export default function LocalGamePage() {
     </Box>
   );
 }
+
+export default LocalGamePage;

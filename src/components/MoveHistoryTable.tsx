@@ -1,208 +1,174 @@
-import { Box, Typography, Paper, Chip } from '@mui/material';
-import { Block, CheckBox } from '@mui/icons-material';
+import { Box, Typography } from '@mui/material';
 
 export interface HistoryEntry {
   turnNumber: number;
   whiteMove?: string;
-  whiteBan?: string;  // The ban that restricted this white move
+  whiteBan?: string;  // Ban that White makes after moving
   blackMove?: string;
-  blackBan?: string;  // The ban that restricted this black move
+  blackBan?: string;  // Ban that Black makes (initially or after moving)
 }
 
 interface MoveHistoryTableProps {
   history: HistoryEntry[];
-  currentTurn?: number;
 }
 
-export default function MoveHistoryTable({ history, currentTurn }: MoveHistoryTableProps) {
-  const formatMove = (move: string | undefined, isBan: boolean = false) => {
-    if (!move) return '...';
-    if (isBan) {
-      // Format ban as "from→to"
-      return move.includes('→') ? move : move;
-    }
-    return move;
-  };
-
+export default function MoveHistoryTable({ history }: MoveHistoryTableProps) {
+  // Always show 4 rows minimum
+  const displayRows = Math.max(4, history.length);
+  
   return (
-    <Paper elevation={2} sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h6" gutterBottom>
-        Move History
-      </Typography>
+    <Box sx={{ 
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      pt: 2,
+      px: 2,
+    }}>
+      {/* Column headers */}
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: '40px 1fr 1fr',
+        borderBottom: '2px solid',
+        borderColor: 'divider',
+        pb: 1,
+        mb: 0.5,
+      }}>
+        <Typography variant="caption" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+          #
+        </Typography>
+        <Typography variant="caption" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+          White
+        </Typography>
+        <Typography variant="caption" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+          Black
+        </Typography>
+      </Box>
       
+      {/* Move rows with fixed height for 4 visible rows */}
       <Box sx={{ 
         flex: 1,
         overflowY: 'auto',
         overflowX: 'hidden',
+        minHeight: '160px', // 4 rows * 40px
+        maxHeight: '160px',
         '&::-webkit-scrollbar': {
-          width: '8px',
+          width: '6px',
         },
         '&::-webkit-scrollbar-track': {
-          backgroundColor: 'rgba(0,0,0,0.1)',
-          borderRadius: '4px',
+          backgroundColor: 'rgba(0,0,0,0.05)',
         },
         '&::-webkit-scrollbar-thumb': {
-          backgroundColor: 'rgba(0,0,0,0.3)',
-          borderRadius: '4px',
+          backgroundColor: 'rgba(0,0,0,0.2)',
+          borderRadius: '3px',
           '&:hover': {
-            backgroundColor: 'rgba(0,0,0,0.4)',
+            backgroundColor: 'rgba(0,0,0,0.3)',
           },
         },
       }}>
-        {/* Header */}
-        <Box sx={{ 
-          display: 'grid', 
-          gridTemplateColumns: '40px 1fr 1fr',
-          gap: 1,
-          borderBottom: '2px solid',
-          borderColor: 'divider',
-          pb: 1,
-          mb: 1,
-          position: 'sticky',
-          top: 0,
-          backgroundColor: 'background.paper',
-          zIndex: 1,
-        }}>
-          <Typography variant="caption" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-            #
-          </Typography>
-          <Typography variant="caption" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-            White
-          </Typography>
-          <Typography variant="caption" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-            Black
-          </Typography>
-        </Box>
-        
-        {/* Move rows */}
-        {history.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 2 }}>
-            No moves yet
-          </Typography>
-        ) : (
-          history.map((entry, idx) => (
+        {Array.from({ length: displayRows }, (_, idx) => {
+          const entry = history[idx];
+          
+          return (
             <Box 
               key={idx}
               sx={{ 
                 display: 'grid', 
                 gridTemplateColumns: '40px 1fr 1fr',
-                gap: 1,
-                py: 0.5,
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-                backgroundColor: idx === currentTurn ? 'action.selected' : 'transparent',
-                '&:hover': {
-                  backgroundColor: 'action.hover',
-                },
+                height: '40px',
+                alignItems: 'stretch',
               }}
             >
-              {/* Turn number */}
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  fontWeight: 'bold',
-                  textAlign: 'center',
-                  alignSelf: 'center',
-                }}
-              >
-                {entry.turnNumber}
-              </Typography>
+              {/* Turn number with checkerboard pattern */}
+              <Box sx={{ 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.03)',
+                borderRight: '1px solid',
+                borderColor: 'divider',
+              }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  {idx + 1}
+                </Typography>
+              </Box>
               
-              {/* White's move (with ban that preceded it) */}
-              <Box sx={{ px: 1 }}>
-                {entry.whiteMove ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {entry.whiteBan && (
-                      <>
-                        <Block sx={{ fontSize: 12, color: 'error.main' }} />
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            color: 'error.main',
-                            fontFamily: 'monospace',
-                            fontSize: '0.7rem',
-                          }}
-                        >
-                          {formatMove(entry.whiteBan, true)}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', mx: 0.5 }}>
-                          →
-                        </Typography>
-                      </>
-                    )}
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        fontWeight: 'medium',
-                        fontFamily: 'monospace',
-                      }}
-                    >
-                      {formatMove(entry.whiteMove)}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-                    -
+              {/* White's cell */}
+              <Box sx={{ 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 0.5,
+                backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.03)',
+                borderRight: '1px solid',
+                borderColor: 'divider',
+                px: 1,
+              }}>
+                {entry?.whiteBan && (
+                  <Typography sx={{ 
+                    color: 'error.main',
+                    fontFamily: 'monospace',
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                  }}>
+                    {entry.whiteBan}
+                  </Typography>
+                )}
+                {entry?.whiteMove && (
+                  <Typography sx={{ 
+                    fontFamily: 'monospace',
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                  }}>
+                    {entry.whiteMove}
                   </Typography>
                 )}
               </Box>
               
-              {/* Black's move (with ban that preceded it) */}
-              <Box sx={{ px: 1 }}>
-                {entry.blackMove ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {entry.blackBan && (
-                      <>
-                        <Block sx={{ fontSize: 12, color: 'error.main' }} />
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            color: 'error.main',
-                            fontFamily: 'monospace',
-                            fontSize: '0.7rem',
-                          }}
-                        >
-                          {formatMove(entry.blackBan, true)}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', mx: 0.5 }}>
-                          →
-                        </Typography>
-                      </>
-                    )}
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        fontWeight: 'medium',
-                        fontFamily: 'monospace',
-                      }}
-                    >
-                      {formatMove(entry.blackMove)}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-                    -
+              {/* Black's cell */}
+              <Box sx={{ 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 0.5,
+                backgroundColor: idx % 2 === 1 ? 'transparent' : 'rgba(0,0,0,0.03)',
+                px: 1,
+              }}>
+                {entry?.blackBan && (
+                  <Typography sx={{ 
+                    color: 'error.main',
+                    fontFamily: 'monospace',
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                  }}>
+                    {entry.blackBan}
+                  </Typography>
+                )}
+                {entry?.blackMove && (
+                  <Typography sx={{ 
+                    fontFamily: 'monospace',
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                  }}>
+                    {entry.blackMove}
                   </Typography>
                 )}
               </Box>
             </Box>
-          ))
-        )}
+          );
+        })}
       </Box>
       
       {/* Legend */}
       <Box sx={{ 
-        mt: 2, 
-        pt: 2, 
+        pt: 1.5,
         borderTop: '1px solid',
         borderColor: 'divider',
         textAlign: 'center',
       }}>
         <Typography variant="caption" color="text.secondary">
-          <Block sx={{ fontSize: 12, color: 'error.main', verticalAlign: 'middle', display: 'inline' }} />
-          {' '}Banned move → Actual move played
+          ✖ Banned move → Actual move played
         </Typography>
       </Box>
-    </Paper>
+    </Box>
   );
 }

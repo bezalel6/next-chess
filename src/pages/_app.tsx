@@ -13,6 +13,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import Head from "next/head";
 import Layout from "@/components/Layout";
+import { useRouter } from "next/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -37,6 +38,9 @@ const ReactQueryDevtools = env.NEXT_PUBLIC_ENABLE_RQ_DEVTOOLS === "1"
   : (() => null as any);
 
 const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
+  const router = useRouter();
+  const isLocalPage = router.pathname === '/local';
+  
   useEffect(() => {
     // Only enable react-scan when explicitly toggled via env and in the browser
     if (env.NEXT_PUBLIC_ENABLE_REACT_SCAN === "1" && typeof window !== "undefined") {

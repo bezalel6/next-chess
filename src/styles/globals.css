@@ -253,5 +253,4 @@ nextjs-portal > div[style*="position: fixed"][style*="z-index: 9999"] {
 /* Prevent body overflow issues when error overlay is hidden */
 body {
   padding-right: 0 !important;
-  overflow: auto !important;
 }

@@ -13,16 +13,15 @@ interface ResizableChessBoardProps {
 
 export default function ResizableChessBoard(props: ResizableChessBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [boardSize, setBoardSize] = useState(640);
+  const [boardSize, setBoardSize] = useState(600);
   
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
         const container = containerRef.current;
         const maxWidth = container.offsetWidth;
-        const maxHeight = window.innerHeight - 120; // Account for header
-        const size = Math.min(maxWidth, maxHeight, 800);
-        setBoardSize(Math.max(480, size));
+        const size = Math.min(maxWidth, 600); // Fixed max size
+        setBoardSize(Math.max(400, size));
       }
     };
     
@@ -31,14 +30,12 @@ export default function ResizableChessBoard(props: ResizableChessBoardProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  const scale = boardSize / 640; // Scale based on 80px squares (8 * 80 = 640)
+  const scale = boardSize / 600; // Scale based on 75px squares (8 * 75 = 600)
   
   return (
     <Box 
       ref={containerRef}
       sx={{ 
-        width: '100%',
-        height: '100%',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
@@ -47,8 +44,8 @@ export default function ResizableChessBoard(props: ResizableChessBoardProps) {
       <Box sx={{ 
         transform: `scale(${scale})`,
         transformOrigin: 'center',
-        width: 640,
-        height: 640,
+        width: 600,
+        height: 600,
       }}>
         <LocalChessBoard {...props} />
       </Box>

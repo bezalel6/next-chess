@@ -61,9 +61,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: error.message, 
-          code: (error as any)?.code,
-          details: (error as any)?.details,
-          hint: (error as any)?.hint
+          code: (error as Record<string, unknown>)?.code,
+          details: (error as Record<string, unknown>)?.details,
+          hint: (error as Record<string, unknown>)?.hint
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

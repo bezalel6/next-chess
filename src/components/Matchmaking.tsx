@@ -16,6 +16,7 @@ import {
   Stack
 } from '@mui/material';
 import { SportsEsports, Cancel, Computer, OpenInNew, Flag } from '@mui/icons-material';
+import { getErrorMessage } from '@/utils/type-guards';
 
 export default function Matchmaking() {
   const [searching, setSearching] = useState(false);
@@ -119,20 +120,21 @@ export default function Matchmaking() {
       // via the player:${user.id} channel with event 'game_matched'
       // The useEffect above is already listening for this notification
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to join queue:', error);
       setSearching(false);
       
       // Check if the error is about having an active game
-      if (error?.message?.includes('already has an active game')) {
+      const errorMessage = getErrorMessage(error);
+      if (errorMessage.includes('already has an active game')) {
         // Extract game ID from error details if available
-        const gameId = error?.details?.gameId || error?.data?.gameId;
+        const gameId = (error as Record<string, unknown>)?.details?.gameId as string || (error as Record<string, unknown>)?.data?.gameId as string;
         setError({ 
           message: 'You already have an active game', 
           gameId 
         });
       } else {
-        setError({ message: error?.message || 'Failed to join queue' });
+        setError({ message: errorMessage || 'Failed to join queue' });
       }
     }
   };

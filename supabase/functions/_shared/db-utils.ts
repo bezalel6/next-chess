@@ -24,7 +24,7 @@ export function ensureArray<T>(data: T | T[] | undefined): T[] {
 /**
  * Log a database operation
  */
-export function logOperation(name: string, error?: any): void {
+export function logOperation(name: string, error?: unknown): void {
   if (error) {
     logger.error(`Operation '${name}' failed:`, error);
   } else {
@@ -35,7 +35,7 @@ export function logOperation(name: string, error?: any): void {
 /**
  * Format OR conditions for Supabase
  */
-export function formatOrConditions(conditions: Record<string, any>[]): string {
+export function formatOrConditions(conditions: Record<string, unknown>[]): string {
   return conditions
     .map((condition) => {
       const [key, value] = Object.entries(condition)[0];

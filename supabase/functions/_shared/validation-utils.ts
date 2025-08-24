@@ -15,7 +15,7 @@ export type ValidationResult = {
  * Validates required parameters are present and returns error response if not
  */
 export function validateRequired(
-  params: Record<string, any>,
+  params: Record<string, unknown>,
   requiredParams: string[],
 ): ValidationResult {
   const missingParams = requiredParams.filter(
@@ -110,14 +110,14 @@ export function validateRequestWithZod<T>(
  * Validates parameters against a schema with type checking and returns errors if invalid
  */
 export function validateSchema(
-  params: Record<string, any>,
+  params: Record<string, unknown>,
   schema: Record<
     string,
     {
       type: "string" | "number" | "boolean" | "object" | "array";
       required?: boolean;
-      enum?: any[];
-      validator?: (value: any) => boolean | string;
+      enum?: unknown[];
+      validator?: (value: unknown) => boolean | string;
     }
   >,
 ): ValidationResult {
@@ -175,8 +175,8 @@ export function validateSchema(
  * Helper to validate request parameters and return an error response if invalid
  */
 export function validateRequestParams(
-  params: Record<string, any>,
-  schema: Record<string, any>,
+  params: Record<string, unknown>,
+  schema: Record<string, unknown>,
 ): Response | null {
   const validationResult = validateSchema(params, schema);
 

@@ -52,7 +52,7 @@ export class MatchmakingService {
   /**
    * Check matchmaking status
    */
-  static async checkStatus(session: Session): Promise<any> {
+  static async checkStatus(session: Session): Promise<Record<string, unknown>> {
     if (!session) {
       return { inQueue: false };
     }

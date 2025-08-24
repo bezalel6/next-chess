@@ -20,7 +20,7 @@ interface CreateMatchParams {
 
 interface QueueParams {
   // Add any queue-specific parameters if needed
-  preferences?: Record<string, any>;
+  preferences?: Record<string, unknown>;
 }
 
 // Define Zod schemas for matchmaking
@@ -144,7 +144,8 @@ export async function handleCreateMatch(
     return successResponse(game);
   } catch (error) {
     logger.error(`Error creating match:`, error);
-    return errorResponse(`Internal server error: ${error.message}`, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Internal server error: ${errorMessage}`, 500);
   }
 }
 
@@ -277,7 +278,8 @@ export async function handleJoinQueue(
     });
   } catch (error) {
     logger.error(`Error in join queue:`, error);
-    return errorResponse(`Internal server error: ${error.message}`, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Internal server error: ${errorMessage}`, 500);
   }
 }
 
@@ -344,7 +346,8 @@ export async function handleCheckMatchmakingStatus(
     });
   } catch (error) {
     logger.error(`Error checking status:`, error);
-    return errorResponse(`Internal server error: ${error.message}`, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Internal server error: ${errorMessage}`, 500);
   }
 }
 
@@ -376,7 +379,8 @@ export async function handleLeaveQueue(
     });
   } catch (error) {
     logger.error(`Error leaving queue:`, error);
-    return errorResponse(`Internal server error: ${error.message}`, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Internal server error: ${errorMessage}`, 500);
   }
 }
 
@@ -489,7 +493,8 @@ async function createOrFindGame(
     });
   } catch (error) {
     logger.error(`Error in createOrFindGame:`, error);
-    return errorResponse(`Internal server error: ${error.message}`, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Internal server error: ${errorMessage}`, 500);
   }
 }
 

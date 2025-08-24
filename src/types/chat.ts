@@ -11,7 +11,7 @@ export interface ChatMessage {
   metadata?: {
     eventType?: 'match_start' | 'match_found' | 'game_end' | 'player_joined' | 'player_left' | 'move' | 'ban' | 'draw_offer' | 'resign' | 'timeout';
     result?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 

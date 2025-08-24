@@ -5,7 +5,7 @@ import { handleAuthError } from '@/utils/auth-interceptor';
 export function useAuthErrorHandler() {
     const { notify, notifyError, notifyWarning } = useNotification();
 
-    const handleAuthErrorWithNotification = useCallback(async (error: any) => {
+    const handleAuthErrorWithNotification = useCallback(async (error: unknown) => {
         // Custom notify function that uses our notification context
         const notifyFn = (message: string, severity?: 'error' | 'warning' | 'info' | 'success') => {
             switch (severity) {

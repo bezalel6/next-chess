@@ -77,7 +77,7 @@ export async function handleAuthenticatedRequest(
   req: Request,
   handler: (
     user: User,
-    body: any,
+    body: Record<string, unknown>,
     supabase: SupabaseClient,
   ) => Promise<Response>,
 ): Promise<Response> {
@@ -90,7 +90,7 @@ export async function handleAuthenticatedRequest(
     const supabase = initSupabaseAdmin();
 
     // Parse request body first to check for special cases
-    let body;
+    let body: Record<string, unknown>;
     try {
       body = await req.json();
     } catch (parseError) {
@@ -120,8 +120,9 @@ export async function handleAuthenticatedRequest(
       try {
         user = await authenticateUser(req, supabase);
       } catch (authError) {
+        const errorMessage = authError instanceof Error ? authError.message : String(authError);
         return errorResponse(
-          `Authentication failed: ${authError.message}`,
+          `Authentication failed: ${errorMessage}`,
           401,
         );
       }
@@ -132,10 +133,12 @@ export async function handleAuthenticatedRequest(
       return await handler(user, body, supabase);
     } catch (error) {
       logger.error(`Error in request handler:`, error);
-      return errorResponse(`Server error: ${error.message}`, 500);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return errorResponse(`Server error: ${errorMessage}`, 500);
     }
   } catch (error) {
     logger.error(`Unhandled error processing request:`, error);
-    return errorResponse(error.message, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(errorMessage, 500);
   }
 }

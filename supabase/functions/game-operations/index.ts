@@ -207,7 +207,7 @@ const gameRouter = createRouter([
  */
 async function handleChatMessage(
   user: User,
-  params: any,
+  params: Record<string, unknown>,
   supabase: TypedSupabaseClient
 ) {
   try {
@@ -247,9 +247,9 @@ async function handleChatMessage(
       .select("key, value")
       .in("key", ["banned_words", "chat_timeout_seconds", "chat_timeout_multiplier"]);
     
-    const bannedWordsRow = settings?.find((s: any) => s.key === "banned_words");
-    const timeoutSecondsRow = settings?.find((s: any) => s.key === "chat_timeout_seconds");
-    const timeoutMultiplierRow = settings?.find((s: any) => s.key === "chat_timeout_multiplier");
+    const bannedWordsRow = settings?.find((s: { key: string; value: unknown }) => s.key === "banned_words");
+    const timeoutSecondsRow = settings?.find((s: { key: string; value: unknown }) => s.key === "chat_timeout_seconds");
+    const timeoutMultiplierRow = settings?.find((s: { key: string; value: unknown }) => s.key === "chat_timeout_multiplier");
     
     const bannedWords = bannedWordsRow?.value || ["spam", "cheat", "hack", "bot", "engine", "stockfish", "leela"];
     const timeoutSeconds = timeoutSecondsRow?.value || 30;
@@ -360,14 +360,15 @@ async function handleChatMessage(
     return successResponse({ message: clientMessage });
   } catch (error) {
     logger.error("Error handling chat message:", error);
-    return errorResponse(`Internal server error: ${error.message}`, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Internal server error: ${errorMessage}`, 500);
   }
 }
 
 /**
  * Handles game update notifications
  */
-async function notifyGameUpdate(params: any, supabase: TypedSupabaseClient) {
+async function notifyGameUpdate(params: Record<string, unknown>, supabase: TypedSupabaseClient) {
   try {
     // Validate parameters using Zod
     const validation = validateWithZod(
@@ -385,7 +386,8 @@ async function notifyGameUpdate(params: any, supabase: TypedSupabaseClient) {
     return successResponse({ success: true });
   } catch (error) {
     logger.error("Error notifying game update:", error);
-    return errorResponse(`Internal server error: ${error.message}`, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Internal server error: ${errorMessage}`, 500);
   }
 }
 
@@ -418,9 +420,9 @@ async function notifyGameChange(supabase: TypedSupabaseClient, gameId: string) {
         turn: game.turn,
         white_player_id: game.white_player_id,
         black_player_id: game.black_player_id,
-        draw_offered_by: (game as any).draw_offered_by ?? (game as any).drawOfferedBy ?? null,
+        draw_offered_by: (game as Record<string, unknown>).draw_offered_by ?? (game as Record<string, unknown>).drawOfferedBy ?? null,
         result: game.result,
-        end_reason: (game as any).end_reason ?? (game as any).endReason ?? null,
+        end_reason: (game as Record<string, unknown>).end_reason ?? (game as Record<string, unknown>).endReason ?? null,
       },
     });
 
@@ -435,7 +437,8 @@ async function notifyGameChange(supabase: TypedSupabaseClient, gameId: string) {
     logger.info(`Broadcasted game_update for ${gameId}`);
     return true;
   } catch (error) {
-    logger.warn(`Failed to notify game change: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.warn(`Failed to notify game change: ${errorMessage}`);
     return false;
   }
 }
@@ -456,7 +459,7 @@ async function logEvent(
     entityType: string;
     entityId: string;
     userId?: string;
-    data?: Record<string, any>;
+    data?: Record<string, unknown>;
   },
 ) {
   try {
@@ -483,7 +486,8 @@ async function handleCronRequest(req: Request) {
     return await processMatchmakingQueue(supabaseAdmin);
   } catch (error) {
     logger.error("Error in cron handler:", error);
-    return errorResponse(error.message, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(errorMessage, 500);
   }
 }
 

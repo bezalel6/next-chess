@@ -8,11 +8,12 @@ import {
 import { getTable } from "../_shared/db-utils.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { successResponse } from "../_shared/response-utils.ts";
+import type { TypedSupabaseClient } from "../_shared/db-utils.ts";
 
 const logger = createLogger("HEARTBEAT");
 
 // Update user's heartbeat and presence
-async function updateHeartbeat(user: any, supabase: any) {
+async function updateHeartbeat(user: { id: string }, supabase: TypedSupabaseClient) {
   try {
     const now = new Date().toISOString();
 

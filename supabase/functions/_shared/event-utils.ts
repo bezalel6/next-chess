@@ -28,9 +28,9 @@ export enum EventType {
 export async function recordEvent(
   supabase: TypedSupabaseClient,
   type: EventType,
-  data: Record<string, any>,
+  data: Record<string, unknown>,
   userId?: string,
-  metadata: Record<string, any> = {},
+  metadata: Record<string, unknown> = {},
 ): Promise<void> {
   try {
     logger.debug(`Recording event: ${type}`, { userId, ...data });

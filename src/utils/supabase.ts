@@ -16,7 +16,7 @@ export const supabase = supabaseBrowser();
  */
 export const invokeWithAuth = async (
   functionName: string,
-  params: { body: Record<string, any> },
+  params: { body: Record<string, unknown> },
 ) => {
   // First attempt to get the session
   const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();

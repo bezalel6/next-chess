@@ -3,7 +3,7 @@ interface ErrorContext {
   action?: string;
   userId?: string;
   gameId?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface ErrorLog {

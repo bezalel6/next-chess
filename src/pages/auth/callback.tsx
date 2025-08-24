@@ -63,7 +63,7 @@ export default function AuthCallback() {
           const { error: verifyError } = await sb.auth.verifyOtp({
             type: type === 'signup' ? 'signup' : 'magiclink',
             token_hash: tokenHash,
-          } as any);
+          });
           if (verifyError) {
             console.error("verifyOtp failed:", verifyError);
             setStatus("error");
@@ -122,7 +122,7 @@ export default function AuthCallback() {
           setStatus("creating");
 
           const username =
-            (session.user.user_metadata as any)?.username ||
+            (session.user.user_metadata as Record<string, unknown>)?.username as string ||
             session.user.email?.split("@")[0] ||
             `user_${userId.slice(0, 8)}`;
 

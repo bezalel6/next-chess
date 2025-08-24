@@ -113,7 +113,7 @@ export const BugReportDialogInner: React.FC<BugReportDialogProps> = ({ open, onC
   };
 
   const handleSelectChange = (field: keyof BugReport) => (
-    event: any
+    event: { target: { value: unknown } }
   ) => {
     setFormData(prev => ({
       ...prev,
@@ -172,7 +172,7 @@ export const BugReportDialogInner: React.FC<BugReportDialogProps> = ({ open, onC
             const next = [...prev];
             res.forEach((r, idx) => {
               const i = startIndex + idx;
-              next[i] = (r as any).ufsUrl || r.appUrl;
+              next[i] = (r as unknown as { ufsUrl?: string; appUrl: string }).ufsUrl || r.appUrl;
             });
             return next;
           });
@@ -289,7 +289,7 @@ export const BugReportDialogInner: React.FC<BugReportDialogProps> = ({ open, onC
                 if (res && res[0]?.url) {
                   setUploadedUrls((prev) => {
                     const next = [...prev];
-                    next[next.length - 1] = (res[0] as any).ufsUrl || res[0].appUrl;
+                    next[next.length - 1] = (res[0] as unknown as { ufsUrl?: string; appUrl: string }).ufsUrl || res[0].appUrl;
                     return next;
                   });
                   setUploadProgress(100);
@@ -326,7 +326,7 @@ export const BugReportDialogInner: React.FC<BugReportDialogProps> = ({ open, onC
                 if (res && res[0]?.url) {
                   setUploadedUrls((prev) => {
                     const next = [...prev];
-                    next[next.length - 1] = (res[0] as any).ufsUrl || res[0].appUrl;
+                    next[next.length - 1] = (res[0] as unknown as { ufsUrl?: string; appUrl: string }).ufsUrl || res[0].appUrl;
                     return next;
                   });
                   setUploadProgress(100);

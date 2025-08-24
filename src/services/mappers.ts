@@ -2,9 +2,9 @@
 import type { Game } from '@/types/game';
 
 // Convert server (possibly snake_case) to client camelCase Game
-export function toClientGame(server: any): Game {
+export function toClientGame(server: Record<string, unknown>): Game {
   if (!server) return server as Game;
-  const g = server as any;
+  const g = server as Record<string, unknown>;
   return {
     ...server,
     id: g.id,
@@ -24,9 +24,9 @@ export function toClientGame(server: any): Game {
   } as Game;
 }
 
-export function toClientMove(server: any) {
+export function toClientMove(server: Record<string, unknown>) {
   if (!server) return server;
-  const m = server as any;
+  const m = server as Record<string, unknown>;
   return {
     from: m.from,
     to: m.to,
@@ -37,9 +37,9 @@ export function toClientMove(server: any) {
   };
 }
 
-export function toClientBan(server: any) {
+export function toClientBan(server: Record<string, unknown>) {
   if (!server) return server;
-  const b = server as any;
+  const b = server as Record<string, unknown>;
   return {
     from: b.from,
     to: b.to,

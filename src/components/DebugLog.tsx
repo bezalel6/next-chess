@@ -48,7 +48,7 @@ export default function DebugLog() {
     filter.types.has(log.type) && filter.categories.has(log.category)
   );
   
-  const copyLog = (log: any) => {
+  const copyLog = (log: unknown) => {
     navigator.clipboard.writeText(JSON.stringify(log, null, 2));
   };
   

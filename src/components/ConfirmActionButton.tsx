@@ -1,4 +1,5 @@
 import { IconButton, Tooltip } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material';
 import { useState, useEffect } from 'react';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
@@ -9,8 +10,8 @@ interface ConfirmActionButtonProps {
   confirmTooltip?: string;
   onConfirm: () => void;
   color?: 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success';
-  sx?: any;
-  confirmSx?: any;
+  sx?: SxProps<Theme>;
+  confirmSx?: SxProps<Theme>;
   autoResetDelay?: number;
   size?: 'small' | 'medium' | 'large';
 }

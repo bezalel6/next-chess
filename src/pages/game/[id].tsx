@@ -37,8 +37,8 @@ export default function GamePage() {
         
         // Build move history from ban_history and move_history
         const history: HistoryEntry[] = [];
-        const bans = (game.ban_history as any[]) || [];
-        const moves = (game.move_history as any[]) || [];
+        const bans = (game.ban_history as unknown[]) || [];
+        const moves = (game.move_history as unknown[]) || [];
         
         // Process history in sequence
         let turnNumber = 1;

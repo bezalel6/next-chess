@@ -5,6 +5,7 @@ import {
   Typography,
 } from '@mui/material';
 import { supabaseBrowser } from '@/utils/supabase-browser';
+import { getErrorMessage } from '@/utils/type-guards';
 
 interface NewsItem {
   id: string;
@@ -49,8 +50,8 @@ export default function NewsFeed() {
       
       // Use empty array for now
       setNewsItems([]);
-    } catch (err: any) {
-      console.error('Error fetching news:', err);
+    } catch (err) {
+      console.error('Error fetching news:', getErrorMessage(err));
     } finally {
       setLoading(false);
     }

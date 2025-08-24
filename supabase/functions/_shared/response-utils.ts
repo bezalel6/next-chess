@@ -4,7 +4,7 @@ import { corsHeaders } from "./auth-utils.ts";
 /**
  * Response types to standardize API responses
  */
-export type ApiResponse<T = any> = {
+export type ApiResponse<T = unknown> = {
   success: boolean;
   data?: T;
   error?: string;
@@ -48,7 +48,7 @@ export function successResponse<T>(
 export function errorResponse(
   message: string,
   status = 400,
-  errorDetails?: any,
+  errorDetails?: unknown,
 ): Response {
   // Log errors for easier debugging
   console.error(`[ERROR] ${message}`, errorDetails || "");
@@ -72,10 +72,11 @@ export function errorResponse(
 /**
  * Standardized handler for database errors
  */
-export function handleDbError(error: any, operation: string): Response {
-  console.error(`[DB ERROR] ${operation}: ${error.message}`, error);
+export function handleDbError(error: unknown, operation: string): Response {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`[DB ERROR] ${operation}: ${errorMessage}`, error);
   return errorResponse(
-    `Database error during ${operation}: ${error.message}`,
+    `Database error during ${operation}: ${errorMessage}`,
     500,
     error,
   );
@@ -84,12 +85,12 @@ export function handleDbError(error: any, operation: string): Response {
 /**
  * Handles unexpected errors in edge functions
  */
-export function handleUnexpectedError(error: any, context?: string): Response {
+export function handleUnexpectedError(error: unknown, context?: string): Response {
   const message = context
-    ? `Error in ${context}: ${error.message}`
-    : error.message;
+    ? `Error in ${context}: ${error instanceof Error ? error.message : String(error)}`
+    : error instanceof Error ? error.message : String(error);
 
   console.error(`[UNEXPECTED ERROR] ${message}`, error);
 
-  return errorResponse(`Internal server error: ${error.message}`, 500, error);
+  return errorResponse(`Internal server error: ${error instanceof Error ? error.message : String(error)}`, 500, error);
 }

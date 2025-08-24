@@ -21,7 +21,7 @@ const Layout = ({ children }: LayoutProps) => {
     setMounted(true);
   }, []);
 
-  const handleReportBug = (errorDetails: any) => {
+  const handleReportBug = (errorDetails: unknown) => {
     bugReportRef.current?.openWithError(errorDetails);
     hideError();
   };

@@ -10,8 +10,8 @@ export interface BrowserInfo {
 
 export interface BugReportData {
   currentPath: string;
-  query: Record<string, any>;
-  [key: string]: any; // Allow additional properties for JSON compatibility
+  query: Record<string, unknown>;
+  [key: string]: unknown; // Allow additional properties for JSON compatibility
 }
 
 export interface BugReport {
@@ -93,12 +93,12 @@ export class BugReportService {
         actual_behavior: report.actual_behavior ? sanitizeText(report.actual_behavior, 1000) : null,
         user_email: user_email ? sanitizeText(user_email, 100) : null,
         user_id,
-        browser_info: browser_info as unknown as any,
+        browser_info: browser_info as unknown,
         page_url: sanitizeText(page_url, 500),
         screenshot_url: screenshotUrl ? sanitizeText(screenshotUrl, 500) : null,
-        additional_data: report.additional_data as unknown as any,
+        additional_data: report.additional_data as unknown,
         created_at: new Date().toISOString()
-      } as any;
+      };
 
       const { data, error } = await supabase
         .from('bug_reports')

@@ -33,7 +33,7 @@ const UserSchemas = {
   WebhookParams: z.object({
     user: z.object({
       id: uuidSchema,
-      user_metadata: z.record(z.any()).optional()
+      user_metadata: z.record(z.unknown()).optional()
     })
   })
 };

@@ -2,7 +2,7 @@ import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 
 export default [
-{ ignores: ['node_modules/**', '.next/**', 'dist/**', 'supabase/**', 'tests/**'] },
+{ ignores: ['node_modules/**', '.next/**', 'dist/**', 'supabase/**', 'tests/**', 'scripts/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   // Global rule adjustments

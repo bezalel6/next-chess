@@ -7,11 +7,16 @@ let refreshPromise: Promise<boolean> | null = null;
 type NotifyFunction = (message: string, severity?: 'error' | 'warning' | 'info' | 'success') => void;
 
 export const handleAuthError = async (
-    error: any, 
+    error: { status?: number; message?: string } | unknown, 
     notify?: NotifyFunction
 ): Promise<boolean> => {
     // Check if this is an auth error (401 or 406)
-    if (error?.status !== 401 && error?.status !== 406) {
+    if (typeof error === 'object' && error !== null && 'status' in error) {
+        const err = error as { status?: number };
+        if (err.status !== 401 && err.status !== 406) {
+            return false;
+        }
+    } else {
         return false;
     }
 

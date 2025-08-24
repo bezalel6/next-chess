@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import { supabaseBrowser } from "@/utils/supabase-browser";
 import { useRouter } from "next/router";
+import { getErrorMessage } from '@/utils/type-guards';
 
 // Custom error classes
 export class UsernameExistsError extends Error {
@@ -90,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session.user);
       setSession(session);
       // Set a provisional username from metadata to avoid UI gaps
-      const metaUsername = (session.user.user_metadata as any)?.username || null;
+      const metaUsername = (session.user.user_metadata as Record<string, unknown>)?.username as string || null;
       if (metaUsername && !profileUsername) {
         setProfileUsername(metaUsername);
       }
@@ -260,10 +261,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         // Check for specific error types
-        if (error.message?.includes("already registered")) {
+        if (getErrorMessage(error).includes("already registered")) {
           throw new Error("Email already registered");
         }
-        throw new Error(error.message || "Sign up failed");
+        throw new Error(getErrorMessage(error) || "Sign up failed");
       }
 
       if (!data.user) {
@@ -291,13 +292,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: data.user,
         message: "Account created successfully!",
       };
-    } catch (error: any) {
+    } catch (error) {
       if (error instanceof UsernameExistsError) {
         throw error;
       }
 
       // Handle other errors
-      throw new Error(error.message || "Sign up failed");
+      throw new Error(getErrorMessage(error) || "Sign up failed");
     }
   };
 
@@ -320,7 +321,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       console.error("Guest sign in error:", error);
-      throw new Error(`Failed to sign in as guest: ${error.message}`);
+      throw new Error(`Failed to sign in as guest: ${getErrorMessage(error)}`);
     }
 
     if (!data.user) {

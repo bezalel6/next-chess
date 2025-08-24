@@ -7,6 +7,7 @@ import type { GameMatch } from "../types/realtime";
 import { useAuth } from "./AuthContext";
 import { useNotification } from "./NotificationContext";
 import { useAuthErrorHandler } from "@/hooks/useAuthErrorHandler";
+import { getErrorMessage } from '@/utils/type-guards';
 
 interface QueueState {
     inQueue: boolean;
@@ -220,7 +221,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
             try {
                 // Also unsubscribe matchmaking live metrics channel
                 queueChannel?.unsubscribe();
-            } catch {}
+            } catch {
+                // Ignore unsubscribe errors
+            }
         };
         // needs to stay without the queue deps
          
@@ -242,17 +245,18 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     setQueue(prev => ({ ...prev, inQueue: false }));
                     addLogEntry("Left matchmaking queue");
                     notifyInfo("Left matchmaking queue");
-                } catch (error: any) {
+                } catch (error) {
                     console.error('Error leaving queue:', error);
                     
                     // Check if it's an auth error
-                    if (error?.message?.includes('401') || error?.message?.includes('406')) {
+                    const errorMessage = getErrorMessage(error);
+                    if (errorMessage.includes('401') || errorMessage.includes('406')) {
                         await handleAuthErrorWithNotification({ status: 401 });
                     } else {
-                        notifyError(`Failed to leave queue: ${error.message || 'Unknown error'}`);
+                        notifyError(`Failed to leave queue: ${errorMessage || 'Unknown error'}`);
                     }
                     
-                    addLogEntry(`Error leaving queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    addLogEntry(`Error leaving queue: ${errorMessage}`);
                 }
             } else {
                 // Check if we're already in a game
@@ -273,7 +277,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     }
                 } catch (error) {
                     console.error('Error checking active games:', error);
-                    addLogEntry(`Error checking active games: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    addLogEntry(`Error checking active games: ${getErrorMessage(error)}`);
                 }
 
                 // Join the queue using the matchmaking service
@@ -282,12 +286,13 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                     setQueue(prev => ({ ...prev, inQueue: true }));
                     addLogEntry("Joined matchmaking queue");
                     notifySuccess("Joined matchmaking queue");
-                } catch (error: any) {
+                } catch (error) {
                     console.error('Error joining queue:', error);
                     
                     // Check if it's an auth error
-                    if (error?.message?.includes('401') || error?.message?.includes('406') || 
-                        error?.message?.includes('not authenticated') || error?.message?.includes('non-2xx')) {
+                    const errorMessage = getErrorMessage(error);
+                    if (errorMessage.includes('401') || errorMessage.includes('406') || 
+                        errorMessage.includes('not authenticated') || errorMessage.includes('non-2xx')) {
                         // Try to refresh the session
                         const refreshed = await handleAuthErrorWithNotification({ status: 401 });
                         
@@ -304,19 +309,19 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                             } catch (retryError) {
                                 console.error('Error joining queue after refresh:', retryError);
                                 notifyError("Failed to join matchmaking queue. Please try again.");
-                                addLogEntry(`Error joining queue: ${retryError instanceof Error ? retryError.message : 'Unknown error'}`);
+                                addLogEntry(`Error joining queue: ${getErrorMessage(retryError)}`);
                             }
                         }
                     } else {
                         // Non-auth error
-                        notifyError(`Failed to join queue: ${error.message || 'Unknown error'}`);
-                        addLogEntry(`Error joining queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                        notifyError(`Failed to join queue: ${errorMessage || 'Unknown error'}`);
+                        addLogEntry(`Error joining queue: ${errorMessage}`);
                     }
                 }
             }
         } catch (error) {
             console.error('Error toggling queue:', error);
-            addLogEntry(`Error toggling queue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            addLogEntry(`Error toggling queue: ${getErrorMessage(error)}`);
         }
     };
 

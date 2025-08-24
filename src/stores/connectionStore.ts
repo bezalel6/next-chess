@@ -3,6 +3,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase';
 import type { GameMatch } from '@/types/realtime';
 import { MatchmakingService } from '@/services/matchmakingService';
+import { getErrorMessage } from '@/utils/type-guards';
 
 interface QueueState {
   inQueue: boolean;
@@ -60,11 +61,15 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     try {
       // Teardown any existing channels first
       if (presenceChannel) {
-        try { presenceChannel.unsubscribe(); } catch {}
+        try { presenceChannel.unsubscribe(); } catch {
+          // Ignore unsubscribe errors
+        }
         presenceChannel = null;
       }
       if (playerChannel) {
-        try { playerChannel.unsubscribe(); } catch {}
+        try { playerChannel.unsubscribe(); } catch {
+          // Ignore unsubscribe errors
+        }
         playerChannel = null;
       }
 
@@ -108,11 +113,11 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 
         pch
           .on('broadcast', { event: 'game_matched' }, (payload) => {
-            const { gameId, isWhite, opponentId } = (payload as any).payload || {};
+            const { gameId, isWhite, opponentId } = (payload as Record<string, unknown>).payload as Record<string, unknown> || {};
             if (gameId) {
               get().addLog(`Game matched! Game ID: ${gameId}`);
               set({
-                matchDetails: { gameId, isWhite, opponentId } as any,
+                matchDetails: { gameId: gameId as string, isWhite: isWhite as boolean, opponentId: opponentId as string },
                 queue: { ...get().queue, inQueue: false, position: 0 },
               });
             }
@@ -136,14 +141,16 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
                 set((s) => ({ queue: { ...s.queue, inQueue: true } }));
                 get().addLog('Detected existing queue entry');
               } else if (status?.activeGame && status?.game?.id) {
-                set({ matchDetails: { gameId: status.game.id, isWhite: undefined as any, opponentId: undefined as any } });
+                set({ matchDetails: { gameId: status.game.id, isWhite: undefined, opponentId: undefined } });
                 get().addLog(`Detected active game: ${status.game.id}`);
               }
             } catch (e) {
               // Non-fatal
             }
           }
-        } catch {}
+        } catch {
+          // Ignore errors
+        }
       }
     } catch (e) {
       console.warn('[connectionStore] startPresence error', e);
@@ -155,13 +162,17 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       if (presenceChannel) {
         presenceChannel.unsubscribe();
       }
-    } catch {}
+    } catch {
+      // Ignore unsubscribe errors
+    }
     presenceChannel = null;
     try {
       if (playerChannel) {
         playerChannel.unsubscribe();
       }
-    } catch {}
+    } catch {
+      // Ignore unsubscribe errors
+    }
     playerChannel = null;
   },
 
@@ -181,8 +192,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
           await MatchmakingService.leaveQueue(session);
           set({ queue: { ...state.queue, inQueue: false, position: 0 } });
           get().addLog('Left matchmaking queue');
-        } catch (error: any) {
-          get().addLog(`Error leaving queue: ${error?.message || 'unknown'}`);
+        } catch (error) {
+          get().addLog(`Error leaving queue: ${getErrorMessage(error) || 'unknown'}`);
         }
       } else {
         // Check if user already has active game
@@ -195,7 +206,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
             .limit(1);
           if (activeGames && activeGames.length > 0) {
             const gameId = activeGames[0].id;
-            set({ matchDetails: { gameId, isWhite: undefined as any, opponentId: undefined as any } });
+            set({ matchDetails: { gameId, isWhite: undefined, opponentId: undefined } });
             get().addLog(`Already in an active game: ${gameId}`);
             return;
           }
@@ -209,8 +220,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
           await MatchmakingService.joinQueue(session);
           set({ queue: { ...state.queue, inQueue: true } });
           get().addLog('Joined matchmaking queue');
-        } catch (error: any) {
-          get().addLog(`Error joining queue: ${error?.message || 'unknown'}`);
+        } catch (error) {
+          get().addLog(`Error joining queue: ${getErrorMessage(error) || 'unknown'}`);
         }
       }
     } catch (e) {

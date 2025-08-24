@@ -10,7 +10,7 @@ const logger = createLogger("ROUTER");
 
 export type RequestHandler = (
   user: User,
-  params: any,
+  params: Record<string, unknown>,
   supabase: SupabaseClient,
 ) => Promise<Response>;
 
@@ -34,7 +34,7 @@ export function createRouter(routes: RouteDefinition[]) {
   // Return the router handler function
   return async (
     user: User,
-    body: any,
+    body: Record<string, unknown>,
     supabase: SupabaseClient,
   ): Promise<Response> => {
     const { operation, ...params } = body;
@@ -73,7 +73,8 @@ export function createRouter(routes: RouteDefinition[]) {
       return await route.handler(user, params, supabase);
     } catch (error) {
       logger.error(`Error executing handler for ${operation}:`, error);
-      return errorResponse(`Error executing operation: ${error.message}`, 500);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return errorResponse(`Error executing operation: ${errorMessage}`, 500);
     }
   };
 }

@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Button, Container, Paper, Typography, Box, Alert, Grid } from '@mui/material';
 import { createClient } from '@supabase/supabase-js';
+import { getErrorMessage } from '@/utils/type-guards';
 
 // Create two separate Supabase clients for two players
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export default function TestTwoPlayers() {
-  const [player1, setPlayer1] = useState<any>(null);
-  const [player2, setPlayer2] = useState<any>(null);
+  const [player1, setPlayer1] = useState<Record<string, unknown> | null>(null);
+  const [player2, setPlayer2] = useState<Record<string, unknown> | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [gameState, setGameState] = useState<any>(null);
+  const [gameState, setGameState] = useState<Record<string, unknown> | null>(null);
   
   // Create two players and a game
   const setupGame = async () => {
@@ -61,8 +62,8 @@ export default function TestTwoPlayers() {
       setGameId(game.id);
       setGameState(game);
       setError(null);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     }
   };
   
@@ -85,8 +86,8 @@ export default function TestTwoPlayers() {
       
       setGameState(prev => ({ ...prev, ...data }));
       setError(null);
-    } catch (err: any) {
-      setError(`Black ban error: ${err.message}`);
+    } catch (err) {
+      setError(`Black ban error: ${getErrorMessage(err)}`);
     }
   };
   
@@ -109,8 +110,8 @@ export default function TestTwoPlayers() {
       
       setGameState(prev => ({ ...prev, ...data }));
       setError(null);
-    } catch (err: any) {
-      setError(`White move error: ${err.message}`);
+    } catch (err) {
+      setError(`White move error: ${getErrorMessage(err)}`);
     }
   };
   
@@ -133,8 +134,8 @@ export default function TestTwoPlayers() {
       
       setGameState(prev => ({ ...prev, ...data }));
       setError(null);
-    } catch (err: any) {
-      setError(`White ban error: ${err.message}`);
+    } catch (err) {
+      setError(`White ban error: ${getErrorMessage(err)}`);
     }
   };
   

@@ -39,13 +39,13 @@ export interface BrowserInfo {
   language: string
   screenResolution: string
   viewport: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 // Additional data structure for extensibility
 export interface AdditionalData {
-  gameState?: any
+  gameState?: unknown
   errorLogs?: string[]
-  customFields?: Record<string, any>
-  [key: string]: any
+  customFields?: Record<string, unknown>
+  [key: string]: unknown
 }

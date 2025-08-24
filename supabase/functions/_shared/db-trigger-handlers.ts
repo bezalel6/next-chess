@@ -22,7 +22,7 @@ interface GameCreationResult {
   id: string;
   white_player_id: string;
   black_player_id: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 
@@ -186,7 +186,8 @@ export async function createGameFromMatchedPlayers(
     return successResponse({ game }, "Game created", 200);
   } catch (error) {
     logger.error("Error creating game from matched players:", error);
-    return errorResponse(`Internal server error: ${error.message}`, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Internal server error: ${errorMessage}`, 500);
   }
 }
 
@@ -204,7 +205,8 @@ export async function processMatchmakingQueue(
     return await createGameFromMatchedPlayers(supabase);
   } catch (error) {
     logger.error("Error processing matchmaking queue:", error);
-    return errorResponse(`Internal server error: ${error.message}`, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Internal server error: ${errorMessage}`, 500);
   }
 }
 
@@ -214,7 +216,7 @@ export async function processMatchmakingQueue(
  */
 export async function handleDbTriggerOperation(
   user: User | null,
-  params: any,
+  params: Record<string, unknown>,
   supabase: TypedSupabaseClient,
 ): Promise<Response> {
   try {
@@ -235,6 +237,7 @@ export async function handleDbTriggerOperation(
     }
   } catch (error) {
     logger.error("Error in database trigger handler:", error);
-    return errorResponse(`Internal server error: ${error.message}`, 500);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Internal server error: ${errorMessage}`, 500);
   }
 }

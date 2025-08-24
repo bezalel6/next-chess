@@ -12,12 +12,12 @@ interface Position {
 
 interface Size {
   width: number;
-  height: number;
+  height: number | string;
 }
 
 export default function DraggableNewsFeed() {
   const [position, setPosition] = useState<Position>({ x: 20, y: 100 });
-  const [size, setSize] = useState<Size>({ width: 280, height: 'auto' as any });
+  const [size, setSize] = useState<Size>({ width: 280, height: 'auto' });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 });

@@ -151,7 +151,7 @@ export class GameService {
     return data || [];
   }
 
-  static subscribeToGame(gameId: string, onUpdate: (payload: any) => void) {
+  static subscribeToGame(gameId: string, onUpdate: (payload: Record<string, unknown>) => void) {
     const channel = supabase
       .channel(`game:${gameId}`)
       .on('broadcast', { event: 'game_update' }, ({ payload }) => {
@@ -237,13 +237,13 @@ export class GameService {
 
     if (error) throw error;
     
-    return (data || []).map((msg: any) => ({
+    return (data || []).map((msg: Record<string, unknown>) => ({
       id: msg.id,
       gameId: msg.game_id,
       senderId: msg.sender_id,
       senderName: msg.sender?.username,
       content: msg.content,
-      type: msg.message_type as any,
+      type: msg.message_type as string,
       timestamp: new Date(msg.created_at),
       metadata: {},
     }));
@@ -262,7 +262,7 @@ export class GameService {
     // Check if response has error structure
     if (response.data && !response.data.success && response.data.error) {
       // This is actually an error response from our edge function
-      const err: any = new Error(response.data.error);
+      const err = new Error(response.data.error) as Error & { details?: unknown; data?: unknown; statusCode?: number };
       err.details = response.data.data;
       err.data = response.data.data;
       err.statusCode = response.data.statusCode;
@@ -271,7 +271,7 @@ export class GameService {
 
     if (response.error) {
       // This is a Supabase error
-      const err: any = new Error(response.error.message || 'Failed to join queue');
+      const err = new Error(response.error.message || 'Failed to join queue');
       throw err;
     }
     

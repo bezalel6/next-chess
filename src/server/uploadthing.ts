@@ -21,7 +21,7 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       // Use ufsUrl (v8+) with fallback to appUrl for compatibility
-      const fileUrl = (file as any).ufsUrl || file.appUrl;
+      const fileUrl = (file as unknown as { ufsUrl?: string; appUrl: string }).ufsUrl || file.appUrl;
       console.log("Bug report screenshot uploaded:", fileUrl);
       console.log("Upload metadata:", metadata);
       

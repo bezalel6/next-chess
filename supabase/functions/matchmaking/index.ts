@@ -731,7 +731,7 @@ async function debugLog(
     entityType: string;
     entityId: string;
     userId?: string;
-    data?: Record<string, any>;
+    data?: Record<string, unknown>;
   },
 ) {
   if (Deno.env.get("DEBUG_MATCHMAKING")) {
@@ -761,7 +761,7 @@ async function logEvent(
     entityType: string;
     entityId: string;
     userId?: string;
-    data?: Record<string, any>;
+    data?: Record<string, unknown>;
   },
 ) {
   try {

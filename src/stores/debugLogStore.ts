@@ -6,7 +6,7 @@ export interface LogEntry {
   type: 'broadcast-sent' | 'broadcast-received' | 'api-call' | 'api-response' | 'error' | 'info' | 'state-change';
   category: 'move' | 'ban' | 'game' | 'connection' | 'other';
   message: string;
-  data?: any;
+  data?: unknown;
   direction?: 'in' | 'out';
 }
 
@@ -28,12 +28,12 @@ interface DebugLogStore {
   toggleCategoryFilter: (category: LogEntry['category']) => void;
   
   // Helper methods for common log types
-  logBroadcastSent: (event: string, payload: any) => void;
-  logBroadcastReceived: (event: string, payload: any) => void;
-  logApiCall: (operation: string, params: any) => void;
-  logApiResponse: (operation: string, response: any) => void;
-  logError: (message: string, error: any) => void;
-  logStateChange: (state: string, data: any) => void;
+  logBroadcastSent: (event: string, payload: unknown) => void;
+  logBroadcastReceived: (event: string, payload: unknown) => void;
+  logApiCall: (operation: string, params: unknown) => void;
+  logApiResponse: (operation: string, response: unknown) => void;
+  logError: (message: string, error: unknown) => void;
+  logStateChange: (state: string, data: unknown) => void;
 }
 
 export const useDebugLogStore = create<DebugLogStore>((set, get) => ({

@@ -24,7 +24,7 @@ export function log(
   level: LogLevel,
   module: string,
   message: string,
-  data?: any,
+  data?: unknown,
 ): void {
   // Skip logging if below current level
   if (level < CURRENT_LOG_LEVEL) {
@@ -48,13 +48,13 @@ export function log(
  */
 export function createLogger(module: string) {
   return {
-    debug: (message: string, data?: any) =>
+    debug: (message: string, data?: unknown) =>
       log(LogLevel.DEBUG, module, message, data),
-    info: (message: string, data?: any) =>
+    info: (message: string, data?: unknown) =>
       log(LogLevel.INFO, module, message, data),
-    warn: (message: string, data?: any) =>
+    warn: (message: string, data?: unknown) =>
       log(LogLevel.WARN, module, message, data),
-    error: (message: string, data?: any) =>
+    error: (message: string, data?: unknown) =>
       log(LogLevel.ERROR, module, message, data),
   };
 }

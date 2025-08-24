@@ -8,6 +8,21 @@ import GameLayout from '@/components/GameLayout';
 import type { HistoryEntry } from '@/components/MoveHistoryTable';
 import type { Tables } from '@/types/database';
 
+// Types for database history entries
+interface BanHistoryEntry {
+  from: string;
+  to: string;
+  color: 'white' | 'black';
+}
+
+interface MoveHistoryEntry {
+  from: string;
+  to: string;
+  color: 'white' | 'black';
+  san?: string;
+  uci?: string;
+}
+
 type GameData = Tables<'games'>;
 
 export default function GamePage() {
@@ -37,8 +52,8 @@ export default function GamePage() {
         
         // Build move history from ban_history and move_history
         const history: HistoryEntry[] = [];
-        const bans = (game.ban_history as unknown[]) || [];
-        const moves = (game.move_history as unknown[]) || [];
+        const bans = (game.ban_history as unknown as BanHistoryEntry[]) || [];
+        const moves = (game.move_history as unknown as MoveHistoryEntry[]) || [];
         
         // Process history in sequence
         let turnNumber = 1;
@@ -53,25 +68,25 @@ export default function GamePage() {
           // Black bans (restricts White's move)
           if (banIndex < bans.length && bans[banIndex]?.color === 'black') {
             currentEntry.turnNumber = turnNumber;
-            currentEntry.whiteBan = `${bans[banIndex].from}→${bans[banIndex].to}`;
+            currentEntry.whiteBan = `${bans[banIndex]!.from}→${bans[banIndex]!.to}`;
             banIndex++;
           }
           
           // White moves
           if (moveIndex < moves.length && moves[moveIndex]?.color === 'white') {
-            currentEntry.whiteMove = moves[moveIndex].san || moves[moveIndex].uci;
+            currentEntry.whiteMove = moves[moveIndex]!.san || moves[moveIndex]!.uci;
             moveIndex++;
           }
           
           // White bans (restricts Black's move)
           if (banIndex < bans.length && bans[banIndex]?.color === 'white') {
-            currentEntry.blackBan = `${bans[banIndex].from}→${bans[banIndex].to}`;
+            currentEntry.blackBan = `${bans[banIndex]!.from}→${bans[banIndex]!.to}`;
             banIndex++;
           }
           
           // Black moves
           if (moveIndex < moves.length && moves[moveIndex]?.color === 'black') {
-            currentEntry.blackMove = moves[moveIndex].san || moves[moveIndex].uci;
+            currentEntry.blackMove = moves[moveIndex]!.san || moves[moveIndex]!.uci;
             moveIndex++;
             
             // Complete turn after Black's move

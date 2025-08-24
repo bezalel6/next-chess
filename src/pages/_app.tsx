@@ -35,7 +35,7 @@ const defaultPageProps: PageProps = {
 // Load RQ Devtools only if explicitly enabled via env and only on client
 const ReactQueryDevtools = env.NEXT_PUBLIC_ENABLE_RQ_DEVTOOLS === "1"
   ? dynamic(() => import("@tanstack/react-query-devtools").then(m => m.ReactQueryDevtools), { ssr: false })
-  : (() => null as React.ComponentType);
+  : (() => null) as React.ComponentType<{ initialIsOpen?: boolean; buttonPosition?: string }>;
 
 const MyApp: AppType<PageProps> = ({ Component, pageProps }) => {
   const router = useRouter();

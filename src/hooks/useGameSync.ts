@@ -1,6 +1,13 @@
 import { useEffect } from 'react';
 import { GameService } from '@/services/gameService';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
+import type { Tables } from '@/types/database';
+
+// Type for game update payload
+interface GameUpdatePayload {
+  game?: Tables<'games'>;
+  new?: Tables<'games'>;
+}
 
 export function useGameSync(gameId: string | undefined) {
   const loadGame = useUnifiedGameStore(s => s.loadGame);
@@ -16,7 +23,7 @@ export function useGameSync(gameId: string | undefined) {
     });
     
     // Subscribe to updates
-    const unsubscribe = GameService.subscribeToGame(gameId, (payload) => {
+    const unsubscribe = GameService.subscribeToGame(gameId, (payload: GameUpdatePayload) => {
       if (payload.game) {
         loadGame(gameId, payload.game);
       } else if (payload.new) {

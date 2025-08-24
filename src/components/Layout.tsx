@@ -8,6 +8,14 @@ import { ErrorToast, useErrorToast } from "./ErrorToast";
 import type { ReactNode } from "react";
 import { useEffect, useState, useRef } from "react";
 
+// ErrorDetails type
+interface ErrorDetails {
+  message: string;
+  stack?: string;
+  componentStack?: string;
+  timestamp: string;
+}
+
 interface LayoutProps {
   children: ReactNode;
 }
@@ -22,7 +30,21 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
 
   const handleReportBug = (errorDetails: unknown) => {
-    bugReportRef.current?.openWithError(errorDetails);
+    // Type guard and conversion for error details
+    const formattedError: ErrorDetails = {
+      message: typeof errorDetails === 'object' && errorDetails !== null && 'message' in errorDetails 
+        ? String((errorDetails as { message: unknown }).message)
+        : String(errorDetails),
+      stack: typeof errorDetails === 'object' && errorDetails !== null && 'stack' in errorDetails 
+        ? String((errorDetails as { stack: unknown }).stack)
+        : undefined,
+      componentStack: typeof errorDetails === 'object' && errorDetails !== null && 'componentStack' in errorDetails 
+        ? String((errorDetails as { componentStack: unknown }).componentStack)
+        : undefined,
+      timestamp: new Date().toISOString(),
+    };
+    
+    bugReportRef.current?.openWithError(formattedError);
     hideError();
   };
 

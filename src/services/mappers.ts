@@ -1,27 +1,39 @@
 // Normalization utilities for server <-> client data shapes
 import type { Game } from '@/types/game';
+import type { BanChess } from 'ban-chess.ts';
 
 // Convert server (possibly snake_case) to client camelCase Game
 export function toClientGame(server: Record<string, unknown>): Game {
-  if (!server) return server as Game;
+  if (!server) return server as unknown as Game;
   const g = server as Record<string, unknown>;
-  return {
-    ...server,
-    id: g.id,
-    pgn: g.pgn ?? g.pgn_text ?? null,
-    currentFen: g.currentFen ?? g.current_fen ?? g.fen ?? '',
-    turn: g.turn ?? g.current_turn ?? 'white',
-    status: g.status ?? g.game_status ?? 'active',
-    banningPlayer: g.banningPlayer ?? g.banning_player ?? null,
+  
+  // Create a properly typed Game object with default values
+  const gameBase = {
+    id: String(g.id || ''),
+    pgn: (g.pgn ?? g.pgn_text ?? null) as string | null,
+    currentFen: String(g.currentFen ?? g.current_fen ?? g.fen ?? ''),
+    turn: (g.turn ?? g.current_turn ?? 'white') as 'white' | 'black',
+    status: (g.status ?? g.game_status ?? 'active') as 'active' | 'completed' | 'abandoned',
+    banningPlayer: (g.banningPlayer ?? g.banning_player ?? null) as 'white' | 'black' | null,
     currentBannedMove: g.currentBannedMove ?? g.current_banned_move ?? null,
-    whitePlayer: g.whitePlayer ?? g.white_player ?? g.white_username ?? null,
-    blackPlayer: g.blackPlayer ?? g.black_player ?? g.black_username ?? null,
-    whitePlayerId: g.whitePlayerId ?? g.white_player_id ?? null,
-    blackPlayerId: g.blackPlayerId ?? g.black_player_id ?? null,
+    whitePlayer: (g.whitePlayer ?? g.white_player ?? g.white_username ?? null) as string | null,
+    blackPlayer: (g.blackPlayer ?? g.black_player ?? g.black_username ?? null) as string | null,
+    whitePlayerId: String(g.whitePlayerId ?? g.white_player_id ?? ''),
+    blackPlayerId: String(g.blackPlayerId ?? g.black_player_id ?? ''),
     lastMove: g.lastMove ?? g.last_move ?? null,
-    result: g.result ?? null,
-    endReason: g.endReason ?? g.end_reason ?? null,
-  } as Game;
+    result: (g.result ?? null) as 'white' | 'black' | 'draw' | null,
+    endReason: (g.endReason ?? g.end_reason ?? null) as string | null,
+    // Add required Game properties with defaults
+    engine: null as BanChess | null, // BanChess engine - will be set by the calling code
+    lastAction: null,
+    startTime: Date.now(),
+    lastMoveTime: Date.now(),
+    drawOfferedBy: null,
+    rematchOfferedBy: null,
+    parentGameId: null
+  };
+  
+  return { ...server, ...gameBase } as unknown as Game;
 }
 
 export function toClientMove(server: Record<string, unknown>) {

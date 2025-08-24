@@ -31,7 +31,7 @@ export default function DebugLog() {
   const toggleTypeFilter = useDebugLogStore(s => s.toggleTypeFilter);
   const toggleCategoryFilter = useDebugLogStore(s => s.toggleCategoryFilter);
   
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState<boolean>(true);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedLog, setSelectedLog] = useState<string | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -269,7 +269,7 @@ export default function DebugLog() {
                   )}
                 </Box>
                 
-                <Collapse in={selectedLog === log.id && log.data}>
+                <Collapse in={selectedLog === log.id && Boolean(log.data)}>
                   <Box 
                     sx={{ 
                       mt: 0.5, 

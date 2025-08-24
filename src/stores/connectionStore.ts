@@ -140,9 +140,12 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
               if (status?.inQueue) {
                 set((s) => ({ queue: { ...s.queue, inQueue: true } }));
                 get().addLog('Detected existing queue entry');
-              } else if (status?.activeGame && status?.game?.id) {
-                set({ matchDetails: { gameId: status.game.id, isWhite: undefined, opponentId: undefined } });
-                get().addLog(`Detected active game: ${status.game.id}`);
+              } else if (status?.activeGame && status?.game) {
+                const game = status.game as Record<string, unknown>;
+                if (game.id && typeof game.id === 'string') {
+                  set({ matchDetails: { gameId: game.id, isWhite: undefined, opponentId: undefined } });
+                  get().addLog(`Detected active game: ${game.id}`);
+                }
               }
             } catch (e) {
               // Non-fatal

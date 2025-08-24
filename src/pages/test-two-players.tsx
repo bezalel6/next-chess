@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Button, Container, Paper, Typography, Box, Alert, Grid } from '@mui/material';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, type Session } from '@supabase/supabase-js';
 import { getErrorMessage } from '@/utils/type-guards';
 
 // Create two separate Supabase clients for two players
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+interface PlayerState {
+  id: string;
+  client: SupabaseClient;
+  session: Session;
+}
+
 export default function TestTwoPlayers() {
-  const [player1, setPlayer1] = useState<Record<string, unknown> | null>(null);
-  const [player2, setPlayer2] = useState<Record<string, unknown> | null>(null);
+  const [player1, setPlayer1] = useState<PlayerState | null>(null);
+  const [player2, setPlayer2] = useState<PlayerState | null>(null);
   const [gameId, setGameId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gameState, setGameState] = useState<Record<string, unknown> | null>(null);
@@ -27,14 +33,17 @@ export default function TestTwoPlayers() {
       const { data: auth2, error: error2 } = await client2.auth.signInAnonymously();
       if (error2) throw error2;
       
+      if (!auth1.user?.id || !auth1.session) throw new Error('Player 1 auth failed');
+      if (!auth2.user?.id || !auth2.session) throw new Error('Player 2 auth failed');
+      
       setPlayer1({
-        id: auth1.user?.id,
+        id: auth1.user.id,
         client: client1,
         session: auth1.session
       });
       
       setPlayer2({
-        id: auth2.user?.id,
+        id: auth2.user.id,
         client: client2,
         session: auth2.session
       });
@@ -177,7 +186,7 @@ export default function TestTwoPlayers() {
               <Typography variant="h6">Player 1 (White)</Typography>
               {player1 && (
                 <>
-                  <Typography variant="body2">ID: {player1.id}</Typography>
+                  <Typography variant="body2">ID: {String(player1.id)}</Typography>
                   <Box sx={{ mt: 2 }}>
                     <Button 
                       variant="contained" 
@@ -205,7 +214,7 @@ export default function TestTwoPlayers() {
               <Typography variant="h6">Player 2 (Black)</Typography>
               {player2 && (
                 <>
-                  <Typography variant="body2">ID: {player2.id}</Typography>
+                  <Typography variant="body2">ID: {String(player2.id)}</Typography>
                   <Box sx={{ mt: 2 }}>
                     <Button 
                       variant="contained" 
@@ -225,10 +234,10 @@ export default function TestTwoPlayers() {
           <Paper sx={{ p: 2, mt: 3, bgcolor: 'grey.100' }}>
             <Typography variant="h6">Game State</Typography>
             <Typography variant="body2">Game ID: {gameId}</Typography>
-            <Typography variant="body2">State: {gameState?.ban_chess_state}</Typography>
-            <Typography variant="body2">Turn: {gameState?.turn}</Typography>
-            <Typography variant="body2">Banning Player: {gameState?.banning_player}</Typography>
-            <Typography variant="body2">FEN: {gameState?.current_fen}</Typography>
+            <Typography variant="body2">State: {String(gameState?.ban_chess_state || 'N/A')}</Typography>
+            <Typography variant="body2">Turn: {String(gameState?.turn || 'N/A')}</Typography>
+            <Typography variant="body2">Banning Player: {String(gameState?.banning_player || 'N/A')}</Typography>
+            <Typography variant="body2">FEN: {String(gameState?.current_fen || 'N/A')}</Typography>
           </Paper>
         )}
       </Paper>

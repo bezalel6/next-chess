@@ -1,6 +1,6 @@
 import { supabase, invokeWithAuth } from "../utils/supabase";
 import type { PlayerColor } from "@/types/game";
-import type { ChatMessage } from "@/types/chat";
+import type { ChatMessage, ChatMessageType } from "@/types/chat";
 import { BanChess } from "ban-chess.ts";
 import type { Tables } from "@/types/database";
 
@@ -237,16 +237,31 @@ export class GameService {
 
     if (error) throw error;
     
-    return (data || []).map((msg: Record<string, unknown>) => ({
-      id: msg.id,
-      gameId: msg.game_id,
-      senderId: msg.sender_id,
-      senderName: msg.sender?.username,
-      content: msg.content,
-      type: msg.message_type as string,
-      timestamp: new Date(msg.created_at),
-      metadata: {},
-    }));
+    return (data || []).map((msg: Record<string, unknown>) => {
+      // Type guard to ensure required properties exist
+      if (
+        typeof msg.id !== 'string' ||
+        typeof msg.game_id !== 'string' ||
+        typeof msg.sender_id !== 'string' ||
+        typeof msg.content !== 'string' ||
+        typeof msg.created_at !== 'string'
+      ) {
+        throw new Error('Invalid message data structure');
+      }
+      
+      const sender = msg.sender as Record<string, unknown> | null;
+      
+      return {
+        id: msg.id,
+        gameId: msg.game_id,
+        senderId: msg.sender_id,
+        senderName: sender?.username ? String(sender.username) : undefined,
+        content: msg.content,
+        type: (msg.message_type as ChatMessageType) || 'player',
+        timestamp: new Date(msg.created_at),
+        metadata: {},
+      };
+    });
   }
 
   // Matchmaking

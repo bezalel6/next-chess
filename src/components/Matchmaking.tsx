@@ -18,6 +18,13 @@ import {
 import { SportsEsports, Cancel, Computer, OpenInNew, Flag } from '@mui/icons-material';
 import { getErrorMessage } from '@/utils/type-guards';
 
+// Type for game match payload
+interface GameMatchPayload {
+  new?: {
+    id: string;
+  };
+}
+
 export default function Matchmaking() {
   const [searching, setSearching] = useState(false);
   const [timeInQueue, setTimeInQueue] = useState(0);
@@ -66,7 +73,7 @@ export default function Matchmaking() {
           table: 'games',
           filter: `white_player_id=eq.${user.id}`,
         },
-        (payload) => {
+        (payload: GameMatchPayload) => {
           // New game created where we're white
           if (payload.new && payload.new.id) {
             console.log('Game matched as white! Redirecting to:', payload.new.id);
@@ -86,7 +93,7 @@ export default function Matchmaking() {
           table: 'games',
           filter: `black_player_id=eq.${user.id}`,
         },
-        (payload) => {
+        (payload: GameMatchPayload) => {
           // New game created where we're black
           if (payload.new && payload.new.id) {
             console.log('Game matched as black! Redirecting to:', payload.new.id);
@@ -128,7 +135,18 @@ export default function Matchmaking() {
       const errorMessage = getErrorMessage(error);
       if (errorMessage.includes('already has an active game')) {
         // Extract game ID from error details if available
-        const gameId = (error as Record<string, unknown>)?.details?.gameId as string || (error as Record<string, unknown>)?.data?.gameId as string;
+        let gameId: string | undefined;
+        if (error && typeof error === 'object') {
+          const errorObj = error as Record<string, unknown>;
+          if (errorObj.details && typeof errorObj.details === 'object') {
+            const details = errorObj.details as Record<string, unknown>;
+            gameId = typeof details.gameId === 'string' ? details.gameId : undefined;
+          }
+          if (!gameId && errorObj.data && typeof errorObj.data === 'object') {
+            const data = errorObj.data as Record<string, unknown>;
+            gameId = typeof data.gameId === 'string' ? data.gameId : undefined;
+          }
+        }
         setError({ 
           message: 'You already have an active game', 
           gameId 

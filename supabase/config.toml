@@ -1,4 +1,3 @@
-# Cleaned Supabase config.toml
 project_id = "next-chess"
 
 [api]
@@ -46,7 +45,7 @@ subject = "BanChess · Confirm your signup"
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.invite]
-subject = "BanChess · You’ve been invited"
+subject = "BanChess · You've been invited"
 content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.magic_link]
@@ -81,37 +80,10 @@ client_id = "907502703164-g5of7ia6g6i48cafibflb0aj2ac87v3l.apps.googleuserconten
 secret = "env(GOOGLE_CLIENT_SECRET)"
 skip_nonce_check = false
 
-# Auth Hooks
-# Example HTTP hook configuration - uncomment and modify as needed
-[auth.hook.custom_access_token]
-enabled = false
-# uri = "http://host.docker.internal:54321/functions/v1/custom_access_token"
-# secrets = "env(CUSTOM_ACCESS_TOKEN_HOOK_SECRET)"
-
-[auth.hook.send_email]
-enabled = false
-# uri = "http://host.docker.internal:54321/functions/v1/send_email"
-# secrets = "env(SEND_EMAIL_HOOK_SECRET)"
-
-[auth.hook.send_sms]
-enabled = false
-# uri = "http://host.docker.internal:54321/functions/v1/send_sms"
-# secrets = "env(SEND_SMS_HOOK_SECRET)"
-
-[auth.hook.mfa_verification_attempt]
-enabled = false
-# uri = "http://host.docker.internal:54321/functions/v1/mfa_verification"
-# secrets = "env(MFA_VERIFICATION_HOOK_SECRET)"
-
-[auth.hook.password_verification_attempt]
-enabled = false
-# uri = "http://host.docker.internal:54321/functions/v1/password_verification"
-# secrets = "env(PASSWORD_VERIFICATION_HOOK_SECRET)"
-
-# Before User Created Hook
-# This hook runs before a user is inserted into the database
 [auth.hook.before_user_created]
 enabled = true
-# Use localhost:54321 which is the Edge Functions runtime
+# IMPORTANT: This URI only works for local development (Docker container communication)
+# For production, configure the hook URI via Supabase Dashboard after deploying Edge Function
+# Production URI format: https://<project-ref>.supabase.co/functions/v1/user-management-hook
 uri = "http://host.docker.internal:54321/functions/v1/user-management-hook"
 secrets = "env(BEFORE_USER_CREATED_HOOK_SECRET)"

@@ -30,7 +30,8 @@
     "functions:secrets:push": "supabase secrets set --env-file supabase/functions/.env",
     "functions:secrets:list": "supabase secrets list",
     "templates:push": "node scripts/push-email-templates.js",
-    "templates:check": "node scripts/check-email-templates.js"
+    "templates:check": "node scripts/check-email-templates.js",
+    "config:push": "node scripts/push-remote-config.js"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",

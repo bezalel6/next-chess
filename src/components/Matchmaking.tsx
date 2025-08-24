@@ -49,19 +49,51 @@ export default function Matchmaking() {
   useEffect(() => {
     if (!searching || !user) return;
     
-    // Subscribe to player channel for game match notifications
-    const channel = supabase
-      .channel(`player:${user.id}`)
-      .on('broadcast', { event: 'game_matched' }, (payload) => {
-        // Game matched via matchmaking
-        if (payload.payload?.gameId) {
-          router.push(`/game/${payload.payload.gameId}`);
+    // Subscribe to games table for new games where we're a player
+    // We need two separate subscriptions since Supabase doesn't support OR in filters
+    const channelWhite = supabase
+      .channel(`game-matches-white-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'games',
+          filter: `white_player_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // New game created where we're white
+          if (payload.new && payload.new.id) {
+            console.log('Game matched as white! Redirecting to:', payload.new.id);
+            router.push(`/game/${payload.new.id}`);
+          }
         }
-      })
+      )
+      .subscribe();
+      
+    const channelBlack = supabase
+      .channel(`game-matches-black-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'games',
+          filter: `black_player_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // New game created where we're black
+          if (payload.new && payload.new.id) {
+            console.log('Game matched as black! Redirecting to:', payload.new.id);
+            router.push(`/game/${payload.new.id}`);
+          }
+        }
+      )
       .subscribe();
     
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channelWhite);
+      supabase.removeChannel(channelBlack);
     };
   }, [searching, user, router]);
   

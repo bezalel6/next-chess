@@ -471,6 +471,7 @@ async function processMatchmakingQueue(supabase: TypedSupabaseClient) {
           pgn: "",
           turn: "white",
           banning_player: "black",
+          ban_chess_state: "waiting_for_ban", // Initial state for Ban Chess
           time_control: {
             initial_time: timeControl.initialTime,
             increment: timeControl.increment,
@@ -666,28 +667,43 @@ async function notifyGameChange(
   game: GameRecord,
 ) {
   async function send(uid: string) {
-    // Create channel with the same name the client is listening to
-    const channel = supabase.channel(`player:${uid}`);
-    
-    // Send the broadcast directly without subscribing
-    // The client is already subscribed to this channel
-    const result = await channel.send({
-      type: "broadcast",
-      event: "game_matched",
-      payload: {
-        gameId: game.id,
-        isWhite: game.white_player_id === uid,
-        opponentId:
-          uid === game.black_player_id
-            ? game.white_player_id
-            : game.black_player_id,
-      },
-    });
-    
-    // Note: We don't unsubscribe because we never subscribed
-    // The channel will be garbage collected
-    
-    return result === "ok";
+    try {
+      // Create channel with the same name the client is listening to
+      const channel = supabase.channel(`player:${uid}`);
+      
+      logger.info(`Subscribing to channel player:${uid}`);
+      
+      // Subscribe to the channel first (required for broadcasts to work)
+      const status = await channel.subscribe();
+      logger.info(`Channel subscription status for player:${uid}: ${status}`);
+      
+      // Wait a moment for subscription to be ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Send the broadcast
+      const result = await channel.send({
+        type: "broadcast",
+        event: "game_matched",
+        payload: {
+          gameId: game.id,
+          isWhite: game.white_player_id === uid,
+          opponentId:
+            uid === game.black_player_id
+              ? game.white_player_id
+              : game.black_player_id,
+        },
+      });
+      
+      logger.info(`Broadcast result for player:${uid}: ${result}`);
+      
+      // Clean up the channel subscription
+      await supabase.removeChannel(channel);
+      
+      return result === "ok";
+    } catch (error) {
+      logger.error(`Failed to send notification to ${uid}: ${error.message}`);
+      return false;
+    }
   }
   try {
     logger.info(`Game update notification: ${game.id}`);

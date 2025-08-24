@@ -9,9 +9,10 @@ import {
   Typography, 
   Button, 
   CircularProgress,
-  Fade 
+  Fade,
+  Divider 
 } from '@mui/material';
-import { SportsEsports, Cancel } from '@mui/icons-material';
+import { SportsEsports, Cancel, Computer } from '@mui/icons-material';
 
 export default function Matchmaking() {
   const [inQueue, setInQueue] = useState(false);
@@ -248,6 +249,18 @@ export default function Matchmaking() {
       <Typography variant="caption" display="block" sx={{ mt: 3, color: 'text.secondary' }}>
         10+0 • Rated
       </Typography>
+      
+      <Divider sx={{ my: 3 }} />
+      
+      <Button
+        variant="outlined"
+        onClick={() => router.push('/local')}
+        startIcon={<Computer />}
+        size="medium"
+        sx={{ mt: 1 }}
+      >
+        Play Offline
+      </Button>
     </Paper>
   );
 }

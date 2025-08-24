@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { BanChess } from '@/lib/simple-ban-chess';
+import { BanChess } from 'ban-chess.ts';
 import { GameService } from '@/services/gameService';
-import { Tables } from '@/types/database';
+import type { Tables } from '@/types/database';
 
 type GameData = Tables<'games'>;
 

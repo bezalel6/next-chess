@@ -2,7 +2,7 @@ import { useRouter } from 'next/router';
 import { useGameSync } from '@/hooks/useGameSync';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import { useAuth } from '@/contexts/AuthContext';
-import SimpleBoard from '@/components/SimpleBoard';
+// SimpleBoard removed - will be replaced with proper board
 
 export default function GamePage() {
   const router = useRouter();
@@ -39,7 +39,7 @@ export default function GamePage() {
       <h1>Ban Chess Game</h1>
       <div style={{ marginBottom: '20px' }}>
         <p><strong>Game ID:</strong> {gameId}</p>
-        <p><strong>Turn:</strong> {engine.turn === 'w' ? 'White' : 'Black'}</p>
+        <p><strong>Turn:</strong> {engine.turn === 'white' ? 'White' : 'Black'}</p>
         <p><strong>Next Action:</strong> {engine.nextActionType() === 'ban' ? 
           'Ban an opponent move' : 'Make a move'}</p>
         {engine.gameOver() && (
@@ -47,7 +47,15 @@ export default function GamePage() {
         )}
       </div>
       
-      <SimpleBoard engine={engine} onAction={handleAction} />
+      <div style={{ 
+        padding: '20px', 
+        border: '2px solid #ccc',
+        borderRadius: '4px',
+        backgroundColor: '#f5f5f5'
+      }}>
+        <p>Board component will be restored here</p>
+        <p>Current FEN: {engine.fen()}</p>
+      </div>
       
       <div style={{ marginTop: '20px' }}>
         <details>

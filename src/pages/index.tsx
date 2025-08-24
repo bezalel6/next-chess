@@ -3,7 +3,7 @@ import AuthForm from "@/components/auth-form";
 import MinimalNewsFeed from "@/components/MinimalNewsFeed";
 import DraggableNewsFeed from "@/components/DraggableNewsFeed";
 import Matchmaking from "@/components/Matchmaking";
-import { Box, Container, Typography, Fade, Paper } from "@mui/material";
+import { Box, Container, Typography, Fade, Paper, Button } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
@@ -170,6 +170,24 @@ export default function Home() {
                         Sign in to Play
                       </Typography>
                       <AuthForm redirectOnSuccess={false} />
+                      
+                      <Box sx={{ 
+                        mt: 3, 
+                        pt: 3, 
+                        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                        textAlign: 'center'
+                      }}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Or play offline without an account
+                        </Typography>
+                        <Button
+                          variant="outlined"
+                          onClick={() => router.push('/local')}
+                          sx={{ mt: 1 }}
+                        >
+                          Play Local Game
+                        </Button>
+                      </Box>
                     </Paper>
                   </Box>
                 )}

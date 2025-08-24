@@ -1,4 +1,4 @@
-import type { BanChess } from "@/lib/simple-ban-chess";
+import type { BanChess } from "ban-chess.ts";
 
 /**
  * Type definitions for color representations

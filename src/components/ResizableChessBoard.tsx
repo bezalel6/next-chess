@@ -1,14 +1,15 @@
 import { Box } from '@mui/material';
 import { useState, useRef, useEffect } from 'react';
-import LocalChessBoard from './LocalChessBoard';
+import BanChessBoard from './BanChessBoard';
 
 interface ResizableChessBoardProps {
   fen: string;
   onSquareClick: (square: string) => void;
   highlightedSquares: string[];
-  lastBan: { from: string; to: string } | null;
-  orientation: 'white' | 'black';
+  lastBan?: { from: string; to: string } | null;
+  orientation?: 'white' | 'black';
   isBanMode?: boolean;
+  disabled?: boolean;
 }
 
 export default function ResizableChessBoard(props: ResizableChessBoardProps) {
@@ -47,7 +48,7 @@ export default function ResizableChessBoard(props: ResizableChessBoardProps) {
         width: 600,
         height: 600,
       }}>
-        <LocalChessBoard {...props} />
+        <BanChessBoard {...props} />
       </Box>
     </Box>
   );

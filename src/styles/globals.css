@@ -1,3 +1,14 @@
+:root {
+  /* Chess board theme colors */
+  --board-light-square: #f0d9b5;
+  --board-dark-square: #b58863;
+  --move-indicator-color: 100, 111, 64; /* RGB values for rgba() */
+  --ban-indicator-color: 255, 0, 0; /* RGB values for rgba() */
+  --move-indicator-opacity: 0.7;
+  --ban-indicator-opacity: 0.4; /* Lower opacity for ban indicators to match visual weight */
+  --ban-overlay-opacity: 0.2;
+}
+
 html,
 body {
   padding: 0;

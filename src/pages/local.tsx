@@ -1,11 +1,8 @@
 import { useState, useCallback } from 'react';
 import { BanChess } from 'ban-chess.ts';
 import type { Action } from 'ban-chess.ts';
-import { Box, Paper, Typography, Button, Chip } from '@mui/material';
-import ResizableChessBoard from '@/components/ResizableChessBoard';
-import MoveHistoryTable from '@/components/MoveHistoryTable';
+import GameLayout from '@/components/GameLayout';
 import type { HistoryEntry } from '@/components/MoveHistoryTable';
-import { Refresh } from '@mui/icons-material';
 
 function LocalGamePage() {
   const [game, setGame] = useState(() => new BanChess());
@@ -135,91 +132,22 @@ function LocalGamePage() {
   const stalemate = game.inStalemate();
 
   return (
-    <Box sx={{ 
-      position: 'relative',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'flex-start',
-      pt: 4,
-      pb: 4,
-      minHeight: 'calc(100vh - 200px)', // Account for header and footer
-    }}>
-      {/* Board - Centered */}
-      <Paper elevation={3} sx={{ p: 1, bgcolor: 'background.paper' }}>
-        <ResizableChessBoard
-          fen={game.fen()}
-          onSquareClick={handleSquareClick}
-          highlightedSquares={highlightedSquares}
-          lastBan={lastBan}
-          orientation="white"
-          isBanMode={nextAction === 'ban'}
-        />
-      </Paper>
-
-      {/* Side Panel - Positioned absolutely */}
-      <Paper 
-        elevation={2} 
-        sx={{ 
-          position: 'absolute',
-          right: 20,
-          top: 60,
-          width: 280,
-          maxWidth: 280,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          height: 'fit-content',
-        }}
-      >
-        <MoveHistoryTable 
-          history={[...moveHistory, ...(currentEntry.turnNumber ? [currentEntry as HistoryEntry] : [])]}
-        />
-        
-        {/* Game Status and Controls */}
-        <Box sx={{ 
-          borderTop: 1, 
-          borderColor: 'divider',
-          p: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1.5,
-        }}>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            <Chip 
-              label={turn === 'white' ? 'White' : 'Black'}
-              size="small"
-              color={turn === 'white' ? 'default' : 'primary'}
-              sx={{ flex: 1, minWidth: 60 }}
-            />
-            <Chip 
-              label={nextAction === 'ban' ? 'Banning' : 'Moving'}
-              size="small"
-              color={nextAction === 'ban' ? 'error' : 'success'}
-              sx={{ flex: 1, minWidth: 70 }}
-            />
-          </Box>
-          
-          {inCheck && <Chip label="CHECK" size="small" color="warning" />}
-          {isGameOver && (
-            <Chip 
-              label={checkmate ? 'CHECKMATE' : stalemate ? 'STALEMATE' : 'GAME OVER'}
-              size="small"
-              color="error"
-            />
-          )}
-          
-          <Button
-            startIcon={<Refresh />}
-            onClick={resetGame}
-            size="small"
-            variant="contained"
-            fullWidth
-          >
-            New Game
-          </Button>
-        </Box>
-      </Paper>
-    </Box>
+    <GameLayout
+      fen={game.fen()}
+      onSquareClick={handleSquareClick}
+      highlightedSquares={highlightedSquares}
+      lastBan={lastBan}
+      orientation="white"
+      isBanMode={nextAction === 'ban'}
+      turn={turn}
+      nextAction={nextAction}
+      inCheck={inCheck}
+      isGameOver={isGameOver}
+      checkmate={checkmate}
+      stalemate={stalemate}
+      moveHistory={[...moveHistory, ...(currentEntry.turnNumber ? [currentEntry as HistoryEntry] : [])]}
+      onNewGame={resetGame}
+    />
   );
 }
 

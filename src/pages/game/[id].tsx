@@ -1,8 +1,14 @@
 import { useRouter } from 'next/router';
+import { useState, useCallback, useEffect } from 'react';
 import { useGameSync } from '@/hooks/useGameSync';
 import { useUnifiedGameStore } from '@/stores/unifiedGameStore';
 import { useAuth } from '@/contexts/AuthContext';
-// SimpleBoard removed - will be replaced with proper board
+import { GameService } from '@/services/gameService';
+import GameLayout from '@/components/GameLayout';
+import type { HistoryEntry } from '@/components/MoveHistoryTable';
+import type { Tables } from '@/types/database';
+
+type GameData = Tables<'games'>;
 
 export default function GamePage() {
   const router = useRouter();
@@ -12,57 +18,190 @@ export default function GamePage() {
   const engine = useUnifiedGameStore(s => s.engine);
   const playAction = useUnifiedGameStore(s => s.playAction);
   
+  const [gameData, setGameData] = useState<GameData | null>(null);
+  const [moveHistory, setMoveHistory] = useState<HistoryEntry[]>([]);
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
+  const [highlightedSquares, setHighlightedSquares] = useState<string[]>([]);
+  const [lastBan, setLastBan] = useState<{ from: string; to: string } | null>(null);
+  
   useGameSync(gameId as string);
   
-  if (!engine) {
+  // Load game data and build move history
+  useEffect(() => {
+    if (!gameId || typeof gameId !== 'string') return;
+    
+    const loadGameData = async () => {
+      const game = await GameService.loadGame(gameId);
+      if (game) {
+        setGameData(game);
+        
+        // Build move history from ban_history and move_history
+        const history: HistoryEntry[] = [];
+        const bans = (game.ban_history as any[]) || [];
+        const moves = (game.move_history as any[]) || [];
+        
+        // Process history in sequence
+        let turnNumber = 1;
+        let currentEntry: Partial<HistoryEntry> = {};
+        
+        // Interleave bans and moves according to Ban Chess flow
+        // Pattern: Black ban, White move, White ban, Black move, repeat...
+        let banIndex = 0;
+        let moveIndex = 0;
+        
+        while (banIndex < bans.length || moveIndex < moves.length) {
+          // Black bans (restricts White's move)
+          if (banIndex < bans.length && bans[banIndex]?.color === 'black') {
+            currentEntry.turnNumber = turnNumber;
+            currentEntry.whiteBan = `${bans[banIndex].from}→${bans[banIndex].to}`;
+            banIndex++;
+          }
+          
+          // White moves
+          if (moveIndex < moves.length && moves[moveIndex]?.color === 'white') {
+            currentEntry.whiteMove = moves[moveIndex].san || moves[moveIndex].uci;
+            moveIndex++;
+          }
+          
+          // White bans (restricts Black's move)
+          if (banIndex < bans.length && bans[banIndex]?.color === 'white') {
+            currentEntry.blackBan = `${bans[banIndex].from}→${bans[banIndex].to}`;
+            banIndex++;
+          }
+          
+          // Black moves
+          if (moveIndex < moves.length && moves[moveIndex]?.color === 'black') {
+            currentEntry.blackMove = moves[moveIndex].san || moves[moveIndex].uci;
+            moveIndex++;
+            
+            // Complete turn after Black's move
+            if (currentEntry.turnNumber) {
+              history.push(currentEntry as HistoryEntry);
+              currentEntry = {};
+              turnNumber++;
+            }
+          }
+          
+          // Handle incomplete turns
+          if (banIndex >= bans.length && moveIndex >= moves.length && currentEntry.turnNumber) {
+            history.push(currentEntry as HistoryEntry);
+            break;
+          }
+        }
+        
+        setMoveHistory(history);
+        
+        // Set last ban if there's a recent ban
+        if (bans.length > 0) {
+          const lastBanEntry = bans[bans.length - 1];
+          if (lastBanEntry) {
+            setLastBan({ from: lastBanEntry.from, to: lastBanEntry.to });
+          }
+        }
+      }
+    };
+    
+    loadGameData();
+    
+    // Subscribe to game updates
+    const unsubscribe = GameService.subscribeToGame(gameId, (payload) => {
+      if (payload.game || payload.new) {
+        loadGameData();
+      }
+    });
+    
+    return unsubscribe;
+  }, [gameId]);
+  
+  const handleSquareClick = useCallback(async (square: string) => {
+    if (!engine || engine.gameOver()) return;
+    
+    const nextType = engine.nextActionType();
+    
+    if (!selectedSquare) {
+      // First click - check if this square has any legal actions
+      let destinations: string[] = [];
+      
+      if (nextType === 'move') {
+        const moves = engine.legalMoves();
+        destinations = moves
+          .filter(m => m.from === square)
+          .map(m => m.to);
+      } else {
+        const bans = engine.legalBans();
+        destinations = bans
+          .filter(b => b.from === square)
+          .map(b => b.to);
+      }
+      
+      // Only select the square if it has legal destinations
+      if (destinations.length > 0) {
+        setSelectedSquare(square);
+        setHighlightedSquares(destinations);
+      }
+    } else {
+      // Second click - make the action
+      if (highlightedSquares.includes(square)) {
+        const action = nextType === 'move'
+          ? { move: { from: selectedSquare, to: square } }
+          : { ban: { from: selectedSquare, to: square } };
+        
+        try {
+          await playAction(action);
+          
+          // Update last ban if we just made a ban
+          if (nextType === 'ban') {
+            setLastBan({ from: selectedSquare, to: square });
+          } else {
+            setLastBan(null);
+          }
+        } catch (error) {
+          console.error('Action failed:', error);
+        }
+      }
+      
+      // Clear selection
+      setSelectedSquare(null);
+      setHighlightedSquares([]);
+    }
+  }, [engine, selectedSquare, highlightedSquares, playAction]);
+  
+  if (!engine || !gameData) {
     return <div style={{ padding: '20px' }}>Loading game...</div>;
   }
   
-  const handleAction = async (from: string, to: string) => {
-    console.log('handleAction called:', from, '->', to);
-    const nextType = engine.nextActionType();
-    const action = nextType === 'move'
-      ? { move: { from, to } }
-      : { ban: { from, to } };
-    
-    console.log('Sending action to server:', action);
-    try {
-      await playAction(action);
-      console.log('Action sent successfully');
-    } catch (error) {
-      console.error('Action failed:', error);
-    }
-  };
+  // Determine player colors
+  const myColor = user?.id === gameData.white_player_id ? 'white' : 
+                  user?.id === gameData.black_player_id ? 'black' : null;
+  const orientation = myColor || 'white';
+  
+  const turn = engine.turn;
+  const nextAction = engine.nextActionType();
+  const isGameOver = engine.gameOver();
+  const inCheck = engine.inCheck();
+  const checkmate = engine.inCheckmate();
+  const stalemate = engine.inStalemate();
+  
+  // Check if it's my turn
+  const isMyTurn = myColor === turn;
+  const boardDisabled = !isMyTurn || isGameOver;
   
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>Ban Chess Game</h1>
-      <div style={{ marginBottom: '20px' }}>
-        <p><strong>Game ID:</strong> {gameId}</p>
-        <p><strong>Turn:</strong> {engine.turn === 'white' ? 'White' : 'Black'}</p>
-        <p><strong>Next Action:</strong> {engine.nextActionType() === 'ban' ? 
-          'Ban an opponent move' : 'Make a move'}</p>
-        {engine.gameOver() && (
-          <p style={{ color: 'red', fontWeight: 'bold' }}>Game Over!</p>
-        )}
-      </div>
-      
-      <div style={{ 
-        padding: '20px', 
-        border: '2px solid #ccc',
-        borderRadius: '4px',
-        backgroundColor: '#f5f5f5'
-      }}>
-        <p>Board component will be restored here</p>
-        <p>Current FEN: {engine.fen()}</p>
-      </div>
-      
-      <div style={{ marginTop: '20px' }}>
-        <details>
-          <summary>FEN</summary>
-          <code>{engine.fen()}</code>
-        </details>
-      </div>
-    </div>
+    <GameLayout
+      fen={engine.fen()}
+      onSquareClick={handleSquareClick}
+      highlightedSquares={highlightedSquares}
+      lastBan={lastBan}
+      orientation={orientation as 'white' | 'black'}
+      isBanMode={nextAction === 'ban'}
+      boardDisabled={boardDisabled}
+      turn={turn}
+      nextAction={nextAction}
+      inCheck={inCheck}
+      isGameOver={isGameOver}
+      checkmate={checkmate}
+      stalemate={stalemate}
+      moveHistory={moveHistory}
+    />
   );
 }

@@ -152,6 +152,20 @@ const ConnectionIndicator: React.FC<ConnectionIndicatorProps> = ({
     }
   };
 
+  const formatBuildTimestamp = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "Unknown";
+    }
+  };
+
   const handleMouseDown = () => {
     setWasLongPress(false);
     const timer = setTimeout(() => {
@@ -274,21 +288,39 @@ const ConnectionIndicator: React.FC<ConnectionIndicatorProps> = ({
         >
           {getStatusIcon()}
 
-          <Typography
-            variant="caption"
-            sx={{
-              fontSize: "0.65rem",
-              color: "text.secondary",
-              fontWeight: 500,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {connectionStatus === "connected"
-              ? "Connected"
-              : connectionStatus === "connecting"
-                ? "..."
-                : "OFF"}
-          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: "0.65rem",
+                color: "text.secondary",
+                fontWeight: 500,
+                whiteSpace: "nowrap",
+                lineHeight: 1,
+              }}
+            >
+              {connectionStatus === "connected"
+                ? "Connected"
+                : connectionStatus === "connecting"
+                  ? "..."
+                  : "OFF"}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: "0.55rem",
+                color: "text.disabled",
+                whiteSpace: "nowrap",
+                lineHeight: 1,
+              }}
+            >
+              {process.env.NODE_ENV === "development"
+                ? "Dev"
+                : process.env.BUILD_TIMESTAMP
+                  ? formatBuildTimestamp(process.env.BUILD_TIMESTAMP)
+                  : "Prod"}
+            </Typography>
+          </Box>
 
           {heartbeat.isActive && isExpanded && (
             <Circle

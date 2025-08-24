@@ -2,22 +2,6 @@ import { Box, Typography, Link } from "@mui/material";
 import { GitHub } from "@mui/icons-material";
 
 const Footer = () => {
-  const formatTimestamp = (timestamp: string) => {
-    try {
-      const date = new Date(timestamp);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZoneName: "short",
-      });
-    } catch {
-      return "Unknown";
-    }
-  };
-
   return (
     <Box
       component="footer"
@@ -27,7 +11,6 @@ const Footer = () => {
         px: 2,
         borderTop: 1,
         borderColor: "divider",
-        position: "relative",
       }}
     >
       <Box
@@ -37,43 +20,76 @@ const Footer = () => {
           alignItems: "center",
         }}
       >
-        <Typography
-          variant="caption"
-          color="text.disabled"
-          sx={{
-            position: "absolute",
-            top: -4,
-          }}
-        >
-          {process.env.NODE_ENV === "development"
-            ? "Development Build"
-            : process.env.BUILD_TIMESTAMP
-              ? `Deployed: ${formatTimestamp(process.env.BUILD_TIMESTAMP)}`
-              : "Production Build"}
-        </Typography>
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             gap: 1,
+            position: "relative",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              inset: "-8px -16px",
+              background: "linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)",
+              borderRadius: 3,
+              opacity: 0,
+              transition: "opacity 0.3s ease",
+              pointerEvents: "none",
+            },
+            "&:hover::before": {
+              opacity: 1,
+            },
+            "&:hover .github-icon": {
+              animation: "tilt 0.3s ease-in-out",
+            },
+            "@keyframes tilt": {
+              "0%, 100%": { transform: "rotate(0deg) scale(1)" },
+              "50%": { transform: "rotate(15deg) scale(1.05)" },
+            },
           }}
         >
-          <Typography variant="body2" color="text.secondary">
-            Made by RNDev
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            •
+          <Typography 
+            variant="caption" 
+            color="text.secondary"
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              fontWeight: 500,
+              fontSize: "0.75rem",
+              transition: "all 0.3s ease",
+            }}
+          >
+            Made by{" "}
+            <Box
+              component="span"
+              sx={{
+                background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                fontWeight: 600,
+                fontSize: "1em",
+              }}
+            >
+              RNDev
+            </Box>
           </Typography>
           <Link
             href="https://github.com/bezalel6/ban-chess"
             target="_blank"
             rel="noopener noreferrer"
             color="text.secondary"
+            className="github-icon"
             sx={{
               display: "flex",
               alignItems: "center",
-              "&:hover": { color: "primary.main" },
+              transition: "color 0.3s ease",
+              "&:hover": { 
+                color: "primary.main",
+              },
             }}
+            title="View on GitHub"
           >
             <GitHub fontSize="small" />
           </Link>

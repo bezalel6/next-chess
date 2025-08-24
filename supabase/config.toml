@@ -82,17 +82,34 @@ secret = "env(GOOGLE_CLIENT_SECRET)"
 skip_nonce_check = false
 
 # Auth Hooks
+# Example HTTP hook configuration - uncomment and modify as needed
 [auth.hook.custom_access_token]
 enabled = false
+# uri = "http://host.docker.internal:54321/functions/v1/custom_access_token"
+# secrets = "env(CUSTOM_ACCESS_TOKEN_HOOK_SECRET)"
 
 [auth.hook.send_email]
 enabled = false
+# uri = "http://host.docker.internal:54321/functions/v1/send_email"
+# secrets = "env(SEND_EMAIL_HOOK_SECRET)"
 
 [auth.hook.send_sms]
 enabled = false
+# uri = "http://host.docker.internal:54321/functions/v1/send_sms"
+# secrets = "env(SEND_SMS_HOOK_SECRET)"
 
 [auth.hook.mfa_verification_attempt]
 enabled = false
+# uri = "http://host.docker.internal:54321/functions/v1/mfa_verification"
+# secrets = "env(MFA_VERIFICATION_HOOK_SECRET)"
 
 [auth.hook.password_verification_attempt]
 enabled = false
+# uri = "http://host.docker.internal:54321/functions/v1/password_verification"
+# secrets = "env(PASSWORD_VERIFICATION_HOOK_SECRET)"
+
+# Before User Created Hook (for Teams/Enterprise plans)
+# [auth.hook.before_user_created]
+# enabled = false
+# uri = "http://host.docker.internal:54321/functions/v1/before_user_created"
+# secrets = "env(BEFORE_USER_CREATED_HOOK_SECRET)"

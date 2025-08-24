@@ -57,6 +57,7 @@ export function errorResponse(
     success: false,
     error: message,
     statusCode: status,
+    ...(errorDetails && { data: errorDetails }),
   };
 
   return new Response(JSON.stringify(response), {

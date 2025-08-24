@@ -108,14 +108,6 @@ const config = {
     locales: ["en"],
     defaultLocale: "en",
   },
-  async rewrites() {
-    return [
-      {
-        source: "/@:username",
-        destination: "/users/:username",
-      },
-    ];
-  },
   async headers() {
     const isDev = process.env.NODE_ENV !== 'production';
     const connectSrc = [

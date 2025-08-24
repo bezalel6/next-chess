@@ -1,7 +1,6 @@
 import {
   Box,
   Typography,
-  Link,
   Button,
   useTheme,
   useMediaQuery,
@@ -10,13 +9,14 @@ import {
   useScrollTrigger,
   AppBar,
 } from "@mui/material";
-import { PersonOutline as PersonIcon } from "@mui/icons-material";
+import { LogoutOutlined } from "@mui/icons-material";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUnifiedGameStore } from "@/stores/unifiedGameStore";
 import React, { useState, useEffect } from "react";
 import TabDialog from "./TabDialog";
 import UserLink from "./user-link";
 import Logo from "./Logo";
+import { useRouter } from "next/router";
 
 // Hook for scroll-based header effects
 function useScrollEffect() {
@@ -29,12 +29,11 @@ function useScrollEffect() {
 }
 
 const Header = () => {
-  const { profileUsername, isAdmin } = useAuth();
-  const engine = useUnifiedGameStore(s => s.engine);
-  const myColor = useUnifiedGameStore(s => s.myColor);
+  const { profileUsername, signOut } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isScrolled = useScrollEffect();
+  const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
 
@@ -42,16 +41,13 @@ const Header = () => {
     setMounted(true);
   }, []);
 
-  // Display user info
-  const displayUserInfo = () => {
-    if (engine) {
-      if (myColor) {
-        return `${profileUsername || "You"} (${myColor})`;
-      } else {
-        return "Spectator";
-      }
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push('/');
+    } catch (error) {
+      console.error('Failed to sign out:', error);
     }
-    return profileUsername || "";
   };
 
   const navigationItems = [
@@ -125,6 +121,21 @@ const Header = () => {
                   <Fade in={mounted} timeout={1000}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <UserLink username={profileUsername} />
+                      <Button
+                        onClick={handleSignOut}
+                        size="small"
+                        startIcon={<LogoutOutlined />}
+                        sx={{
+                          textTransform: 'none',
+                          color: 'text.secondary',
+                          '&:hover': {
+                            color: 'text.primary',
+                            bgcolor: 'rgba(255, 255, 255, 0.08)',
+                          },
+                        }}
+                      >
+                        Sign Out
+                      </Button>
                     </Box>
                   </Fade>
                 )}
@@ -208,6 +219,21 @@ const Header = () => {
                   <Fade in={mounted} timeout={1000}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <UserLink username={profileUsername} />
+                      <Button
+                        onClick={handleSignOut}
+                        size="small"
+                        startIcon={<LogoutOutlined />}
+                        sx={{
+                          textTransform: 'none',
+                          color: 'text.secondary',
+                          '&:hover': {
+                            color: 'text.primary',
+                            bgcolor: 'rgba(255, 255, 255, 0.08)',
+                          },
+                        }}
+                      >
+                        Sign Out
+                      </Button>
                     </Box>
                   </Fade>
                 )}

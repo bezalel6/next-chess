@@ -10,14 +10,18 @@ import {
   Button, 
   CircularProgress,
   Fade,
-  Divider 
+  Divider,
+  Alert,
+  AlertTitle,
+  Stack
 } from '@mui/material';
-import { SportsEsports, Cancel, Computer } from '@mui/icons-material';
+import { SportsEsports, Cancel, Computer, OpenInNew, Flag } from '@mui/icons-material';
 
 export default function Matchmaking() {
-  const [inQueue, setInQueue] = useState(false);
   const [searching, setSearching] = useState(false);
   const [timeInQueue, setTimeInQueue] = useState(0);
+  const [error, setError] = useState<{ message: string; gameId?: string } | null>(null);
+  const [isResigning, setIsResigning] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
   
@@ -27,7 +31,6 @@ export default function Matchmaking() {
     // Check if already in queue
     GameService.checkMatchmakingStatus().then(status => {
       if (status) {
-        setInQueue(true);
         setSearching(true);
       }
     });
@@ -104,8 +107,8 @@ export default function Matchmaking() {
       return;
     }
     
+    setError(null);
     setSearching(true);
-    setInQueue(true);
     setTimeInQueue(0);
     
     try {
@@ -116,23 +119,51 @@ export default function Matchmaking() {
       // via the player:${user.id} channel with event 'game_matched'
       // The useEffect above is already listening for this notification
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to join queue:', error);
       setSearching(false);
-      setInQueue(false);
+      
+      // Check if the error is about having an active game
+      if (error?.message?.includes('already has an active game')) {
+        // Extract game ID from error details if available
+        const gameId = error?.details?.gameId || error?.data?.gameId;
+        setError({ 
+          message: 'You already have an active game', 
+          gameId 
+        });
+      } else {
+        setError({ message: error?.message || 'Failed to join queue' });
+      }
     }
   };
   
   const handleCancel = async () => {
     setSearching(false);
-    setInQueue(false);
     setTimeInQueue(0);
+    setError(null);
     
     try {
       // Use GameService to leave queue
       await GameService.leaveMatchmakingQueue();
     } catch (error) {
       console.error('Failed to leave queue:', error);
+    }
+  };
+  
+  const handleResignActiveGame = async () => {
+    if (!error?.gameId) return;
+    
+    setIsResigning(true);
+    try {
+      await GameService.resignGame(error.gameId);
+      setError(null);
+      // Try to join queue again after resigning
+      handleFindGame();
+    } catch (err) {
+      console.error('Failed to resign game:', err);
+      alert('Failed to resign the game. Please try again.');
+    } finally {
+      setIsResigning(false);
     }
   };
   
@@ -224,8 +255,44 @@ export default function Matchmaking() {
       </Typography>
       
       <Typography variant="body1" sx={{ mb: 4, color: 'text.secondary' }}>
-        In Ban Chess, before each move, you ban one of your opponent's legal moves!
+        In Ban Chess, before each move, you ban one of your opponent&apos;s legal moves!
       </Typography>
+      
+      {error && (
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 3, textAlign: 'left' }}
+        >
+          <AlertTitle>{error.message}</AlertTitle>
+          {error.gameId && (
+            <Stack spacing={1} sx={{ mt: 1 }}>
+              <Typography variant="body2">
+                You have an active game in progress.
+              </Typography>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => router.push(`/game/${error.gameId}`)}
+                  startIcon={<OpenInNew />}
+                >
+                  Go to Game
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  color="error"
+                  onClick={handleResignActiveGame}
+                  startIcon={<Flag />}
+                  disabled={isResigning}
+                >
+                  {isResigning ? 'Resigning...' : 'Resign Game'}
+                </Button>
+              </Stack>
+            </Stack>
+          )}
+        </Alert>
+      )}
       
       <Button
         variant="contained"

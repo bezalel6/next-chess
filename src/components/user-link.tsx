@@ -6,7 +6,7 @@ export default function UserLink({ username }: { username: string }) {
     const router = useRouter();
 
     const handleClick = () => {
-        router.push(`/@${username}`);
+        router.push(`/u/${username}`);
     };
 
     return (

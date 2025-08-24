@@ -86,18 +86,41 @@ Test entry: `tests/e2e/ban-chess.spec.ts`.
 A logic suite exists under `/test/logic-test` to exercise core Ban Chess flows in the browser.
 
 ## Authentication
-Client performs minimal validation; server performs enforcement via Supabase Auth webhook + `user-management` function.
+Client performs minimal validation; server performs enforcement via Supabase Auth webhook + hooks.
+
+### Key Components
 - `src/components/auth-form.tsx` — light Zod checks only
-- `src/contexts/AuthContext.tsx` — session validation/refresh
-- `supabase/functions/user-management/index.ts` — username policy + profile creation (handles both webhooks and authenticated API calls)
+- `src/contexts/AuthContext.tsx` — session validation/refresh (NO profile creation - handled by DB trigger)
+- `supabase/functions/user-management-hook/index.ts` — before_user_created hook for username validation
 - `src/pages/auth/callback.tsx` — post-signup redirect
+- `src/pages/auth/logout.tsx` & `src/pages/auth/signout.tsx` — unified logout pages
 
-**Note:** The user-management edge function handles three request types:
-1. Standard Webhooks (with webhook headers)
-2. Supabase Auth Hooks (specific body formats)
-3. Regular authenticated API calls (Bearer token)
+### Auth Hooks Configuration (Critical for Local Development)
+The `before_user_created` hook requires Edge Functions to be served with `--no-verify-jwt`:
+```bash
+npx supabase functions serve --no-verify-jwt --env-file supabase/functions/.env
+```
 
-See `docs/USER_MANAGEMENT_FIX.md` for details on the 2025-08-22 fix that properly routes these request types.
+### Profile Creation
+**IMPORTANT**: Profiles are created AUTOMATICALLY by the database trigger `handle_new_user()`. 
+- Client code should NEVER attempt to create profiles directly
+- The trigger handles both regular users (uses email) and guest users (generates guest_xxxxx username)
+- RLS policies only allow SELECT and UPDATE on profiles (no INSERT from client)
+
+See `docs/HOOK_AUTHENTICATION_FIX.md` for the complete fix details.
+
+## User Profiles
+User profiles are accessible at `/u/username` (Reddit-style routing).
+
+### Profile Page Features
+- User avatar and username display
+- Member since date
+- Game statistics (total games, wins, losses, draws, win rate)
+- Located at `src/pages/u/[username].tsx`
+
+### Profile Navigation
+- `src/components/user-link.tsx` — clickable username component that navigates to `/u/username`
+- No special rewrites needed - direct Next.js dynamic routing
 
 ## Important Notes
 - Server-authoritative move/ban validation
@@ -168,9 +191,18 @@ For comprehensive steps, keep using the "Supabase Troubleshooting Playbook" sect
 - **Matchmaking functional**: Guest users can join matchmaking queues
 - Further cleanup and optimization guidance is tracked in docs and research files.
 
-### Recent Fixes
-- Removed cascading settings trigger that was causing profile creation failures
-- Added proper permissions for `supabase_auth_admin` role
-- Guest users now get `guest_xxxxx` usernames automatically
+### Recent Fixes (2025-08-24)
+- **Hook Authentication Fix**: Resolved "Hook requires authorization token" error by serving Edge Functions with `--no-verify-jwt` flag
+  - Root cause: Kong API gateway was blocking Auth->EdgeFunction communication
+  - Solution: The `--no-verify-jwt` flag bypasses Kong's JWT requirement for local development
+- **Profile Creation**: Fixed RLS violation errors
+  - Removed client-side profile creation from AuthContext
+  - Profiles are created automatically by database trigger `handle_new_user()`
+  - Client should NEVER attempt to create profiles directly
+- **User Profiles**: Added Reddit-style user profile pages at `/u/username`
+  - Shows user stats, games played, win rate
+  - Fixed double header issue by removing Layout wrapper from profile page
+- **Auth Routes**: Added unified logout pages at `/auth/logout` and `/auth/signout`
+- **Matchmaking Error Handling**: Enhanced to show "Go to Game" and "Resign Game" options when user has active game
 
 - To get the database types to reflect the correct and up-to-date database, you will: apply       all the migrations to the local supabase, and once thats configured correctly, run npm typegn

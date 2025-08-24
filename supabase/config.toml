@@ -108,8 +108,10 @@ enabled = false
 # uri = "http://host.docker.internal:54321/functions/v1/password_verification"
 # secrets = "env(PASSWORD_VERIFICATION_HOOK_SECRET)"
 
-# Before User Created Hook (for Teams/Enterprise plans)
-# [auth.hook.before_user_created]
-# enabled = false
-# uri = "http://host.docker.internal:54321/functions/v1/before_user_created"
-# secrets = "env(BEFORE_USER_CREATED_HOOK_SECRET)"
+# Before User Created Hook
+# This hook runs before a user is inserted into the database
+[auth.hook.before_user_created]
+enabled = true
+# Use localhost:54321 which is the Edge Functions runtime
+uri = "http://host.docker.internal:54321/functions/v1/user-management-hook"
+secrets = "env(BEFORE_USER_CREATED_HOOK_SECRET)"

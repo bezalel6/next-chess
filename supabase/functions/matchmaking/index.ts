@@ -86,7 +86,7 @@ async function handleJoinQueue(user: User, supabase: TypedSupabaseClient) {
     logOperation("check active game", activeGameError);
 
     if (activeGames && activeGames.length > 0) {
-      return errorResponse("User already has an active game", 400);
+      return errorResponse("User already has an active game", 400, { gameId: activeGames[0].id });
     }
 
     // Check if already in queue

@@ -246,12 +246,27 @@ export class GameService {
     if (!session) throw new Error('Not authenticated');
 
     // Call the matchmaking edge function to join queue
-    const { data, error } = await supabase.functions.invoke('matchmaking', {
+    const response = await supabase.functions.invoke('matchmaking', {
       body: { operation: 'joinQueue' },
     });
 
-    if (error) throw error;
-    return data;
+    // Check if response has error structure
+    if (response.data && !response.data.success && response.data.error) {
+      // This is actually an error response from our edge function
+      const err: any = new Error(response.data.error);
+      err.details = response.data.data;
+      err.data = response.data.data;
+      err.statusCode = response.data.statusCode;
+      throw err;
+    }
+
+    if (response.error) {
+      // This is a Supabase error
+      const err: any = new Error(response.error.message || 'Failed to join queue');
+      throw err;
+    }
+    
+    return response.data;
   }
 
   static async leaveMatchmakingQueue() {

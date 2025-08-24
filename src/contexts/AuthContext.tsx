@@ -327,23 +327,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("No user returned from guest sign in");
     }
 
-    // Generate a unique guest username
-    const guestUsername = `guest_${Math.random().toString(36).substr(2, 9)}`;
-
-    // Create or update the profile with the guest username
-    const { error: profileError } = await supabaseBrowser()
+    // Profile is created automatically by database trigger
+    // Fetch the created profile to get the username
+    const { data: profile } = await supabaseBrowser()
       .from("profiles")
-      .upsert({
-        id: data.user.id,
-        username: guestUsername,
-      });
+      .select("username")
+      .eq("id", data.user.id)
+      .single();
 
-    if (profileError) {
-      console.error("Failed to create guest profile:", profileError);
+    if (profile?.username) {
+      setProfileUsername(profile.username);
     }
-
-    // Update local profile username
-    setProfileUsername(guestUsername);
   };
 
   const signInWithGoogle = async () => {

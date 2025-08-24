@@ -54,7 +54,7 @@ export function GameClock({
   const [localTime, setLocalTime] = useState(serverClock?.timeRemaining || timeControl.initialTime);
   const [isRunning, setIsRunning] = useState(false);
   const [colonVisible, setColonVisible] = useState(true);
-  const [lastSync, setLastSync] = useState(Date.now());
+  const [lastSync, setLastSync] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const colonIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const turnStartRef = useRef<number | null>(null);
@@ -150,6 +150,11 @@ export function GameClock({
       turnStartRef.current = null;
     }
   }, [isActive, isMyTurn, isRunning]);
+
+  // Initialize lastSync on client side to avoid hydration mismatch
+  useEffect(() => {
+    setLastSync(Date.now());
+  }, []);
 
   // Blink colon when running
   useEffect(() => {

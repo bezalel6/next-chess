@@ -39,20 +39,24 @@ export default function MinimalNewsFeed() {
       // setNewsItems(data || []);
       
       // Mock data for demonstration
+      // Use static dates to avoid hydration issues
+      const now = new Date('2025-01-01T00:00:00Z');
+      const yesterday = new Date('2024-12-31T00:00:00Z');
+      
       setNewsItems([
         {
           id: '1',
           title: 'Welcome to Ban Chess',
           content: 'Experience the strategic chess variant where you can ban your opponent\'s moves.',
           priority: 100,
-          created_at: new Date().toISOString(),
+          created_at: now.toISOString(),
         },
         {
           id: '2', 
           title: 'New Features',
           content: 'Real-time gameplay with move validation and ban mechanics now available.',
           priority: 90,
-          created_at: new Date(Date.now() - 86400000).toISOString(),
+          created_at: yesterday.toISOString(),
         },
       ]);
     } catch (err: any) {

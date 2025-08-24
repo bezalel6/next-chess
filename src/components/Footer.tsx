@@ -5,16 +5,16 @@ const Footer = () => {
   const formatTimestamp = (timestamp: string) => {
     try {
       const date = new Date(timestamp);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZoneName: 'short'
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
       });
     } catch {
-      return 'Unknown';
+      return "Unknown";
     }
   };
 
@@ -27,15 +27,30 @@ const Footer = () => {
         px: 2,
         borderTop: 1,
         borderColor: "divider",
+        position: "relative",
       }}
     >
       <Box
         sx={{
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent: "center",
           alignItems: "center",
         }}
       >
+        <Typography
+          variant="caption"
+          color="text.disabled"
+          sx={{
+            position: "absolute",
+            top: -4,
+          }}
+        >
+          {process.env.NODE_ENV === "development"
+            ? "Development Build"
+            : process.env.BUILD_TIMESTAMP
+              ? `Deployed: ${formatTimestamp(process.env.BUILD_TIMESTAMP)}`
+              : "Production Build"}
+        </Typography>
         <Box
           sx={{
             display: "flex",
@@ -44,7 +59,7 @@ const Footer = () => {
           }}
         >
           <Typography variant="body2" color="text.secondary">
-            Made with ❤️ by RNDev
+            Made by RNDev
           </Typography>
           <Typography variant="body2" color="text.secondary">
             •
@@ -63,14 +78,6 @@ const Footer = () => {
             <GitHub fontSize="small" />
           </Link>
         </Box>
-        <Typography variant="caption" color="text.disabled">
-          {process.env.NODE_ENV === 'development' 
-            ? 'Development Build' 
-            : process.env.BUILD_TIMESTAMP 
-              ? `Deployed: ${formatTimestamp(process.env.BUILD_TIMESTAMP)}`
-              : 'Production Build'
-          }
-        </Typography>
       </Box>
     </Box>
   );

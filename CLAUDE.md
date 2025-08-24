@@ -11,8 +11,22 @@ Real-time multiplayer chess with the Ban Chess variant. Before each turn, the no
 - Supabase (Database, Auth, Realtime, Edge Functions)
 - Material-UI (MUI) 5.15
 - Framer Motion 12
-- chess.ts 0.16 (rules engine)
+- ban-chess.ts 1.1.1 (ONLY chess library - handles both standard chess and Ban Chess variant)
 - Zustand 5 (state management)
+
+## CRITICAL: Chess Library Usage
+**IMPORTANT**: This project uses `ban-chess.ts` exclusively for ALL chess logic. This is a centralized library that handles:
+- Standard chess rules and move validation
+- Ban Chess variant mechanics
+- Game state management
+- FEN parsing and generation
+
+**DO NOT** use or import:
+- chess.js (deprecated)
+- chess.ts (replaced by ban-chess.ts)
+- Any other chess library
+
+All chess logic MUST go through the `ban-chess.ts` library to maintain consistency.
 
 ## Current Architecture (Unified, server-authoritative)
 - Single source of truth: The server (Supabase Edge Functions + Postgres) authoritatively validates moves and bans.

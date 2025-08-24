@@ -1,65 +1,7 @@
 /// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { Chess } from "https://esm.sh/chess.js@0.13.4";
-
-// Simple BanChess implementation for edge function
-class BanChess {
-  private chess: any;
-  private bannedMove: { from: string; to: string } | null = null;
-  private actionCount: number = 0;
-  
-  constructor(fen?: string) {
-    this.chess = new Chess(fen);
-  }
-  
-  get turn(): 'w' | 'b' {
-    return this.chess.turn();
-  }
-  
-  nextActionType(): 'ban' | 'move' {
-    if (this.actionCount === 0) return 'ban';
-    return this.actionCount % 2 === 0 ? 'ban' : 'move';
-  }
-  
-  play(action: any) {
-    if (action.ban) {
-      this.bannedMove = action.ban;
-      this.actionCount++;
-    } else if (action.move) {
-      if (this.bannedMove && 
-          this.bannedMove.from === action.move.from && 
-          this.bannedMove.to === action.move.to) {
-        throw new Error('Move is banned');
-      }
-      
-      this.chess.move({
-        from: action.move.from,
-        to: action.move.to,
-        promotion: action.move.promotion
-      });
-      
-      this.bannedMove = null;
-      this.actionCount++;
-    }
-  }
-  
-  fen(): string {
-    return this.chess.fen();
-  }
-  
-  gameOver(): boolean {
-    return this.chess.isGameOver();
-  }
-  
-  result(): string {
-    if (!this.gameOver()) return '*';
-    if (this.chess.isCheckmate()) {
-      return this.chess.turn() === 'w' ? '0-1' : '1-0';
-    }
-    return '1/2-1/2';
-  }
-}
+import { BanChess } from "https://esm.sh/ban-chess.ts@1.1.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,6 +15,17 @@ serve(async (req) => {
   }
 
   try {
+    // Log request details
+    console.log('[game-action] Request received:', {
+      method: req.method,
+      hasAuth: req.headers.has('Authorization'),
+      authHeader: req.headers.get('Authorization')?.substring(0, 50) + '...',
+      url: req.url,
+    });
+
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -83,30 +36,58 @@ serve(async (req) => {
       }
     );
 
-    // Get user
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    // Get user - pass the token directly
+    console.log('[game-action] Attempting to get user with token...');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    
+    if (authError) {
+      console.error('[game-action] Auth error:', authError.message, authError.code);
+    }
+    
     if (authError || !user) {
+      console.log('[game-action] Unauthorized - no user found');
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Unauthorized', details: authError?.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log('[game-action] User authenticated:', user.id);
 
     const { gameId, action } = await req.json();
+    console.log('[game-action] Request body:', { gameId, action });
 
     // Load game
+    console.log('[game-action] Loading game:', gameId);
     const { data: game, error: gameError } = await supabaseClient
       .from('games')
       .select('*, white_player:profiles!games_white_player_id_fkey(username), black_player:profiles!games_black_player_id_fkey(username)')
       .eq('id', gameId)
       .single();
 
-    if (gameError || !game) {
+    if (gameError) {
+      console.error('[game-action] Game load error:', gameError);
+      return new Response(
+        JSON.stringify({ error: 'Game not found', details: gameError.message }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (!game) {
+      console.log('[game-action] No game found with ID:', gameId);
       return new Response(
         JSON.stringify({ error: 'Game not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log('[game-action] Game loaded:', {
+      id: game.id,
+      white: game.white_player_id,
+      black: game.black_player_id,
+      state: game.ban_chess_state,
+      turn: game.turn
+    });
 
     // Check if user is a player in this game
     const isPlayer = user.id === game.white_player_id || user.id === game.black_player_id;
@@ -120,14 +101,32 @@ serve(async (req) => {
     // Load engine state - use current_fen, not ban_chess_state
     const engine = new BanChess(game.current_fen || undefined);
 
-    // Check if it's the player's turn
-    const turn = engine.turn();
-    const playerColor = user.id === game.white_player_id ? 'w' : 'b';
-    if (turn !== playerColor) {
-      return new Response(
-        JSON.stringify({ error: 'Not your turn' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Check if it's the player's turn for the current action
+    const playerColor = user.id === game.white_player_id ? 'white' : 'black';
+    
+    // For bans, check banning_player; for moves, check turn
+    if (action.ban) {
+      if (game.banning_player !== playerColor) {
+        console.log('[game-action] Not player turn to ban:', { 
+          banning_player: game.banning_player, 
+          playerColor 
+        });
+        return new Response(
+          JSON.stringify({ error: 'Not your turn to ban' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else if (action.move) {
+      if (game.turn !== playerColor) {
+        console.log('[game-action] Not player turn to move:', { 
+          turn: game.turn, 
+          playerColor 
+        });
+        return new Response(
+          JSON.stringify({ error: 'Not your turn to move' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Validate and play the action
@@ -143,7 +142,7 @@ serve(async (req) => {
     // Save the new state
     const newFen = engine.fen();
     const nextAction = engine.nextActionType();
-    const newTurn = engine.turn();
+    const newTurn = engine.turn; // turn is a property in ban-chess.ts, not a method
     
     const { error: updateError } = await supabaseClient
       .from('games')
@@ -210,8 +209,13 @@ serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error('[game-action] Unexpected error:', error);
+    console.error('[game-action] Error stack:', error.stack);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message || 'Internal server error',
+        details: error.toString()
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

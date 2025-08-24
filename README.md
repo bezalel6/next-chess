@@ -13,12 +13,15 @@ A real-time multiplayer chess application with a unique "ban move" mechanic. Bef
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14, TypeScript, Material-UI
-- **Backend**: Supabase (PostgreSQL, Realtime, Auth)
-- **Chess Logic**: Chess.ts library
-- **State Management**: Zustand + TanStack Query
+- **Frontend**: Next.js 15, TypeScript, Material-UI
+- **Backend**: Supabase (PostgreSQL, Realtime, Auth, Edge Functions)
+- **Chess Logic**: ban-chess.ts library (ONLY chess library used in this project)
+- **State Management**: Zustand
 - **Testing**: Playwright for E2E tests
 - **Animations**: Framer Motion
+
+### Important: Chess Library Usage
+This project uses **ban-chess.ts** exclusively for all chess logic. This is a custom library that implements both standard chess rules and the Ban Chess variant. Do NOT use chess.js, chess.ts, or any other chess library.
 
 ## Development
 

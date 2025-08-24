@@ -52,6 +52,15 @@ export class GameService {
 
   static async playAction(gameId: string, action: GameAction): Promise<void> {
     console.log('GameService.playAction called:', { gameId, action });
+    
+    // Debug: Check if we have a session before making the request
+    const { data: { session } } = await supabase.auth.getSession();
+    console.log('Current session before playAction:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      tokenPreview: session?.access_token ? session.access_token.substring(0, 30) + '...' : 'NO TOKEN'
+    });
+    
     const { data, error } = await invokeWithAuth('game-action', {
       body: { gameId, action }
     });

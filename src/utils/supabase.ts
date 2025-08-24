@@ -44,6 +44,15 @@ export const invokeWithAuth = async (
     }
   }
 
+  // Debug log before making the call
+  console.log('[invokeWithAuth] Making function call:', {
+    functionName,
+    hasSession: !!session,
+    userId: session.user?.id,
+    tokenPreview: session.access_token.substring(0, 30) + '...',
+    url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/${functionName}`
+  });
+
   // Make the function call
   const result = await supabase.functions.invoke(functionName, {
     ...params,

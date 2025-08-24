@@ -124,6 +124,7 @@ const Header = () => {
                 {profileUsername && (
                   <Fade in={mounted} timeout={1000}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <UserLink username={profileUsername} />
                     </Box>
                   </Fade>
                 )}
@@ -206,6 +207,7 @@ const Header = () => {
                 {profileUsername && (
                   <Fade in={mounted} timeout={1000}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <UserLink username={profileUsername} />
                     </Box>
                   </Fade>
                 )}

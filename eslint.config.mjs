@@ -14,11 +14,6 @@ export default [
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       // Tweak noisy rules
 'prefer-const': 'off',
-      'react/no-unescaped-entities': 'off',
-      'react-hooks/exhaustive-deps': 'warn',
-      '@next/next/no-img-element': 'off',
-      '@next/next/no-html-link-for-pages': 'off',
-      'import/no-anonymous-default-export': 'off',
     },
   },
   // Language options

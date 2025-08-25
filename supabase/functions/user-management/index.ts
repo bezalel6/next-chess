@@ -1,5 +1,5 @@
 /// <reference lib="deno.ns" />
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { handleAuthenticatedRequest, corsHeaders, initSupabaseAdmin } from "../_shared/auth-utils.ts";
 import { createLogger } from "../_shared/logger.ts";
 import { errorResponse, successResponse } from "../_shared/response-utils.ts";

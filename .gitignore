@@ -141,3 +141,6 @@ CONVO.txt
 
 # lsmcp cache
 .lsmcp/cache
+
+# Temporary database types copy (original is in _shared/)
+supabase/functions/database-types.ts

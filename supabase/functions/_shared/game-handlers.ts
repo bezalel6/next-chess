@@ -1,5 +1,5 @@
 /// <reference lib="deno.ns" />
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { BanChess } from "https://esm.sh/ban-chess.ts@1.1.1";
 import { handleMove } from "./move.ts";

@@ -31,7 +31,11 @@
     "functions:secrets:list": "supabase secrets list",
     "templates:push": "node scripts/push-email-templates.js",
     "templates:check": "node scripts/check-email-templates.js",
-    "config:push": "node scripts/push-remote-config.js"
+    "config:push": "node scripts/push-remote-config.js",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:headed": "playwright test --headed"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",
@@ -88,6 +92,7 @@
     "zustand": "^5.0.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/react": "^19.1.11",
     "@types/react-dom": "^19.1.7",
     "@types/ws": "^8.18.1",

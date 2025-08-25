@@ -303,6 +303,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clean up matchmaking queue before signing out
+    if (session) {
+      try {
+        const { MatchmakingService } = await import("../services/matchmakingService");
+        await MatchmakingService.leaveQueue(session);
+        console.log("[AuthContext] Left matchmaking queue before sign out");
+      } catch (error) {
+        console.error("[AuthContext] Failed to leave matchmaking queue:", error);
+      }
+    }
+
     const { error } = await supabaseBrowser().auth.signOut();
     if (error) throw error;
 

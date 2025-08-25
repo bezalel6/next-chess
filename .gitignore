@@ -142,5 +142,5 @@ CONVO.txt
 # lsmcp cache
 .lsmcp/cache
 
-# Temporary database types copy (original is in _shared/)
+# Generated database types for Edge Functions (created by npm run typegen)
 supabase/functions/database-types.ts

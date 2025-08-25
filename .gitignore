@@ -137,3 +137,4 @@ test-*.js
 !test-*.spec.js
 supabase/schema.sql
 build-output.txt
+CONVO.txt

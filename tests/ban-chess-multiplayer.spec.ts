@@ -1,4 +1,5 @@
-import { test, expect, BrowserContext, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 
 test.describe('Ban Chess Multiplayer', () => {
   let context1: BrowserContext;

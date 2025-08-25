@@ -138,3 +138,6 @@ test-*.js
 supabase/schema.sql
 build-output.txt
 CONVO.txt
+
+# lsmcp cache
+.lsmcp/cache

@@ -92,10 +92,12 @@
     "zustand": "^5.0.7"
   },
   "devDependencies": {
+    "@mizchi/lsmcp": "^0.10.0",
     "@playwright/test": "^1.55.0",
     "@types/react": "^19.1.11",
     "@types/react-dom": "^19.1.7",
     "@types/ws": "^8.18.1",
+    "@typescript/native-preview": "^7.0.0-dev.20250825.1",
     "concurrently": "^9.2.0",
     "esbuild": "^0.24.2",
     "prettier": "^3.2.5",

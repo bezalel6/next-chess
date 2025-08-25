@@ -75,7 +75,7 @@ const AuthForm = forwardRef<AuthFormHandle, AuthFormProps>(({ redirectOnSuccess 
           usernameSchema.parse(username);
         } catch (err) {
           if (err instanceof z.ZodError) {
-            setError(err.errors[0].message);
+            setError(err.errors[0]?.message ?? 'Invalid username');
             setIsLoading(false);
             return;
           }

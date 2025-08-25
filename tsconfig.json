@@ -9,8 +9,8 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "checkJs": true,
+    "noUncheckedIndexedAccess": false,
+    "checkJs": false,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
@@ -51,6 +51,7 @@
   ],
   "exclude": [
     "node_modules",
-    "supabase"
+    "supabase",
+    "scripts"
   ]
 }

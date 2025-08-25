@@ -25,12 +25,12 @@ export function toClientGame(server: Record<string, unknown>): Game {
     endReason: (g.endReason ?? g.end_reason ?? null) as string | null,
     // Add required Game properties with defaults
     engine: null as BanChess | null, // BanChess engine - will be set by the calling code
-    lastAction: null,
+    lastAction: null as any,
     startTime: Date.now(),
     lastMoveTime: Date.now(),
-    drawOfferedBy: null,
-    rematchOfferedBy: null,
-    parentGameId: null
+    drawOfferedBy: null as string | null,
+    rematchOfferedBy: null as string | null,
+    parentGameId: null as string | null
   };
   
   return { ...server, ...gameBase } as unknown as Game;

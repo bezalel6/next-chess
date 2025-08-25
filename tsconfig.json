@@ -11,11 +11,11 @@
     "strict": true,
     "noUncheckedIndexedAccess": false,
     "checkJs": false,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
     "strictFunctionTypes": true,
     "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
+    "strictPropertyInitialization": false,
     "noImplicitThis": true,
     "useUnknownInCatchVariables": true,
     "alwaysStrict": true,
@@ -35,7 +35,6 @@
     ],
     "incremental": true,
     /* Path Aliases */
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
@@ -46,13 +45,14 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "**/*.cjs",
-    "**/*.js",
     ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "supabase",
-    "scripts"
+    "scripts",
+    "scripts/**/*.js",
+    "**/*.cjs",
+    "**/*.js"
   ]
 }

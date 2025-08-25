@@ -1,5 +1,5 @@
 import { Filter } from 'bad-words';
-import { validate } from 'the-big-username-blacklist';
+import blacklist from 'the-big-username-blacklist';
 
 // Create a comprehensive username filter combining multiple strategies
 class UsernameFilter {
@@ -117,7 +117,7 @@ class UsernameFilter {
     }
     
     // Use the-big-username-blacklist for additional validation
-    if (!validate(normalizedUsername)) {
+    if (blacklist.includes(normalizedUsername)) {
       return {
         isValid: false,
         reason: 'Username is not allowed'

@@ -13,6 +13,7 @@ interface GameStore {
   
   // Actions - minimal
   loadGame: (gameId: string, gameData: GameData | string) => void;
+  updateGameFromBroadcast: (gameId: string, gameUpdate: Partial<GameData>, broadcastData?: unknown) => void;
   playAction: (action: { ban?: { from: string; to: string }, move?: { from: string; to: string; promotion?: string } }) => Promise<void>;
   reset: () => void;
 }
@@ -40,6 +41,28 @@ export const useUnifiedGameStore = create<GameStore>((set, get) => ({
     
     const engine = new BanChess(fen);
     set({ gameId, engine });
+  },
+  
+  updateGameFromBroadcast: (gameId, gameUpdate, broadcastData) => {
+    const currentGameId = get().gameId;
+    
+    // Only update if it's for the current game
+    if (currentGameId !== gameId) return;
+    
+    // Create new engine from broadcast FEN
+    if (gameUpdate.current_fen) {
+      const engine = new BanChess(gameUpdate.current_fen);
+      set({ engine });
+      
+      // Log the update for debugging
+      console.log('[Store] Updated game from broadcast:', {
+        gameId,
+        fen: gameUpdate.current_fen,
+        status: gameUpdate.status,
+        turn: gameUpdate.turn,
+        broadcastData
+      });
+    }
   },
   
   playAction: async (action) => {

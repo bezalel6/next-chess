@@ -142,15 +142,15 @@ serve(async (req) => {
     // Save the new state
     const newFen = engine.fen();
     const nextAction = engine.nextActionType();
-    const newTurn = engine.turn; // turn is a property in ban-chess.ts, not a method
+    const newTurn = engine.turn; // turn is a property in ban-chess.ts, returns 'white' | 'black'
     
     const { error: updateError } = await supabaseClient
       .from('games')
       .update({
         current_fen: newFen,
         ban_chess_state: nextAction === 'ban' ? 'waiting_for_ban' : 'waiting_for_move',
-        turn: newTurn === 'w' ? 'white' : 'black',
-        banning_player: nextAction === 'ban' ? (newTurn === 'w' ? 'white' : 'black') : null,
+        turn: newTurn,
+        banning_player: nextAction === 'ban' ? newTurn : null,
         status: engine.gameOver() ? 'completed' : 'active',
         winner: engine.gameOver() ? getWinner(engine) : null,
         updated_at: new Date().toISOString(),
@@ -179,20 +179,56 @@ serve(async (req) => {
         ply: ply,
       });
 
-    // Broadcast update via realtime
+    // Broadcast complete game state via realtime for live synchronization
+    console.log('[game-action] Preparing to broadcast update for game:', gameId);
     const channel = supabaseClient.channel(`game:${gameId}`);
-    await channel.send({
+    
+    // Subscribe the channel first
+    await channel.subscribe();
+    console.log('[game-action] Channel subscribed, sending broadcast...');
+    
+    const broadcastResult = await channel.send({
       type: 'broadcast',
       event: 'game_update',
       payload: {
+        // Complete game state for live clients
+        id: gameId,
         current_fen: newFen,
         ban_chess_state: nextAction === 'ban' ? 'waiting_for_ban' : 'waiting_for_move',
-        lastAction: { type: actionType, ...actionData },
-        nextActionType: nextAction,
         turn: newTurn,
+        banning_player: nextAction === 'ban' ? newTurn : null,
+        status: engine.gameOver() ? 'completed' : 'active',
+        winner: engine.gameOver() ? getWinner(engine) : null,
+        
+        // Action details for immediate UI feedback
+        lastAction: {
+          type: actionType,
+          playerId: user.id,
+          playerColor,
+          ...actionData,
+          timestamp: new Date().toISOString()
+        },
+        
+        // Engine state for client-side validation
+        history: engine.history(),
+        legalMoves: !engine.gameOver() ? engine.legalMoves() : [],
+        nextActionType: nextAction,
         gameOver: engine.gameOver(),
+        result: engine.gameOver() ? getWinner(engine) : null,
+        
+        // Players info
+        white_player_id: game.white_player_id,
+        black_player_id: game.black_player_id,
+        white_player: game.white_player,
+        black_player: game.black_player,
       }
     });
+    
+    console.log('[game-action] Broadcast result:', broadcastResult);
+    
+    // Clean up the channel
+    await supabaseClient.removeChannel(channel);
+    console.log('[game-action] Channel cleaned up');
 
     return new Response(
       JSON.stringify({ 
@@ -226,9 +262,18 @@ serve(async (req) => {
 
 function getWinner(engine: BanChess): string | null {
   if (!engine.gameOver()) return null;
-  const result = engine.result();
-  if (result === '1-0') return 'white';
-  if (result === '0-1') return 'black';
-  if (result === '1/2-1/2') return 'draw';
-  return null;
+  
+  // Check for checkmate
+  if (engine.inCheckmate()) {
+    // If it's white's turn and they're in checkmate, black wins
+    return engine.turn === 'white' ? 'black' : 'white';
+  }
+  
+  // Check for stalemate (draw)
+  if (engine.inStalemate()) {
+    return 'draw';
+  }
+  
+  // Other game over conditions are draws
+  return 'draw';
 }

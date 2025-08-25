@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
 import { GameService } from '@/services/gameService';
@@ -25,7 +25,11 @@ interface GameMatchPayload {
   };
 }
 
-export default function Matchmaking() {
+export interface MatchmakingHandle {
+  triggerFindMatch: () => Promise<void>;
+}
+
+const Matchmaking = forwardRef<MatchmakingHandle>((props, ref) => {
   const [searching, setSearching] = useState(false);
   const [timeInQueue, setTimeInQueue] = useState(0);
   const [error, setError] = useState<{ message: string; gameId?: string } | null>(null);
@@ -170,6 +174,11 @@ export default function Matchmaking() {
     }
   };
   
+  // Expose find match method to parent components
+  useImperativeHandle(ref, () => ({
+    triggerFindMatch: handleFindGame
+  }));
+
   const handleResignActiveGame = async () => {
     if (!error?.gameId) return;
     
@@ -350,4 +359,8 @@ export default function Matchmaking() {
       </Button>
     </Paper>
   );
-}
+});
+
+Matchmaking.displayName = 'Matchmaking';
+
+export default Matchmaking;

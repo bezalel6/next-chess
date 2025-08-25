@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import {
   Box,
   Paper,
@@ -29,7 +29,11 @@ export type AuthFormProps = {
   onModeChange?: (newMode: 'login' | 'signup') => void;
 };
 
-export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onModeChange }: AuthFormProps) {
+export interface AuthFormHandle {
+  triggerGuestSignIn: () => Promise<void>;
+}
+
+const AuthForm = forwardRef<AuthFormHandle, AuthFormProps>(({ redirectOnSuccess = true, mode = 'login', onModeChange }, ref) => {
   const {
     signIn,
     signUp,
@@ -111,6 +115,11 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
       setIsLoading(false);
     }
   };
+
+  // Expose guest sign-in method to parent components
+  useImperativeHandle(ref, () => ({
+    triggerGuestSignIn: handleGuestSignIn
+  }));
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -353,4 +362,8 @@ export default function AuthForm({ redirectOnSuccess = true, mode = 'login', onM
       </Paper>
     </Box>
   );
-}
+});
+
+AuthForm.displayName = 'AuthForm';
+
+export default AuthForm;

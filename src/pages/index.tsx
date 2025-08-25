@@ -1,17 +1,21 @@
 import Head from "next/head";
-import AuthForm from "@/components/auth-form";
+import AuthForm, { type AuthFormHandle } from "@/components/auth-form";
 import MinimalNewsFeed from "@/components/MinimalNewsFeed";
 import DraggableNewsFeed from "@/components/DraggableNewsFeed";
-import Matchmaking from "@/components/Matchmaking";
-import { Box, Container, Typography, Fade, Paper, Button } from "@mui/material";
+import Matchmaking, { type MatchmakingHandle } from "@/components/Matchmaking";
+import { Box, Container, Typography, Fade, Paper, Button, Snackbar, Alert } from "@mui/material";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [automationStatus, setAutomationStatus] = useState<string | null>(null);
+  const [isAutomating, setIsAutomating] = useState(false);
+  const authFormRef = useRef<AuthFormHandle>(null);
+  const matchmakingRef = useRef<MatchmakingHandle>(null);
   
   // Enable draggable news feed with ?news=drag query param
   const isDraggable = router.query.news === 'drag';
@@ -19,6 +23,65 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Development-only keyboard shortcut for test automation
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+
+    const handleKeyPress = async (e: KeyboardEvent) => {
+      // Alt+Shift+Q (Quick test) - doesn't conflict with browser shortcuts
+      if (e.altKey && e.shiftKey && (e.key === 'Q' || e.key === 'q')) {
+        e.preventDefault();
+        
+        if (isAutomating) return;
+        setIsAutomating(true);
+        
+        try {
+          // Step 1: Sign out if logged in
+          if (user) {
+            setAutomationStatus('Signing out...');
+            await signOut();
+            // Wait for auth state to update
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          
+          // Step 2: Sign in as guest
+          setAutomationStatus('Signing in as guest...');
+          if (authFormRef.current) {
+            await authFormRef.current.triggerGuestSignIn();
+            // Wait just a bit for auth state to propagate
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+          
+          // Step 3: Join matchmaking queue
+          setAutomationStatus('Joining matchmaking queue...');
+          // Try to find match immediately, with retries if component not ready
+          let retries = 0;
+          while (!matchmakingRef.current && retries < 10) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retries++;
+          }
+          
+          if (matchmakingRef.current) {
+            await matchmakingRef.current.triggerFindMatch();
+            setAutomationStatus('In queue - waiting for match...');
+          }
+          
+          // Clear status after a few seconds
+          setTimeout(() => setAutomationStatus(null), 3000);
+        } catch (error) {
+          console.error('Test automation failed:', error);
+          setAutomationStatus('Automation failed');
+          setTimeout(() => setAutomationStatus(null), 3000);
+        } finally {
+          setIsAutomating(false);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [user, signOut, isAutomating]);
 
   return (
     <>
@@ -145,7 +208,7 @@ export default function Home() {
                     </Typography>
                   </Paper>
                 ) : user ? (
-                  <Matchmaking />
+                  <Matchmaking ref={matchmakingRef} />
                 ) : (
                   <Box sx={{ width: "100%" }}>
                     <Paper
@@ -169,7 +232,7 @@ export default function Home() {
                       >
                         Sign in to Play
                       </Typography>
-                      <AuthForm redirectOnSuccess={false} />
+                      <AuthForm ref={authFormRef} redirectOnSuccess={false} />
                       
                       <Box sx={{ 
                         mt: 3, 
@@ -202,6 +265,18 @@ export default function Home() {
 
       {/* Draggable News Feed - Rendered outside the main layout */}
       {user && isDraggable && mounted && <DraggableNewsFeed />}
+      
+      {/* Test automation status indicator (dev only) */}
+      {process.env.NODE_ENV === 'development' && (
+        <Snackbar
+          open={!!automationStatus}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert severity="info" sx={{ width: '100%' }}>
+            Test Mode: {automationStatus}
+          </Alert>
+        </Snackbar>
+      )}
     </>
   );
 }

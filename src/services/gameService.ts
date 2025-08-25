@@ -3,6 +3,7 @@ import type { PlayerColor } from "@/types/game";
 import type { ChatMessage, ChatMessageType } from "@/types/chat";
 import { BanChess } from "ban-chess.ts";
 import type { Tables } from "@/types/database";
+import { ReliableChannel, MessageDeduplicator } from "@/utils/realtime-reliability";
 
 export interface GameAction {
   move?: { from: string; to: string; promotion?: string };
@@ -48,6 +49,31 @@ export class GameService {
 
     if (error) throw error;
     return data;
+  }
+  
+  // Load completed game with full move history for replay
+  static async loadCompletedGame(gameId: string): Promise<{ game: GameData; moves: unknown[] }> {
+    const [gameResult, movesResult] = await Promise.all([
+      supabase
+        .from('games')
+        .select('*')
+        .eq('id', gameId)
+        .eq('status', 'completed')
+        .single(),
+      supabase
+        .from('game_moves')
+        .select('*')
+        .eq('game_id', gameId)
+        .order('ply', { ascending: true })
+    ]);
+
+    if (gameResult.error) throw gameResult.error;
+    if (movesResult.error) throw movesResult.error;
+    
+    return {
+      game: gameResult.data,
+      moves: movesResult.data || []
+    };
   }
 
   static async playAction(gameId: string, action: GameAction): Promise<void> {
@@ -152,24 +178,44 @@ export class GameService {
   }
 
   static subscribeToGame(gameId: string, onUpdate: (payload: Record<string, unknown>) => void) {
+    const deduplicator = new MessageDeduplicator();
+    
+    console.log('[GameService] Setting up subscription for game:', gameId);
+    
     const channel = supabase
       .channel(`game:${gameId}`)
       .on('broadcast', { event: 'game_update' }, ({ payload }) => {
+        console.log('[GameService] Broadcast received for game:', gameId, payload);
+        
+        // Deduplicate messages
+        const messageId = MessageDeduplicator.generateId(payload);
+        if (deduplicator.isDuplicate(messageId)) {
+          console.log('[GameService] Duplicate message ignored:', messageId);
+          return;
+        }
+        
+        // Update last message time for heartbeat
+        if (reliableChannel) {
+          reliableChannel.updateLastMessageTime();
+        }
+        
+        // Live games rely solely on broadcast messages
+        console.log('[GameService] Calling onUpdate with payload');
         onUpdate(payload);
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'games',
-        filter: `id=eq.${gameId}`,
-      }, async () => {
-        // Refetch game data on database changes
-        const game = await GameService.loadGame(gameId);
-        onUpdate({ type: 'db_update', game });
-      })
-      .subscribe();
+      });
+    
+    // Wrap in reliable channel for automatic reconnection
+    const reliableChannel = new ReliableChannel(channel, {
+      onConnect: () => console.log(`[GameService] Connected to game ${gameId}`),
+      onDisconnect: () => console.warn(`[GameService] Disconnected from game ${gameId}`),
+      onError: (error) => console.error(`[GameService] Channel error for game ${gameId}:`, error),
+      maxReconnectAttempts: 10,
+      reconnectDelay: 1000,
+      heartbeatInterval: 30000
+    });
 
     return () => {
+      reliableChannel.cleanup();
       supabase.removeChannel(channel);
     };
   }

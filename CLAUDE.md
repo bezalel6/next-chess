@@ -75,6 +75,21 @@ npm run dev  # Uses local Supabase by default (localhost:54321)
 npm run dev:remote  # Uses remote Supabase project
 ```
 
+### Testing Multiplayer Games
+**IMPORTANT**: Browser tabs in the same browser share authentication sessions via localStorage/cookies. To test multiplayer:
+- Use different browsers (Chrome + Firefox)
+- Use normal + incognito/private windows  
+- Use different browser profiles
+- **NOT** multiple tabs in the same browser window
+
+### Quick Test Flow (Development Only)
+Press `Alt+Shift+Q` on the homepage to:
+1. Sign out any existing session
+2. Sign in as guest automatically
+3. Join matchmaking queue
+
+This shortcut only works in development mode (`NODE_ENV=development`).
+
 Notes:
 - Use npm for all scripts (bun not supported)
 - Local development uses Supabase on localhost:54321

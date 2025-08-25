@@ -39,7 +39,7 @@ export const useUnifiedGameStore = create<GameStore>((set, get) => ({
       fen = gameData.current_fen;
     }
     
-    const engine = new BanChess(fen);
+    const engine = new BanChess(fen ?? undefined);
     set({ gameId, engine });
   },
   
